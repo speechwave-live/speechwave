@@ -72,7 +72,28 @@ AuthThrottle.allow_ip?(ip) :: boolean
   rapid requests keeps pushing the "earliest next allowed" time forward —
   the caller must go quiet for the full (escalated) cooldown before getting
   through. `violation_count` doesn't drive the cooldown math; it's carried
-  for the log line so repeated-violation patterns are visible in logs.
+  for the log line so repeated-violation patterns are visible in logs. This
+  should be documented in `AuthThrottle`'s moduledoc/typespec too, so a
+  future maintainer doesn't assume `violation_count` gates behavior.
+
+  **Worked example** (single IP, no existing ETS entry):
+
+  | Call | Time since last call | Result  | `cooldown_ms` after | `violation_count` after |
+  |------|-----------------------|---------|----------------------|---------------------------|
+  | 1    | n/a (no entry yet)    | `true`  | 30,000               | 0                         |
+  | 2    | 5s later              | `false` | 60,000               | 1                         |
+  | 3    | 5s later              | `false` | 120,000              | 2                         |
+  | 4    | 125s later            | `true`  | 30,000               | 0                         |
+
+  Call 1 has no prior entry, so it's treated as allowed (matching
+  `RateLimiter.allow?/1`'s behavior for an unseen key) and seeds the table
+  with the base cooldown. Call 4's gap (125s) exceeds the cooldown in effect
+  at that point (120,000ms), so it's allowed and the state resets to base.
+
+  Internally, `allow_ip?/1` should factor this update logic into a small
+  private helper (e.g. `bump_cooldown/2`) rather than inlining the arithmetic
+  in the lookup/insert branch — keeps the escalation math readable and
+  separate from the ETS mechanics.
 
 ### Limitations
 
@@ -121,10 +142,21 @@ real client, so the IP must come from forwarded headers instead.
 1. Normalize the submitted email (`String.trim/1` + `String.downcase/1`) —
    matches the changeset's normalization, done here so the throttle key is
    consistent regardless of changeset validity.
-2. If `ip` is present, call `AuthThrottle.allow_ip?(ip)`. If `false`, log and
-   skip to step 5.
-3. Call `AuthThrottle.allow_email?(email)`. If `false`, log and skip to step 5.
-4. Otherwise, proceed exactly as today:
+2. **IP check** — branches on whether `ip` (assigned in `mount/3`) is present:
+   - `ip == nil` (local dev, misconfigured headers, or any environment
+     without the expected forwarded-IP headers — including test conns,
+     which carry none of these headers by default): skip this check
+     entirely, log at `:info` (see "Logging on throttle"), and continue to
+     step 3. This fail-open path relies on the email cooldown alone, and is
+     logged so a header-configuration regression in production is visible
+     without breaking signups.
+   - `ip != nil` and `AuthThrottle.allow_ip?(ip)` returns `false`: throttled —
+     log a `:warning` and skip to step 5.
+   - `ip != nil` and `allow_ip?(ip)` returns `true`: continue to step 3.
+3. **Email check** — call `AuthThrottle.allow_email?(email)`. If `false`,
+   throttled — log a `:warning` and skip to step 5. If `true`, continue to
+   step 4.
+4. Proceed exactly as today:
    `register_or_get_user_by_email/1` + `deliver_login_instructions/2`.
 5. Always `assign(socket, link_sent: true, submitted_email: email)` —
    identical response whether throttled or not. This matches the existing
@@ -137,13 +169,6 @@ real client, so the IP must come from forwarded headers instead.
    lowercase even if the user typed mixed case. This is a minor, intentional
    change from current behavior (which echoes back the raw input) — it
    matches how the address is actually stored and used.
-
-### Fail-open for missing IP
-
-If `RemoteIp.from/2` returns `nil` (local dev, misconfigured headers, or any
-environment without the expected forwarded-IP headers), skip the IP check
-entirely and rely on the email cooldown alone. This is logged at `:info` so a
-header-configuration regression is visible without breaking signups.
 
 ### Logging on throttle
 
@@ -166,6 +191,11 @@ pattern (`Application.get_env`):
 - `config/config.exs`: `config :speechwave, :auth_throttle_enabled, true`
 - `config/test.exs`: `config :speechwave, :auth_throttle_enabled, false`
 
+The `config/test.exs` entry should include a comment pointing back to this
+spec (and the integration test in `login_test.exs`) so a future reader
+doesn't remove the flag without realizing `AuthThrottle`'s wiring depends on
+it for coverage.
+
 `UserLive.Login` checks this flag and skips both throttle calls entirely when
 disabled. This means **no existing tests need to change** — `login_test.exs`
 continues to exercise the full registration/email-delivery path exactly as it
@@ -186,16 +216,28 @@ existing and future LiveView tests.
 
 - **`test/speechwave/auth_throttle_test.exs`** (new, `async: false`, mirrors
   `test/speechwave/rate_limiter_test.exs`): clears both ETS tables in
-  `setup`, and directly tests `allow_email?/1` and `allow_ip?/1` — including
-  the escalating/doubling/cap/reset behavior of the IP cooldown via backdated
-  ETS timestamps. Runs independent of the config flag, so the throttle logic
-  itself is fully covered regardless of environment.
+  `setup`, and directly tests `allow_email?/1` and `allow_ip?/1`, covering:
+  - first call for an unseen email/IP returns `true` (matches
+    `RateLimiter`'s "allows first reaction from a session" case)
+  - the email cooldown blocks a second call within 60s and allows one after
+    (via a backdated timestamp), with no escalation
+  - the IP escalation sequence from the "Worked example" table above (calls
+    2–4: doubling on consecutive violations, then reset on the call that
+    clears the cooldown)
+  - the IP cooldown cap: seed `cooldown_ms: 1_800_000` (already at cap)
+    before a violation, and confirm it stays at 1,800,000 rather than
+    doubling further
+  Runs independent of the config flag, so the throttle logic itself is fully
+  covered regardless of environment.
 - **One integration test** in `login_test.exs` (`async: false`, isolated
   `describe` block): temporarily sets `auth_throttle_enabled: true` via
   `Application.put_env/3` with an `on_exit` revert, submits the same email
   twice in quick succession, and asserts only one `UserToken` is created.
-  This confirms the LiveView actually calls `AuthThrottle` when enabled —
-  proving the wiring, not just the flag's existence.
+  Since the test conn carries no forwarded-IP headers, `ip` is `nil` and this
+  exercises the fail-open branch (step 2's first bullet) followed by the
+  email-cooldown branch (step 3) — confirming the LiveView actually calls
+  `AuthThrottle` when enabled, not just that the flag exists. IP-throttling
+  itself is covered by the unit tests above, not this integration test.
 
 ---
 
