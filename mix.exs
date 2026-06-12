@@ -89,6 +89,7 @@ defmodule Speechwave.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.migrate --quiet", "test"],
       lint: ["credo --strict --all"],
+      serve: ["phx.server"],
       static: ["dialyzer"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind speechwave", "esbuild speechwave"],
