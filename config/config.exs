@@ -44,6 +44,10 @@ config :speechwave, SpeechwaveWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :speechwave, Speechwave.Mailer, adapter: Swoosh.Adapters.Local
 
+# Throttles UserLive.Login's magic-link submissions by email and client IP.
+# See docs/specs/2026-06-11-magic-link-auth-throttle-design.md.
+config :speechwave, :auth_throttle_enabled, true
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
@@ -68,7 +72,7 @@ config :tailwind,
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [:request_id, :ip, :cooldown_ms, :violation_count, :email_domain]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

@@ -21,6 +21,15 @@ config :speechwave, SpeechwaveWeb.Endpoint,
 # In test we don't send emails
 config :speechwave, Speechwave.Mailer, adapter: Swoosh.Adapters.Test
 
+# AuthThrottle's ETS-backed cooldowns are wall-clock and global (BEAM-wide),
+# which would make login_test.exs's async, repeated-email submissions
+# flaky. AuthThrottle itself is covered directly by
+# test/speechwave/auth_throttle_test.exs, and
+# test/speechwave_web/live/user_live/login_auth_throttle_test.exs
+# temporarily re-enables this flag to test the UserLive.Login wiring.
+# See docs/specs/2026-06-11-magic-link-auth-throttle-design.md.
+config :speechwave, :auth_throttle_enabled, false
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 
