@@ -2,6 +2,9 @@ defmodule SpeechwaveWeb.UserLive.Login do
   use SpeechwaveWeb, :live_view
 
   alias Speechwave.Accounts
+  alias Speechwave.AuthThrottle
+
+  require Logger
 
   @impl true
   def render(assigns) do
@@ -159,12 +162,12 @@ defmodule SpeechwaveWeb.UserLive.Login do
 
   @impl true
   def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
-    case Accounts.register_or_get_user_by_email(email) do
-      {:ok, user} ->
-        Accounts.deliver_login_instructions(user, &url(~p"/users/magic_link/#{&1}"))
+    email = email |> String.trim() |> String.downcase()
 
-      {:error, _} ->
-        nil
+    if auth_throttle_enabled?() do
+      maybe_send_magic_link(socket.assigns.client_ip, email)
+    else
+      send_magic_link(email)
     end
 
     {:noreply, assign(socket, link_sent: true, submitted_email: email)}
@@ -185,4 +188,36 @@ defmodule SpeechwaveWeb.UserLive.Login do
 
   defp format_ip(nil), do: nil
   defp format_ip(ip), do: ip |> :inet.ntoa() |> to_string()
+
+  defp maybe_send_magic_link(ip, email) do
+    cond do
+      is_nil(ip) ->
+        Logger.info("auth_throttle: missing client ip, skipping ip check")
+        send_if_email_allowed(email)
+
+      not AuthThrottle.allow_ip?(ip) ->
+        :ok
+
+      true ->
+        send_if_email_allowed(email)
+    end
+  end
+
+  defp send_if_email_allowed(email) do
+    if AuthThrottle.allow_email?(email), do: send_magic_link(email)
+  end
+
+  defp send_magic_link(email) do
+    case Accounts.register_or_get_user_by_email(email) do
+      {:ok, user} ->
+        Accounts.deliver_login_instructions(user, &url(~p"/users/magic_link/#{&1}"))
+
+      {:error, _} ->
+        nil
+    end
+  end
+
+  defp auth_throttle_enabled? do
+    Application.get_env(:speechwave, :auth_throttle_enabled, true)
+  end
 end
