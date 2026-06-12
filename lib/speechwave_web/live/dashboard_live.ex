@@ -22,7 +22,8 @@ defmodule SpeechwaveWeb.DashboardLive do
        rename_form: nil,
        full_session_count: Talks.count_full_sessions_this_month(scope),
        session_limit: Plans.limit(:full_sessions_per_month, user.plan),
-       participant_limit: Plans.limit(:max_participants, user.plan)
+       participant_limit: Plans.limit(:max_participants, user.plan),
+       qr_cache: %{}
      )}
   end
 
@@ -67,21 +68,28 @@ defmodule SpeechwaveWeb.DashboardLive do
   end
 
   def handle_event("show_qr", %{"id" => id}, socket) do
-    scope = socket.assigns.current_scope
-    talk = Talks.get_talk!(scope, String.to_integer(id))
-    url = talk_url(talk)
-    qr = Speechwave.QRCode.to_data_uri(url)
-    sessions = Talks.list_sessions(talk.id)
+    talk = Enum.find(socket.assigns.talks, &(&1.id == String.to_integer(id)))
 
-    {:noreply,
-     assign(socket,
-       selected_talk: talk,
-       selected_talk_url: url,
-       selected_qr_data_uri: qr,
-       sessions: sessions,
-       renaming_session_id: nil,
-       rename_form: nil
-     )}
+    case talk do
+      nil ->
+        {:noreply, socket}
+
+      talk ->
+        url = talk_url(talk)
+        {qr, qr_cache} = Speechwave.QRCode.cached_data_uri(socket.assigns.qr_cache, url)
+        sessions = Talks.list_sessions(talk.id)
+
+        {:noreply,
+         assign(socket,
+           selected_talk: talk,
+           selected_talk_url: url,
+           selected_qr_data_uri: qr,
+           qr_cache: qr_cache,
+           sessions: sessions,
+           renaming_session_id: nil,
+           rename_form: nil
+         )}
+    end
   end
 
   def handle_event("delete_talk", %{"id" => id}, socket) do

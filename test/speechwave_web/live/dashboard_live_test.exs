@@ -82,6 +82,14 @@ defmodule SpeechwaveWeb.DashboardLiveTest do
     assert has_element?(view, "#selected-talk-qr")
   end
 
+  test "show_qr for an id not in the user's talk list is a no-op", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/dashboard")
+
+    render_click(view, "show_qr", %{"id" => "999999"})
+
+    refute has_element?(view, "#selected-talk-qr")
+  end
+
   test "trashcan button appears next to selected talk", %{conn: conn, user: user} do
     talk = talk_fixture(user, %{title: "Prime Talk", slug: "prime"})
     {:ok, view, _html} = live(conn, "/dashboard")
