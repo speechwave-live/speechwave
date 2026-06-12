@@ -58,6 +58,39 @@ defmodule Speechwave.AuthThrottle do
     end
   end
 
+  @doc """
+  Returns `true` if a magic-link request from `ip` is allowed, `false` if
+  `ip` is still within its cooldown window. Every call updates `last_at`;
+  a violation doubles the cooldown (capped at 30 minutes) and increments
+  `violation_count`, while an allowed request resets both to their base
+  values.
+  """
+  def allow_ip?(ip) when is_binary(ip) do
+    now = System.monotonic_time(:millisecond)
+
+    case :ets.lookup(@ip_table, ip) do
+      [{^ip, last_at, cooldown_ms, violation_count}] when now - last_at < cooldown_ms ->
+        {new_cooldown_ms, new_violation_count} = bump_cooldown(cooldown_ms, violation_count)
+        :ets.insert(@ip_table, {ip, now, new_cooldown_ms, new_violation_count})
+
+        Logger.warning("auth_throttle: ip cooldown",
+          ip: ip,
+          cooldown_ms: new_cooldown_ms,
+          violation_count: new_violation_count
+        )
+
+        false
+
+      _ ->
+        :ets.insert(@ip_table, {ip, now, @ip_base_cooldown_ms, 0})
+        true
+    end
+  end
+
+  defp bump_cooldown(cooldown_ms, violation_count) do
+    {min(cooldown_ms * 2, @ip_max_cooldown_ms), violation_count + 1}
+  end
+
   defp email_domain(email) do
     case String.split(email, "@") do
       [_local, domain] -> domain
