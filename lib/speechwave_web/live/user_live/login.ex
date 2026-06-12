@@ -146,7 +146,15 @@ defmodule SpeechwaveWeb.UserLive.Login do
   @impl true
   def mount(_params, _session, socket) do
     form = to_form(%{"email" => ""}, as: "user")
-    {:ok, assign(socket, form: form, link_sent: false, submitted_email: nil)}
+
+    ip =
+      socket
+      |> get_connect_info(:x_headers)
+      |> List.wrap()
+      |> RemoteIp.from()
+      |> format_ip()
+
+    {:ok, assign(socket, form: form, link_sent: false, submitted_email: nil, client_ip: ip)}
   end
 
   @impl true
@@ -174,4 +182,7 @@ defmodule SpeechwaveWeb.UserLive.Login do
   defp any_oauth_provider_configured? do
     Enum.any?([:google, :microsoft, :github], &oauth_provider_configured?/1)
   end
+
+  defp format_ip(nil), do: nil
+  defp format_ip(ip), do: ip |> :inet.ntoa() |> to_string()
 end
