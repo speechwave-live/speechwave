@@ -378,7 +378,32 @@ add:
 config :speechwave, :auth_throttle_enabled, true
 ```
 
-- [ ] **Step 2: Disable it in test**
+- [ ] **Step 2: Make `AuthThrottle`'s log metadata visible in output**
+
+`AuthThrottle.allow_email?/1` and `allow_ip?/1` (Tasks 2-3) call
+`Logger.warning/2` with extra metadata (`ip:`, `cooldown_ms:`,
+`violation_count:`, `email_domain:`). The default formatter's `metadata:`
+option is an *allowlist* — keys not listed are silently dropped from
+formatted output. Currently only `:request_id` is listed, so none of
+`AuthThrottle`'s violation details would actually appear in logs.
+
+In `config/config.exs`, change:
+
+```elixir
+config :logger, :default_formatter,
+  format: "$time $metadata[$level] $message\n",
+  metadata: [:request_id]
+```
+
+to:
+
+```elixir
+config :logger, :default_formatter,
+  format: "$time $metadata[$level] $message\n",
+  metadata: [:request_id, :ip, :cooldown_ms, :violation_count, :email_domain]
+```
+
+- [ ] **Step 3: Disable AuthThrottle in test**
 
 In `config/test.exs`, after the mailer config block:
 
@@ -400,11 +425,11 @@ add:
 config :speechwave, :auth_throttle_enabled, false
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add config/config.exs config/test.exs
-git commit -m "chore: add auth_throttle_enabled config flag"
+git commit -m "chore: add auth_throttle_enabled config flag and log metadata"
 ```
 
 ---
@@ -523,6 +548,10 @@ defmodule SpeechwaveWeb.UserLive.LoginAuthThrottleTest do
     :ok
   end
 
+  # Test conns never carry forwarded-IP headers, so `client_ip` is always
+  # `nil` here, exercising only the `is_nil(ip)` branch of
+  # `maybe_send_magic_link/2` (the email-cooldown path). The IP-cooldown
+  # branches are covered directly by test/speechwave/auth_throttle_test.exs.
   test "throttles a second magic-link submission for the same email", %{conn: conn} do
     email = "throttle-test@example.com"
 
@@ -614,17 +643,18 @@ Then add these private helpers, alongside the other `defp` helpers at the bottom
     cond do
       is_nil(ip) ->
         Logger.info("auth_throttle: missing client ip, skipping ip check")
-        if AuthThrottle.allow_email?(email), do: send_magic_link(email)
+        send_if_email_allowed(email)
 
       not AuthThrottle.allow_ip?(ip) ->
         :ok
 
-      AuthThrottle.allow_email?(email) ->
-        send_magic_link(email)
-
       true ->
-        :ok
+        send_if_email_allowed(email)
     end
+  end
+
+  defp send_if_email_allowed(email) do
+    if AuthThrottle.allow_email?(email), do: send_magic_link(email)
   end
 
   defp send_magic_link(email) do
@@ -642,7 +672,7 @@ Then add these private helpers, alongside the other `defp` helpers at the bottom
   end
 ```
 
-This implements the design doc's flow: when `client_ip` is `nil` (no forwarded-IP headers, including all test conns), the IP check is skipped (logged at `:info`) and only the email cooldown applies; when `client_ip` is present, the IP cooldown is checked first and an IP violation skips the email check entirely; an email violation is checked only if the IP check passed (or was skipped). In every case the LiveView assigns `link_sent: true, submitted_email: email` so the UI is identical regardless of outcome. Note `submitted_email` is now always the normalized (trimmed/downcased) form.
+This implements the design doc's flow: when `client_ip` is `nil` (no forwarded-IP headers, including all test conns), the IP check is skipped (logged at `:info`) and only the email cooldown applies via `send_if_email_allowed/1`; when `client_ip` is present, the IP cooldown is checked first and an IP violation skips the email check entirely (`:ok`, second branch); otherwise the email cooldown is checked via the same `send_if_email_allowed/1` (third branch). In every case the LiveView assigns `link_sent: true, submitted_email: email` so the UI is identical regardless of outcome. Note `submitted_email` is now always the normalized (trimmed/downcased) form.
 
 - [ ] **Step 4: Run the integration test to verify it passes**
 
