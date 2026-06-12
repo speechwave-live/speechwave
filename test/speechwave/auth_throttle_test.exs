@@ -3,6 +3,8 @@ defmodule Speechwave.AuthThrottleTest do
 
   alias Speechwave.AuthThrottle
 
+  @moduletag :capture_log
+
   setup do
     :ets.delete_all_objects(:auth_throttle_email)
     :ets.delete_all_objects(:auth_throttle_ip)
