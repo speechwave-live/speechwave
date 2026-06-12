@@ -43,6 +43,20 @@ defmodule SpeechwaveWeb.DashboardLiveTest do
     assert has_element?(view, "#selected-talk-qr")
   end
 
+  test "selected talk panel shows a copyable link and QR download link", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/dashboard")
+
+    view
+    |> form("#talk-form", talk: %{title: "Elixir for Rubyists", slug: "elixir-for-rubyists"})
+    |> render_submit()
+
+    html = render(view)
+    assert html =~ "/t/elixir-for-rubyists"
+    assert has_element?(view, "#talk-link[href$='/t/elixir-for-rubyists']")
+    assert has_element?(view, "#copy-talk-link[data-clipboard-text$='/t/elixir-for-rubyists']")
+    assert has_element?(view, "#download-qr-code[download='elixir-for-rubyists-qr-code.png']")
+  end
+
   test "shows validation errors for blank fields", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/dashboard")
     view |> form("#talk-form", talk: %{title: "", slug: ""}) |> render_submit()

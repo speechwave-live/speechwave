@@ -15,6 +15,7 @@ defmodule SpeechwaveWeb.DashboardLive do
        form: to_form(Talk.changeset(%Talk{}, %{})),
        created_talk: nil,
        selected_talk: nil,
+       selected_talk_url: nil,
        selected_qr_data_uri: nil,
        sessions: [],
        renaming_session_id: nil,
@@ -44,7 +45,7 @@ defmodule SpeechwaveWeb.DashboardLive do
 
     case Talks.create_talk(scope, attrs) do
       {:ok, talk} ->
-        url = SpeechwaveWeb.Endpoint.url() <> "/t/#{talk.slug}"
+        url = talk_url(talk)
         qr = Speechwave.QRCode.to_data_uri(url)
 
         {:noreply,
@@ -53,6 +54,7 @@ defmodule SpeechwaveWeb.DashboardLive do
            talks: Talks.list_talks(scope),
            form: to_form(Talk.changeset(%Talk{}, %{})),
            selected_talk: talk,
+           selected_talk_url: url,
            selected_qr_data_uri: qr,
            sessions: [],
            renaming_session_id: nil,
@@ -67,13 +69,14 @@ defmodule SpeechwaveWeb.DashboardLive do
   def handle_event("show_qr", %{"id" => id}, socket) do
     scope = socket.assigns.current_scope
     talk = Talks.get_talk!(scope, String.to_integer(id))
-    url = SpeechwaveWeb.Endpoint.url() <> "/t/#{talk.slug}"
+    url = talk_url(talk)
     qr = Speechwave.QRCode.to_data_uri(url)
     sessions = Talks.list_sessions(talk.id)
 
     {:noreply,
      assign(socket,
        selected_talk: talk,
+       selected_talk_url: url,
        selected_qr_data_uri: qr,
        sessions: sessions,
        renaming_session_id: nil,
@@ -90,6 +93,7 @@ defmodule SpeechwaveWeb.DashboardLive do
      assign(socket,
        talks: Talks.list_talks(scope),
        selected_talk: nil,
+       selected_talk_url: nil,
        selected_qr_data_uri: nil,
        sessions: [],
        renaming_session_id: nil,
@@ -131,4 +135,6 @@ defmodule SpeechwaveWeb.DashboardLive do
     {:ok, _} = Talks.delete_session(session)
     {:noreply, assign(socket, sessions: Talks.list_sessions(socket.assigns.selected_talk.id))}
   end
+
+  defp talk_url(talk), do: SpeechwaveWeb.Endpoint.url() <> "/t/#{talk.slug}"
 end
