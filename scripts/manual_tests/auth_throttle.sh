@@ -78,8 +78,10 @@ case "$MODE" in
     if is_local; then
       rodney open "$BASE_URL/dev/mailbox" >/dev/null
       rodney waitload >/dev/null
-      rodney click 'form[action="/dev/mailbox/clear"] button' >/dev/null
-      rodney waitload >/dev/null
+      if [ "$(rodney count 'a[href^="/dev/mailbox/"]')" -gt 0 ]; then
+        rodney click 'form[action="/dev/mailbox/clear"] button' >/dev/null
+        rodney waitload >/dev/null
+      fi
     fi
 
     submit_magic_link "$email"
