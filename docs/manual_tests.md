@@ -61,7 +61,10 @@ Script: `scripts/manual_tests/auth_throttle.sh [--base-url URL] {email|ip}`
   email, asserting `#magic-link-sent` appears both times (the UI looks
   identical whether the second send was throttled or not).
 - **Dev:** clears `/dev/mailbox` first, then after both submissions checks
-  that exactly one email was delivered. Prints `PASS`/`FAIL`.
+  that exactly one email was delivered. Prints `PASS`/`FAIL`. This counts
+  every message in `/dev/mailbox`, not just ones matching the test email —
+  clearing first keeps this accurate as long as nothing else delivers mail
+  to the local mailbox during the run.
 - **Production:** `/dev/mailbox` doesn't exist, so confirm via one of:
   - a real inbox you control as the test email, checking it arrives exactly
     once, or
