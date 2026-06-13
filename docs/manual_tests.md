@@ -20,12 +20,12 @@ against dev or production (e.g. before/after a deploy). It does not replace
 
 ## Environments
 
-| | Dev | Production |
-|---|---|---|
-| Base URL | `http://localhost:4000` | `https://speechwave.live` |
-| Start server | `mix phx.server` | already running |
-| Sent emails | `/dev/mailbox` | real inbox (Resend) |
-| Logs | terminal running `mix phx.server` | `fly logs --app speechwave` |
+|              | Dev                               | Production                  |
+| ------------ | --------------------------------- | --------------------------- |
+| Base URL     | `http://localhost:4000`           | `https://speechwave.live`   |
+| Start server | `mix phx.server`                  | already running             |
+| Sent emails  | `/dev/mailbox`                    | real inbox (Resend)         |
+| Logs         | terminal running `mix phx.server` | `fly logs --app speechwave` |
 
 ## Requirements
 
