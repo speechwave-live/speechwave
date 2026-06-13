@@ -68,8 +68,13 @@ Script: `scripts/manual_tests/auth_throttle.sh [--base-url URL] {email|ip}`
 - **Production:** `/dev/mailbox` doesn't exist, so confirm via one of:
   - a real inbox you control as the test email, checking it arrives exactly
     once, or
-  - `fly logs --app speechwave | grep "auth_throttle: email cooldown"` —
-    expect one line with `email_domain=example.com`.
+  - `fly logs --app speechwave | grep "auth_throttle: ip cooldown"`. The two
+    submissions are seconds apart from the same IP, and
+    `maybe_send_magic_link/2` checks `allow_ip?/1` (30s cooldown) before
+    `allow_email?/1` (60s cooldown) — so the second submission is blocked by
+    the IP cooldown first, and `"auth_throttle: email cooldown"` never
+    appears. One `ip cooldown` line for this machine's IP is equally valid
+    proof the second send was blocked.
 
 ### IP cooldown (`auth_throttle.sh ip --base-url https://speechwave.live`) — production only
 
@@ -93,3 +98,9 @@ base URL.
   violation_count=1`, `cooldown_ms=120000 violation_count=2`,
   `cooldown_ms=240000 violation_count=3` (the 1st submission is never
   logged — `allow_ip?/1` only warns on violations).
+
+  If `email` mode was run against this same `--base-url` shortly before
+  (from this machine), its second submission already recorded one `ip
+  cooldown` violation against this IP, so this run's warnings will start
+  from a higher `violation_count`/`cooldown_ms` than shown above — each one
+  is still a further doubling, confirming escalation continues.
