@@ -4,7 +4,9 @@
 
 set -euo pipefail
 
-BASE_URL="http://localhost:4000"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+
 MODE="email"
 
 usage() {
@@ -19,12 +21,11 @@ EOF
   exit 1
 }
 
+parse_base_url "$@"
+set -- "${REMAINING_ARGS[@]+"${REMAINING_ARGS[@]}"}"
+
 while [ $# -gt 0 ]; do
   case "$1" in
-    --base-url)
-      BASE_URL="$2"
-      shift 2
-      ;;
     email|ip)
       MODE="$1"
       shift
@@ -39,13 +40,6 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-is_local() {
-  case "$BASE_URL" in
-    *localhost*|*127.0.0.1*) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
 if [ "$MODE" = "ip" ] && is_local; then
   echo "ERROR: ip mode requires a production --base-url." >&2
   echo "Dev has no reverse proxy, so client_ip is always nil locally and" >&2
@@ -54,8 +48,7 @@ if [ "$MODE" = "ip" ] && is_local; then
   exit 1
 fi
 
-rodney start >/dev/null
-trap 'rodney stop >/dev/null' EXIT
+start_rodney
 
 submit_magic_link() {
   local email="$1"
