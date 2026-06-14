@@ -40,11 +40,18 @@ tests, the script invocation, then either flat content or a `###`
 subsection per mode (as the auth-throttle section below does for `email`
 vs. `ip`).
 
-`scripts/manual_tests/auth_throttle.sh` is the first script and currently
-owns its full `rodney` lifecycle (start/stop trap), `--base-url`/mode
-argument parsing, and `is_local()` helper inline. When a second script is
-added, factor those shared pieces into `scripts/manual_tests/lib.sh` so both
-scripts source it instead of duplicating.
+`scripts/manual_tests/lib.sh` provides shared helpers — source it from new
+scripts:
+
+- `parse_base_url "$@"` — parses `--base-url URL`, setting `BASE_URL`
+  (default `http://localhost:4000`) and leaving any other arguments in the
+  `REMAINING_ARGS` array.
+- `is_local` — true if `$BASE_URL` is `localhost`/`127.0.0.1`.
+- `start_rodney` — starts `rodney` and registers an `EXIT` trap to stop it.
+- `confirm_and_click SELECTOR` — clicks an element with a `data-confirm`
+  attribute, auto-accepting the resulting dialog.
+- `complete_magic_link_login BASE_URL EMAIL` — dev-only; completes a
+  magic-link sign-in via `/dev/mailbox` and lands on `/dashboard`.
 
 ## Magic-link auth throttle
 
@@ -104,3 +111,78 @@ base URL.
   cooldown` violation against this IP, so this run's warnings will start
   from a higher `violation_count`/`cooldown_ms` than shown above — each one
   is still a further doubling, confirming escalation continues.
+
+## Speaker dashboard
+
+Tests the speaker dashboard (`SpeechwaveWeb.DashboardLive`, `/dashboard`):
+magic-link login, plan-usage display, talk creation, link copying, and talk
+deletion.
+
+Script: `scripts/manual_tests/dashboard.sh [--base-url URL]` (default
+`http://localhost:4000`)
+
+**Dev-only** — exits with an error against a non-local `--base-url`, since
+`complete_magic_link_login` depends on `/dev/mailbox`. See "SSH/eval
+magic-link-token helper for production runs" in `docs/roadmap.md` for the
+planned production path.
+
+As a fresh free-tier user (`manual-test-<timestamp>@example.com`, a new
+email each run):
+
+1. Logs in via magic link (`complete_magic_link_login`), landing on
+   `/dashboard` with `#talk-list` present.
+2. Checks the plan-usage summary: `#sessions-used` is `0`, `#session-limit`
+   is `10`, `#participant-limit` is `50` (the `:free` plan defaults for a
+   brand-new account).
+3. Creates a talk titled `manual-test-<timestamp>`. Checks `#created-talk`
+   appears and `#selected-talk-qr` renders with `#talk-link` (matching
+   `<base_url>/t/<slug>`) and `#no-sessions`.
+4. Checks the copy-link button (`#copy-talk-link`) renders with its idle
+   icon visible and its "copied" icon hidden, and that clicking it doesn't
+   error. The icon swap itself isn't verified — headless Chrome has no
+   clipboard permission, so `navigator.clipboard.writeText()` never resolves
+   and the hook's `.then()` callback never runs. This is a headless-browser
+   limitation, not an app bug.
+5. Deletes the talk (`#delete-talk-<id>`, via `confirm_and_click`). Checks
+   the talk is gone from `#talk-list` and `#selected-talk-qr` no longer
+   renders.
+6. Signs out and checks that `/dashboard` then redirects to `/users/log-in`.
+
+## Session analytics
+
+Tests session analytics (`SpeechwaveWeb.SessionAnalyticsLive`,
+`/sessions/:id` and `/sessions/:id/compare/:other_id`) and the dashboard's
+sessions panel: viewing reaction totals, comparing two sessions, renaming,
+and deleting.
+
+Scripts:
+- `scripts/manual_tests/seed_sessions.exs` — seeds a talk with two finished
+  sessions and reactions. Run directly with
+  `mix run scripts/manual_tests/seed_sessions.exs <email>`, or via
+  `session_analytics.sh` below. Prints `email=`, `talk_id=`, `session1_id=`,
+  `session2_id=` on stdout (interleaved with `[debug]` SQL logs on stderr).
+- `scripts/manual_tests/session_analytics.sh [--base-url URL]` (default
+  `http://localhost:4000`)
+
+**Dev-only** — same constraint as `dashboard.sh` (depends on
+`complete_magic_link_login` and on `mix run` for seeding). See "SSH/eval
+magic-link-token helper for production runs" in `docs/roadmap.md`.
+
+`session_analytics.sh`:
+
+1. Seeds data via `seed_sessions.exs` for a fresh
+   `manual-test-<timestamp>@example.com`: Session 1 gets 3 reactions (🔥 and
+   ❤️ on slide 1, 🎉 on slide 2), Session 2 gets 2 reactions (🔥 on slide 1,
+   👏 on slide 2).
+2. Logs in via magic link.
+3. Opens `/sessions/<session1_id>`. Checks `#total-reactions` is `3` and
+   `#slide-row-1` / `#slide-row-2` render.
+4. Opens `/sessions/<session1_id>/compare/<session2_id>`. Checks
+   `#compare-section` renders.
+5. Returns to `/dashboard`, selects the seeded talk. Checks `#sessions-panel`
+   lists both `#session-<session1_id>` and `#session-<session2_id>`.
+6. Renames session 1 to "Opening Keynote" via `#rename-session-<id>` /
+   `#rename-form-<id>`. Checks `#session-label-<id>` updates.
+7. Deletes session 2 (`#delete-session-<id>`, via `confirm_and_click`).
+8. Deletes the talk (cleanup).
+9. Signs out.
