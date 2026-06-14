@@ -17,7 +17,10 @@ exercise an **authenticated** flow, so the main new piece of shared
 infrastructure is a magic-link login helper.
 
 **Out of scope** (tracked in `docs/roadmap.md`, see "Deferred" below):
-- Running these scripts against production
+- Running `dashboard.sh`/`session_analytics.sh` against production — their
+  rodney-driven UI steps need a logged-in browser session, which is blocked
+  on a login helper (see "Deferred" below). `seed_sessions.exs` itself can
+  already run against production via SSH/eval — see its section below.
 - OAuth connect/disconnect
 - Account settings (email change, API key regen)
 - The attendee reaction flow (`/t/:slug`)
@@ -100,8 +103,7 @@ numbers below are deterministic for a brand-new account):
 ## `scripts/manual_tests/seed_sessions.exs` (new)
 
 Invoked via `mix run scripts/manual_tests/seed_sessions.exs <email>` from the
-project root. Implicitly dev-only/local — like `dashboard.sh`, there's no
-remote `mix run` against the production DB from a laptop.
+project root for dev runs.
 
 Using `Speechwave.{Accounts, Talks, Reactions}`:
 
@@ -118,6 +120,28 @@ Using `Speechwave.{Accounts, Talks, Reactions}`:
    → `Talks.stop_session/1`.
 5. Print results as `KEY=value` lines on stdout for the calling script to
    parse: `email=...`, `talk_id=...`, `session1_id=...`, `session2_id=...`.
+
+### Also runnable against production
+
+The production image is a `mix release` build with no `mix`/source in the
+runner stage (confirmed via `Dockerfile`/`fly.toml`), so `mix run` won't work
+there — but this script only calls compiled `Speechwave.{Accounts, Talks,
+Reactions}` functions, all present in the release. It can run against the
+production DB via the release's "remote console" mechanism (the same one
+`fly.toml`'s `console_command = '/app/bin/speechwave remote'` uses):
+
+```sh
+flyctl ssh sftp shell --app speechwave    # put seed_sessions.exs to /tmp/
+flyctl ssh exec --app speechwave --command \
+  "/app/bin/speechwave eval 'Code.eval_file(\"/tmp/seed_sessions.exs\")'"
+```
+
+No script in this spec runs against production, so this isn't part of its
+scope — it's noted here as the foundation for the SSH/eval login-token helper
+tracked in `docs/roadmap.md`. The exact mechanism for passing `<email>` to
+`Code.eval_file` (e.g. an env var read via `System.get_env/1`, since
+`System.argv/0` won't carry it the way `mix run` does) is confirmed during
+implementation if/when that roadmap item is picked up.
 
 ---
 
@@ -159,7 +183,7 @@ script invocation, dev-only note, PASS/FAIL meaning per step):
   `seed_sessions.exs` per the steps above.
 
 Both sections note they're dev-only and link to the roadmap entry covering a
-future real-mailbox login helper that would unblock production runs.
+future SSH/eval login-token helper that would unblock production runs.
 
 ---
 
@@ -168,10 +192,13 @@ future real-mailbox login helper that would unblock production runs.
 A new "Manual/Live-Environment Testing" section is added to
 `docs/roadmap.md` with four items:
 
-1. **Real-mailbox login helper for production** — would let
-   `complete_magic_link_login` (or a sibling) run against production,
-   exercising real Resend delivery + token validation. Also records why a
-   "secret test-email-domain" backdoor was considered and rejected.
+1. **SSH/eval magic-link-token helper for production** — would let
+   `complete_magic_link_login` (or a sibling) run against production by
+   generating a valid magic-link token via the same SSH/eval mechanism
+   `seed_sessions.exs` can use (see above) and printing its URL for rodney to
+   navigate to directly — no email delivery involved. Also records why a
+   "secret test-email-domain" *bypass* was considered and rejected in favor
+   of this approach.
 2. **Manual test: Attendee reaction flow** (`/t/:slug`) — independent of
    login, can be designed next.
 3. **Manual test: Account settings** (email change, API key regen) — natural
