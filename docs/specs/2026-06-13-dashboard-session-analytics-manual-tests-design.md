@@ -59,9 +59,11 @@ production). Steps:
    implementation, the same way `auth_throttle.sh`'s plan verified
    `/dev/mailbox` selectors (`#email-details__to`, `#email-details__subject`,
    etc.).
-5. Navigate to the extracted URL.
-6. Assert the result lands on `/dashboard` (URL is `/dashboard` and
-   `#talk-list` is present).
+5. Navigate to the extracted URL. This authenticates the session, but
+   `UserAuth.signed_in_path/1` falls back to `/` (not `/dashboard`) for this
+   redirect — confirmed against the running dev server.
+6. Explicitly open `$BASE_URL/dashboard` and assert `#talk-list` is present,
+   confirming the session is authenticated.
 
 This is the foundational helper every authenticated script (this spec's two,
 and future ones per the roadmap) builds on.
@@ -78,7 +80,8 @@ One continuous PASS/FAIL run as a fresh free-tier user
 (`manual-test-<timestamp>@example.com` — a new email each run, so plan-usage
 numbers below are deterministic for a brand-new account):
 
-1. **Log in** — `complete_magic_link_login` → lands on `/dashboard`.
+1. **Log in** — `complete_magic_link_login`, which lands on `/dashboard`
+   with `#talk-list` present (see its corrected steps above).
 2. **Plan-usage check** — assert `#sessions-used` is `0`, `#session-limit` is
    `10`, `#participant-limit` is `50` (confirmed against
    `Speechwave.Plans.limit/2` for `:free`, the default plan for new users).
