@@ -77,18 +77,6 @@ that would have to live in scripts/CI.
 
 Related: `docs/specs/2026-06-13-dashboard-session-analytics-manual-tests-design.md`.
 
-### Manual test: attendee reaction flow (`/t/:slug`)
-
-The attendee-facing reaction page (`TalkLive`, `/t/:slug`) has no manual-test
-coverage yet. It's independent of login — anonymous attendees scan a QR code
-and tap emoji reactions — so it can be designed and scripted without
-depending on `complete_magic_link_login`.
-
-Note `TalkLive.handle_event("react", ...)` only persists a `Reaction` if
-`Talks.get_active_session/1` is non-nil, so this test needs an active
-session — e.g. via `scripts/manual_tests/seed_sessions.exs` without calling
-`stop_session`, or the channel-driven `start_session` flow.
-
 ### Manual test: account settings (email change, API key regen)
 
 `UserLive.Settings` (email change, API key regeneration, OAuth identity
