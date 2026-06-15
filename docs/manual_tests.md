@@ -33,6 +33,29 @@ against dev or production (e.g. before/after a deploy). It does not replace
   installed and on `PATH`. Run `rodney --help` to confirm it's available and
   see all subcommands.
 
+## Quick start
+
+To run everything that's fully automated against a local dev server in one
+go:
+
+```sh
+scripts/manual_tests/run_all_dev.sh [--base-url URL]
+```
+
+(default `http://localhost:4000`). This runs `auth_throttle.sh email`,
+`dashboard.sh`, and `session_analytics.sh` back-to-back, printing each
+script's output as it goes, then a PASS/FAIL summary line per script. Exits
+non-zero if any failed.
+
+Checks `rodney` is on `PATH` and the dev server is reachable at `--base-url`
+before starting, with actionable error messages if not.
+
+**Dev-only** — refuses a non-local `--base-url`, since two of the three
+scripts depend on `/dev/mailbox` and `mix run` for seeding. The `ip`-cooldown
+mode of `auth_throttle.sh` isn't included here since it's production-only and
+needs a manual `fly logs` check afterward — run it separately per the
+"Magic-link auth throttle" section below.
+
 ## Conventions for new sections
 
 Each feature gets its own `##` section: a one-line description of what it
