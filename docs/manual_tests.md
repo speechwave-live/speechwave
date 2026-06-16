@@ -43,14 +43,15 @@ scripts/manual_tests/run_all_dev.sh [--base-url URL]
 ```
 
 (default `http://localhost:4000`). This runs `auth_throttle.sh email`,
-`dashboard.sh`, `session_analytics.sh`, and `reaction_flow.sh` back-to-back,
+`dashboard.sh`, `session_analytics.sh`, `reaction_flow.sh`, and
+`account_settings.sh` back-to-back,
 printing each script's output as it goes, then a PASS/FAIL summary line per
 script. Exits non-zero if any failed.
 
 Checks `rodney` is on `PATH` and the dev server is reachable at `--base-url`
 before starting, with actionable error messages if not.
 
-**Dev-only** — refuses a non-local `--base-url`, since three of the four
+**Dev-only** — refuses a non-local `--base-url`, since four of the five
 scripts depend on `/dev/mailbox` and `mix run` for seeding. The `ip`-cooldown
 mode of `auth_throttle.sh` isn't included here since it's production-only and
 needs a manual `fly logs` check afterward — run it separately per the
@@ -259,3 +260,43 @@ attendees viewing the same talk:
    flow) shows both ❤️ and 😂.
 10. Deletes the talk (cleanup).
 11. Signs out.
+
+## Account settings
+
+Tests `SpeechwaveWeb.UserLive.Settings` (`/users/settings`): API key
+regeneration, a full email-change round trip (form submit → confirmation email
+→ click link → email updated in the UI), and a light-touch render check of
+the OAuth Connected Accounts section.
+
+Script: `scripts/manual_tests/account_settings.sh [--base-url URL]` (default
+`http://localhost:4000`)
+
+**Dev-only** — exits with an error against a non-local `--base-url`, since
+`complete_magic_link_login` depends on `/dev/mailbox` and the email-change
+confirmation step requires reading the confirmation email from
+`/dev/mailbox`. See "SSH/eval magic-link-token helper for production runs" in
+`docs/roadmap.md` for the planned production path.
+
+As a fresh free-tier user (`manual-test-<timestamp>@example.com`, a new
+email each run):
+
+1. Logs in via magic link (`complete_magic_link_login`), landing on
+   `/dashboard` with `#talk-list` present.
+2. Navigates to `/users/settings`. Checks `#email_form`, `#api-key-display`,
+   and `#connected-accounts` all render. Confirms the freshly-authenticated
+   session passes the `require_sudo_mode` check (within 10 minutes of login).
+3. Checks the OAuth Connected Accounts section: `#connect-google`,
+   `#connect-microsoft`, and `#connect-github` all render (a brand-new user
+   has no linked identities, so all three "Connect" links should be present).
+   No OAuth flow is driven.
+4. Regenerates the API key: reads the current key, clicks `#regenerate-api-key-btn`
+   (via `confirm_and_click`), reads the new key. Checks the new key is
+   non-empty and differs from the old key.
+5. Changes email: clears `/dev/mailbox`, fills `#user_email` with
+   `manual-test-<timestamp>-new@example.com`, submits the form. Checks
+   `#flash-info` appears ("A link to confirm…"). Opens `/dev/mailbox`, checks
+   the email subject is "Update email instructions" and `To:` contains the new
+   address. Follows the `/users/settings/confirm-email/:token` link. Checks
+   `#flash-info` appears ("Email changed successfully.") and `#user_email`
+   reflects the new address.
+6. Signs out and checks that `/dashboard` then redirects to `/users/log-in`.
