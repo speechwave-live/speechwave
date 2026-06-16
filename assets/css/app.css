@@ -191,8 +191,8 @@
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 35%;
-  height: 45%;
+  width: 28%;
+  height: 36%;
   pointer-events: none;
   overflow: hidden;
 }
@@ -207,5 +207,5 @@
 @keyframes demoEmojiFloat {
   0%   { bottom: 4px;  opacity: 1; transform: translateX(0) scale(1); }
   40%  {               opacity: 1; }
-  100% { bottom: 88px; opacity: 0; transform: translateX(var(--demo-drift, 6px)) scale(0.85); }
+  100% { bottom: 60px; opacity: 0; transform: translateX(var(--demo-drift, 6px)) scale(0.85); }
 }
