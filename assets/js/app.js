@@ -48,6 +48,41 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+// Home page demo animation — no-op on pages without #demo-emoji-overlay
+document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById("demo-emoji-overlay")
+  if (!overlay) return
+
+  const emojis = ["❤️", "😂", "👏", "🤯", "🎉", "😮"]
+  const drifts = ["-8px", "5px", "-4px", "9px", "-6px", "7px"]
+  let step = 0
+
+  function spawnFloat(emoji, drift) {
+    const el = document.createElement("div")
+    el.className = "demo-float-emoji"
+    el.textContent = emoji
+    el.style.setProperty("--demo-drift", drift)
+    const w = overlay.offsetWidth
+    el.style.left = (8 + Math.random() * Math.max(0, w - 36)) + "px"
+    overlay.appendChild(el)
+    setTimeout(() => el.remove(), 2100)
+  }
+
+  function tick() {
+    const i = step % emojis.length
+    const btn = document.getElementById("demo-btn-" + i)
+    if (btn) {
+      btn.classList.add("tapping")
+      setTimeout(() => btn.classList.remove("tapping"), 480)
+    }
+    setTimeout(() => spawnFloat(emojis[i], drifts[i]), 360)
+    step++
+    setTimeout(tick, 1800)
+  }
+
+  setTimeout(tick, 700)
+})
+
 // The lines below enable quality of life phoenix_live_reload
 // development features:
 //
