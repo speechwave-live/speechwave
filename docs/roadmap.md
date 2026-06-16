@@ -85,27 +85,3 @@ provider's own hosted consent UI — a genuinely different category from the
 rest of `docs/manual_tests.md`, not just a sequencing question. Deferred
 until there's a concrete need to test this path.
 
-### Clean up manual-test user data in dev
-
-Every dev run of `dashboard.sh`, `session_analytics.sh`, `reaction_flow.sh`,
-and `account_settings.sh` creates a `manual-test-<timestamp>@example.com`
-user via `complete_magic_link_login`. Each script already deletes the
-talk-level data it creates (where applicable), but the `users` row itself is
-never removed — it accumulates in the dev DB across runs. Note that these
-users do NOT qualify as "junk" under the unconfirmed-junk-user cleanup rule
-above: they have a `users_tokens` row with `context: "session"` from
-completing the magic-link login. (`account_settings.sh` additionally renames
-its user's email to `manual-test-<timestamp>-new@example.com` during the
-email-change step.)
-
-Proposed mechanism: a `scripts/manual_tests/cleanup_manual_test_users.exs`
-script that deletes all `users` rows where
-`email LIKE 'manual-test-%@example.com'` (covers both the plain and `-new`
-forms), with cascade to associated tokens, talks, sessions, and reactions.
-Run via `mix run scripts/manual_tests/cleanup_manual_test_users.exs` and
-wired as a final step in `run_all_dev.sh`. Running it at the end of each
-`run_all_dev.sh` invocation sweeps up users from the current run and any
-stragglers from prior failed/manual runs.
-
-Dev-only by construction (`run_all_dev.sh` already requires a local
-`--base-url`).

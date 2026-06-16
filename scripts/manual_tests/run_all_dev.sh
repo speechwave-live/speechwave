@@ -53,6 +53,7 @@ run_script "dashboard.sh"           "$SCRIPT_DIR/dashboard.sh" --base-url "$BASE
 run_script "session_analytics.sh"   "$SCRIPT_DIR/session_analytics.sh" --base-url "$BASE_URL"
 run_script "reaction_flow.sh"       "$SCRIPT_DIR/reaction_flow.sh" --base-url "$BASE_URL"
 run_script "account_settings.sh"    "$SCRIPT_DIR/account_settings.sh" --base-url "$BASE_URL"
+run_script "cleanup_manual_test_users.sh" "$SCRIPT_DIR/cleanup_manual_test_users.sh"
 
 echo
 echo "==== Summary ===="
