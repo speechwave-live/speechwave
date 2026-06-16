@@ -45,6 +45,20 @@ confirm_and_click() {
   rodney click "$selector" >/dev/null
 }
 
+# clear_dev_mailbox BASE_URL
+#
+# Opens /dev/mailbox and clears it if any messages are present. Callers are
+# responsible for ensuring BASE_URL is local before calling.
+clear_dev_mailbox() {
+  local base_url="$1"
+  rodney open "$base_url/dev/mailbox" >/dev/null
+  rodney waitload >/dev/null
+  if [ "$(rodney count 'a[href^="/dev/mailbox/"]')" -gt 0 ]; then
+    rodney click 'form[action="/dev/mailbox/clear"] button' >/dev/null
+    rodney waitload >/dev/null
+  fi
+}
+
 # complete_magic_link_login BASE_URL EMAIL
 #
 # Dev-only: drives /dev/mailbox, which doesn't exist in production. On
@@ -63,12 +77,7 @@ complete_magic_link_login() {
       ;;
   esac
 
-  rodney open "$base_url/dev/mailbox" >/dev/null
-  rodney waitload >/dev/null
-  if [ "$(rodney count 'a[href^="/dev/mailbox/"]')" -gt 0 ]; then
-    rodney click 'form[action="/dev/mailbox/clear"] button' >/dev/null
-    rodney waitload >/dev/null
-  fi
+  clear_dev_mailbox "$base_url"
 
   rodney open "$base_url/users/log-in" >/dev/null
   rodney waitload >/dev/null
