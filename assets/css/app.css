@@ -141,3 +141,71 @@
   0%   { transform: translateY(0);    opacity: 1; }
   100% { transform: translateY(-60px); opacity: 0; }
 }
+
+/* ── Demo section (home page) ── */
+
+.demo-phone-bezel {
+  background: #1a1a1a;
+  border-radius: 36px;
+  padding: 14px 10px;
+  width: 150px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.05);
+}
+.demo-phone-notch {
+  background: #2a2a2a;
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  margin: 0 auto 8px;
+}
+.demo-phone-screen {
+  background: white;
+  border-radius: 22px;
+  overflow: hidden;
+}
+.demo-phone-home-bar {
+  background: #333;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  margin: 10px auto 0;
+}
+
+.demo-emoji-btn {
+  font-size: 26px;
+  border-radius: 12px;
+  padding: 6px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.demo-emoji-btn.tapping {
+  background: rgba(0, 212, 164, 0.18);
+  transform: scale(1.28);
+}
+
+.demo-emoji-overlay {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 35%;
+  height: 45%;
+  pointer-events: none;
+  overflow: hidden;
+}
+.demo-float-emoji {
+  position: absolute;
+  bottom: -30px;
+  font-size: 22px;
+  animation: demoEmojiFloat 2.0s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes demoEmojiFloat {
+  0%   { bottom: 4px;  opacity: 1; transform: translateX(0) scale(1); }
+  40%  {               opacity: 1; }
+  100% { bottom: 88px; opacity: 0; transform: translateX(var(--demo-drift, 6px)) scale(0.85); }
+}
