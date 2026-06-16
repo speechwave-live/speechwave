@@ -26,34 +26,128 @@
         See pricing
       </a>
     </div>
+  </div>
+</section>
 
-    <%!-- Product mockup --%>
-    <div class="mt-16 max-w-xs mx-auto bg-canvas rounded-2xl border border-hairline-soft shadow-[rgba(0,0,0,0.12)_0px_24px_48px_-8px] overflow-hidden text-left">
+<%!-- Demo section --%>
+<section class="py-20 px-6 bg-canvas" id="demo-section">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-12">
+      <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">
+        See it in action
+      </p>
+      <h2 class="text-3xl sm:text-[36px] font-semibold text-ink tracking-tight">
+        The full experience, at a glance
+      </h2>
+    </div>
+
+    <%!-- Top row: presentation panel + phone (stacks on mobile) --%>
+    <div class="flex flex-col sm:flex-row gap-5 mb-5 items-start">
+      <%!-- Presentation panel --%>
+      <div class="sm:flex-[1.6] w-full bg-canvas rounded-2xl border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px] overflow-hidden">
+        <div class="px-4 py-3 border-b border-hairline-soft bg-surface-soft flex items-center gap-3">
+          <div class="flex gap-1.5 shrink-0">
+            <span class="size-2.5 rounded-full bg-[#ff5f57] inline-block"></span>
+            <span class="size-2.5 rounded-full bg-[#ffbd2e] inline-block"></span>
+            <span class="size-2.5 rounded-full bg-[#28c940] inline-block"></span>
+          </div>
+          <span class="text-[11px] text-muted flex-1 text-center">
+            Google Slides presentation
+          </span>
+        </div>
+        <div class="px-8 pt-8 pb-6 relative min-h-[220px]">
+          <div class="text-center mb-4">
+            <h3 class="text-lg font-semibold text-ink tracking-tight mb-2">
+              Introducing Speechwave
+            </h3>
+            <p class="text-sm text-steel">Real-time audience reactions for your presentations</p>
+            <div class="flex gap-2 justify-center mt-4">
+              <span class="text-xs font-medium text-mint-deep bg-[#f0f9f6] border border-[#c5f0e4] rounded-full px-3 py-1">
+                Live reactions
+              </span>
+              <span class="text-xs font-medium text-mint-deep bg-[#f0f9f6] border border-[#c5f0e4] rounded-full px-3 py-1">
+                Instant feedback
+              </span>
+            </div>
+          </div>
+          <%!-- Float overlay: lower-right corner, ~35% wide × 45% tall of slide body --%>
+          <div class="demo-emoji-overlay" id="demo-emoji-overlay"></div>
+        </div>
+      </div>
+
+      <%!-- Phone panel --%>
+      <div class="sm:flex-1 w-full flex justify-center">
+        <div class="demo-phone-bezel">
+          <div class="demo-phone-notch"></div>
+          <div class="demo-phone-screen">
+            <div class="flex justify-between items-center px-3 py-1.5 bg-surface-soft border-b border-hairline-soft">
+              <span class="text-[8px] font-semibold text-ink">9:41</span>
+              <span class="text-[8px] text-ink">●●●</span>
+            </div>
+            <div class="px-3.5 py-3">
+              <p class="text-[9px] font-semibold text-ink mb-0.5">Introducing Speechwave</p>
+              <p class="text-[8px] text-muted mb-3.5">React live while you listen</p>
+              <div class="grid grid-cols-3 gap-2.5 place-items-center mb-3" id="demo-emoji-grid">
+                <div class="demo-emoji-btn" id="demo-btn-0">❤️</div>
+                <div class="demo-emoji-btn" id="demo-btn-1">😂</div>
+                <div class="demo-emoji-btn" id="demo-btn-2">👏</div>
+                <div class="demo-emoji-btn" id="demo-btn-3">🤯</div>
+                <div class="demo-emoji-btn" id="demo-btn-4">🎉</div>
+                <div class="demo-emoji-btn" id="demo-btn-5">😮</div>
+              </div>
+              <p class="text-[8px] text-muted text-center">Tap to react</p>
+            </div>
+          </div>
+          <div class="demo-phone-home-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <%!-- Analytics panel --%>
+    <div class="bg-canvas rounded-2xl border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px] overflow-hidden">
       <div class="px-4 py-3 border-b border-hairline-soft bg-surface-soft flex items-center gap-3">
         <div class="flex gap-1.5 shrink-0">
           <span class="size-2.5 rounded-full bg-[#ff5f57] inline-block"></span>
           <span class="size-2.5 rounded-full bg-[#ffbd2e] inline-block"></span>
           <span class="size-2.5 rounded-full bg-[#28c940] inline-block"></span>
         </div>
-        <span class="text-[11px] text-muted truncate flex-1 text-center">
-          speechwave.live/t/design-conf
-        </span>
+        <span class="text-[11px] text-muted flex-1 text-center">Session analytics</span>
       </div>
-      <div class="px-6 py-7">
-        <div class="text-sm font-semibold text-ink mb-0.5">Design Thinking 2025</div>
-        <div class="text-xs text-muted mb-5">React live while you present</div>
-        <div class="grid grid-cols-3 gap-4 place-items-center">
-          <%= for emoji <- ["❤️", "😂", "👏", "🤯", "🎉", "😮"] do %>
-            <button class="text-2xl hover:scale-125 transition-transform select-none cursor-pointer">
-              {emoji}
-            </button>
-          <% end %>
+      <div class="flex flex-col sm:flex-row gap-6 sm:gap-8 p-6">
+        <%!-- Summary stats --%>
+        <div class="flex sm:flex-col gap-6 sm:gap-4 shrink-0">
+          <div>
+            <div class="text-3xl font-semibold text-ink leading-none mb-1">247</div>
+            <div class="text-[10px] text-muted">Total reactions</div>
+          </div>
+          <div>
+            <div class="text-3xl font-semibold text-ink leading-none mb-1">34</div>
+            <div class="text-[10px] text-muted">Audience</div>
+          </div>
         </div>
-        <div class="mt-5 flex items-center justify-between">
-          <span class="text-xs text-muted">Tap to react</span>
-          <span class="inline-flex items-center gap-1.5 text-xs text-stone">
-            <span class="size-1.5 rounded-full bg-mint inline-block"></span> 31 reactions
-          </span>
+        <%!-- Per-slide breakdown — wraps on mobile --%>
+        <div class="flex flex-wrap gap-4 flex-1">
+          <%= for {slide_label, bars} <- [
+            {"Slide 1", [{"❤️", 85, 42}, {"😂", 55, 27}, {"👏", 40, 20}, {"🎉", 30, 15}]},
+            {"Slide 3", [{"🤯", 90, 36}, {"😮", 70, 28}, {"👏", 50, 20}, {"❤️", 25, 10}]},
+            {"Slide 5", [{"👏", 100, 51}, {"❤️", 65, 33}, {"🎉", 45, 23}, {"😂", 20, 10}]},
+            {"Slide 7", [{"🎉", 80, 32}, {"😮", 60, 24}, {"❤️", 35, 14}, {"🤯", 18, 7}]}
+          ] do %>
+            <div class="min-w-[130px] flex-1">
+              <p class="text-[10px] font-semibold text-steel uppercase tracking-[0.3px] mb-2">
+                {slide_label}
+              </p>
+              <%= for {emoji, pct, count} <- bars do %>
+                <div class="flex items-center gap-1.5 mb-1.5">
+                  <span class="text-xs w-4 text-center">{emoji}</span>
+                  <div class="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
+                    <div class="h-full bg-mint rounded-full" style={"width: #{pct}%"}></div>
+                  </div>
+                  <span class="text-[9px] text-muted w-4 text-right">{count}</span>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
         </div>
       </div>
     </div>
