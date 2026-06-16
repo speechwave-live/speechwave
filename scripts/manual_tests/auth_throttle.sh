@@ -69,12 +69,7 @@ case "$MODE" in
     echo "Testing email cooldown with $email"
 
     if is_local; then
-      rodney open "$BASE_URL/dev/mailbox" >/dev/null
-      rodney waitload >/dev/null
-      if [ "$(rodney count 'a[href^="/dev/mailbox/"]')" -gt 0 ]; then
-        rodney click 'form[action="/dev/mailbox/clear"] button' >/dev/null
-        rodney waitload >/dev/null
-      fi
+      clear_dev_mailbox "$BASE_URL"
     fi
 
     submit_magic_link "$email"
