@@ -57,11 +57,13 @@ fi
 
 clear_dev_mailbox "$BASE_URL"
 
+# clear_dev_mailbox leaves the browser on /dev/mailbox; navigate back to the form
 rodney open "$BASE_URL/users/settings" >/dev/null
 rodney waitload >/dev/null
-rodney js "document.querySelector('#user_email').select()" >/dev/null
+rodney js "document.querySelector('#user_email').value = ''" >/dev/null
 rodney input "#user_email" "$NEW_EMAIL" >/dev/null
 rodney click "#email_form button" >/dev/null
+# LiveView pushes the flash update after the form submit; waitload ensures it's rendered
 rodney waitload >/dev/null
 rodney waitstable >/dev/null
 if ! rodney exists "#flash-info" >/dev/null; then
@@ -105,6 +107,8 @@ else
   exit 1
 fi
 
+# push_navigate from confirm-email leaves the browser in an unstable state; navigate
+# to a stable page with the nav bar before clicking sign-out
 rodney open "$BASE_URL/dashboard" >/dev/null
 rodney waitload >/dev/null
 rodney click 'a[href="/users/log-out"]' >/dev/null
