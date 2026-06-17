@@ -148,7 +148,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
           put_flash(socket, :error, "Email change link is invalid or it has expired.")
       end
 
-    {:ok, push_navigate(socket, to: ~p"/users/settings")}
+    {:ok, socket |> assign(:marketing_consent, nil) |> push_navigate(to: ~p"/users/settings")}
   end
 
   def mount(_params, _session, socket) do
@@ -215,9 +215,15 @@ defmodule SpeechwaveWeb.UserLive.Settings do
 
   def handle_event("revoke_consent", _params, socket) do
     user = socket.assigns.current_scope.user
-    {:ok, _} = Accounts.revoke_consent(user, "marketing_email")
-    marketing_consent = Accounts.get_consent(user, "marketing_email")
-    {:noreply, assign(socket, :marketing_consent, marketing_consent)}
+
+    case Accounts.revoke_consent(user, "marketing_email") do
+      {:ok, _} ->
+        marketing_consent = Accounts.get_consent(user, "marketing_email")
+        {:noreply, assign(socket, :marketing_consent, marketing_consent)}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Could not unsubscribe. Please try again.")}
+    end
   end
 
   def handle_event("regenerate_api_key", _params, socket) do

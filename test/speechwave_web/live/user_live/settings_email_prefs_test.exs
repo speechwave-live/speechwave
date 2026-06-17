@@ -10,13 +10,12 @@ defmodule SpeechwaveWeb.UserLive.SettingsEmailPrefsTest do
     test "shows email preferences section on settings page", %{conn: conn} do
       user = user_fixture()
 
-      {:ok, _view, _html} =
+      {:ok, view, _html} =
         conn
         |> log_in_user(user)
         |> live(~p"/users/settings")
 
-      # section must be present even without consent
-      # (uses has_element? not raw HTML)
+      assert has_element?(view, "#email-prefs-section")
     end
 
     test "shows subscribed state when user has marketing consent", %{conn: conn} do
