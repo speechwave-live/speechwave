@@ -159,7 +159,7 @@ defmodule SpeechwaveWeb.PricingLive do
                   We sent a link to <strong>{@notify_email}</strong>. Click it to confirm your spot on the list.
                 </p>
                 <button
-                  id="notify-cancel-btn"
+                  id="notify-close-btn"
                   phx-click="close_modal"
                   class="text-sm text-steel underline mt-2"
                 >
@@ -231,22 +231,28 @@ defmodule SpeechwaveWeb.PricingLive do
         {:noreply, put_flash(socket, :info, "You're already on the list!")}
 
       user ->
-        {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "pricing_#{plan}")
-        {:noreply, put_flash(socket, :info, "You're on the list! We'll keep you posted.")}
+        case Accounts.grant_consent(user, "marketing_email", source: "pricing_#{plan}") do
+          {:ok, _} ->
+            {:noreply, put_flash(socket, :info, "You're on the list! We'll keep you posted.")}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Something went wrong. Please try again.")}
+        end
 
       true ->
         {:noreply, assign(socket, show_modal: plan, notify_sent: false, notify_email: "")}
     end
   end
 
+  @impl true
   def handle_event("close_modal", _params, socket) do
-    {:noreply, assign(socket, show_modal: nil, notify_sent: false)}
+    {:noreply, assign(socket, show_modal: nil, notify_sent: false, notify_email: "")}
   end
 
   def handle_event("submit_notify", %{"email" => email}, socket) do
-    plan = socket.assigns.show_modal
+    plan = socket.assigns.show_modal || "unknown"
     email = email |> String.trim() |> String.downcase()
-    url_fun = &(url(~p"/users/magic_link/#{&1}") <> "?updates=true&notify=#{plan}")
+    url_fun = &(url(~p"/users/magic_link/#{&1}") <> "?" <> URI.encode_query(%{"updates" => "true", "notify" => plan}))
 
     case Accounts.register_or_get_user_by_email(email) do
       {:ok, user} -> Accounts.deliver_login_instructions(user, url_fun)
