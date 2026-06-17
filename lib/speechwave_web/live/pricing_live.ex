@@ -11,7 +11,9 @@ defmodule SpeechwaveWeb.PricingLive do
         <div class="max-w-5xl mx-auto px-6">
           <%!-- Header --%>
           <div class="text-center pt-14 mb-16">
-            <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">Pricing</p>
+            <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">
+              Pricing
+            </p>
             <h1 class="text-4xl sm:text-5xl font-semibold text-ink tracking-tight mb-4">
               Simple, transparent pricing
             </h1>
@@ -25,9 +27,13 @@ defmodule SpeechwaveWeb.PricingLive do
             <%!-- Free --%>
             <div class="bg-canvas rounded-xl border border-hairline p-8">
               <div class="mb-6">
-                <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">Free</p>
+                <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">
+                  Free
+                </p>
                 <div class="flex items-baseline gap-1 mb-1.5">
-                  <span class="text-[40px] font-semibold text-ink tracking-tight leading-none">$0</span>
+                  <span class="text-[40px] font-semibold text-ink tracking-tight leading-none">
+                    $0
+                  </span>
                   <span class="text-sm text-steel">/month</span>
                 </div>
                 <p class="text-sm text-steel">No credit card required.</p>
@@ -67,9 +73,13 @@ defmodule SpeechwaveWeb.PricingLive do
                 </span>
               </div>
               <div class="mb-6">
-                <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">Pro</p>
+                <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">
+                  Pro
+                </p>
                 <div class="flex items-baseline gap-1 mb-1.5">
-                  <span class="text-[40px] font-semibold text-ink tracking-tight leading-none">$9</span>
+                  <span class="text-[40px] font-semibold text-ink tracking-tight leading-none">
+                    $9
+                  </span>
                   <span class="text-sm text-steel">/month (introductory offer)</span>
                 </div>
                 <p class="text-sm text-steel">Launching soon.</p>
@@ -78,7 +88,7 @@ defmodule SpeechwaveWeb.PricingLive do
                 id="notify-pro-btn"
                 phx-click="open_notify_modal"
                 phx-value-plan="pro"
-                class="block w-full text-center py-2.5 px-4 bg-ink text-canvas rounded-full text-sm font-medium hover:bg-charcoal transition-colors mb-8"
+                class="block w-full text-center py-2.5 px-4 bg-ink text-canvas rounded-full text-sm font-medium hover:bg-charcoal transition-colors mb-8 cursor-pointer"
               >
                 Notify me
               </button>
@@ -101,23 +111,23 @@ defmodule SpeechwaveWeb.PricingLive do
             </div>
 
             <%!-- Enterprise --%>
-            <div class="bg-canvas rounded-xl border border-hairline p-8 opacity-60">
+            <div class="bg-canvas rounded-xl border border-hairline p-8">
               <div class="mb-6">
                 <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">
                   Enterprise
                 </p>
                 <div class="flex items-baseline gap-1 mb-1.5">
-                  <span class="text-[40px] font-semibold text-muted tracking-tight leading-none">
+                  <span class="text-[40px] font-semibold text-ink tracking-tight leading-none">
                     —
                   </span>
                 </div>
-                <p class="text-sm text-muted">Launches after Pro.</p>
+                <p class="text-sm text-steel">Launches after Pro.</p>
               </div>
               <button
                 id="notify-enterprise-btn"
                 phx-click="open_notify_modal"
                 phx-value-plan="enterprise"
-                class="block w-full text-center py-2.5 px-4 bg-surface text-muted rounded-full text-sm font-medium hover:bg-hairline transition-colors mb-8"
+                class="block w-full text-center py-2.5 px-4 bg-ink text-canvas rounded-full text-sm font-medium hover:bg-charcoal transition-colors mb-8 cursor-pointer"
               >
                 Notify me
               </button>
@@ -252,7 +262,10 @@ defmodule SpeechwaveWeb.PricingLive do
   def handle_event("submit_notify", %{"email" => email}, socket) do
     plan = socket.assigns.show_modal || "unknown"
     email = email |> String.trim() |> String.downcase()
-    url_fun = &(url(~p"/users/magic_link/#{&1}") <> "?" <> URI.encode_query(%{"updates" => "true", "notify" => plan}))
+
+    url_fun =
+      &(url(~p"/users/magic_link/#{&1}") <>
+          "?" <> URI.encode_query(%{"updates" => "true", "notify" => plan}))
 
     case Accounts.register_or_get_user_by_email(email) do
       {:ok, user} -> Accounts.deliver_login_instructions(user, url_fun)
