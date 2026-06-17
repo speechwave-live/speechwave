@@ -5,6 +5,8 @@ defmodule SpeechwaveWeb.DashboardLiveTest do
   import Speechwave.AccountsFixtures
   import Speechwave.TalksFixtures
 
+  alias Speechwave.Plans
+
   setup %{conn: conn} do
     user = user_fixture()
     %{conn: log_in_user(conn, user), user: user}
@@ -248,8 +250,9 @@ defmodule SpeechwaveWeb.DashboardLiveTest do
       talk = talk_fixture(user)
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-      # Insert 10 full sessions (the free tier limit)
-      for i <- 1..10 do
+      limit = Plans.limit(:full_sessions_per_month, :free)
+
+      for i <- 1..limit do
         session_fixture(talk, %{
           label: "Session #{i}",
           started_at: now,
@@ -258,7 +261,7 @@ defmodule SpeechwaveWeb.DashboardLiveTest do
       end
 
       {:ok, view, _html} = live(conn, "/dashboard")
-      assert has_element?(view, "#sessions-used", "10")
+      assert has_element?(view, "#sessions-used", "#{limit}")
       assert render(view) =~ "Monthly limit reached"
     end
   end

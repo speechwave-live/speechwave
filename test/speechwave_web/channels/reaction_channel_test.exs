@@ -4,6 +4,8 @@ defmodule SpeechwaveWeb.ReactionChannelTest do
   import Speechwave.AccountsFixtures
   import Speechwave.TalksFixtures
 
+  alias Speechwave.Plans
+
   setup do
     user = user_fixture()
     talk = talk_fixture(user, %{title: "Test Talk", slug: "test-talk"})
@@ -99,7 +101,9 @@ defmodule SpeechwaveWeb.ReactionChannelTest do
       now = DateTime.utc_now() |> DateTime.truncate(:second)
       full_end = DateTime.add(now, 15 * 60, :second)
 
-      for i <- 1..10 do
+      limit = Plans.limit(:full_sessions_per_month, :free)
+
+      for i <- 1..limit do
         Speechwave.Repo.insert!(%Speechwave.Talks.TalkSession{
           talk_id: talk.id,
           label: "Seed #{i}",

@@ -33,14 +33,16 @@
         </a>
         <ul class="space-y-3">
           <%= for feature <- [
-            "Up to 50 participants per talk",
-            "10 full sessions per month†",
             "Live emoji reactions",
             "Session analytics",
-            "QR code sharing",
             "Fireworks mode",
+            "Single user",
+            "Up to #{@free_participant_limit} participants per talk",
+            "#{@free_session_limit} full talk sessions per month†",
+            "QR code sharing",
             "Browswer extension",
-            "Google Slides analytics support"
+            "Google Slides with per-slide analytics",
+            "Anything browser-based without per-slide analytics"
           ] do %>
             <li class="flex items-center gap-2.5 text-sm text-ink">
               <.icon name="hero-check" class="size-4 text-mint shrink-0" />
@@ -60,11 +62,10 @@
         <div class="mb-6">
           <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">Pro</p>
           <div class="flex items-baseline gap-1 mb-1.5">
-            <span class="text-[40px] font-semibold text-muted tracking-tight leading-none">
-              —
-            </span>
+            <span class="text-[40px] font-semibold text-ink tracking-tight leading-none">$9</span>
+            <span class="text-sm text-steel">/month (introductory offer)</span>
           </div>
-          <p class="text-sm text-muted">Pricing announced soon.</p>
+          <p class="text-sm text-steel">Launching soon.</p>
         </div>
         <button
           disabled
@@ -77,6 +78,8 @@
             "Everything in Free",
             "Unlimited participants",
             "Unlimited sessions",
+            "Data export",
+            "Customize emoji set",
             "PowerPoint plugin",
             "Keynote plugin"
           ] do %>
@@ -113,6 +116,7 @@
             "Priority support",
             "Team pricing",
             "Conference pricing",
+            "Organization analytics",
             "Custom integrations"
           ] do %>
             <li class="flex items-center gap-2.5 text-sm text-muted">

@@ -26,10 +26,10 @@ echo "PASS: logged in via magic link, #talk-list present on /dashboard"
 sessions_used=$(rodney text "#sessions-used")
 session_limit=$(rodney text "#session-limit")
 participant_limit=$(rodney text "#participant-limit")
-if [ "$sessions_used" = "0" ] && [ "$session_limit" = "10" ] && [ "$participant_limit" = "50" ]; then
-  echo "PASS: plan usage shows 0/10 sessions, 50 participant limit"
+if [ "$sessions_used" = "0" ] && [ "$session_limit" = "50" ] && [ "$participant_limit" = "15" ]; then
+  echo "PASS: plan usage shows 0/50 sessions, 15 participant limit"
 else
-  echo "FAIL: expected sessions_used=0 session_limit=10 participant_limit=50, got $sessions_used/$session_limit/$participant_limit" >&2
+  echo "FAIL: expected sessions_used=0 session_limit=50 participant_limit=15, got $sessions_used/$session_limit/$participant_limit" >&2
   exit 1
 fi
 

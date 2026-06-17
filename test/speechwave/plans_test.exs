@@ -4,12 +4,12 @@ defmodule Speechwave.PlansTest do
   alias Speechwave.Plans
 
   describe "limit/2 — free plan" do
-    test "max_participants is 50" do
-      assert Plans.limit(:max_participants, :free) == 50
+    test "max_participants is 15" do
+      assert Plans.limit(:max_participants, :free) == 15
     end
 
-    test "full_sessions_per_month is 10" do
-      assert Plans.limit(:full_sessions_per_month, :free) == 10
+    test "full_sessions_per_month is 50" do
+      assert Plans.limit(:full_sessions_per_month, :free) == 50
     end
   end
 
@@ -36,15 +36,15 @@ defmodule Speechwave.PlansTest do
 
   describe "check/3" do
     test "returns :ok when count is below the free limit" do
-      assert Plans.check(:max_participants, :free, 49) == :ok
+      assert Plans.check(:max_participants, :free, 14) == :ok
     end
 
     test "returns {:error, :limit_reached} when count equals the free limit" do
-      assert Plans.check(:max_participants, :free, 50) == {:error, :limit_reached}
+      assert Plans.check(:max_participants, :free, 15) == {:error, :limit_reached}
     end
 
     test "returns {:error, :limit_reached} when count exceeds the free limit" do
-      assert Plans.check(:max_participants, :free, 51) == {:error, :limit_reached}
+      assert Plans.check(:max_participants, :free, 16) == {:error, :limit_reached}
     end
 
     test "returns :ok for pro plan regardless of count" do
@@ -56,11 +56,11 @@ defmodule Speechwave.PlansTest do
     end
 
     test "returns :ok for full_sessions_per_month when under free limit" do
-      assert Plans.check(:full_sessions_per_month, :free, 9) == :ok
+      assert Plans.check(:full_sessions_per_month, :free, 49) == :ok
     end
 
     test "returns {:error, :limit_reached} for full_sessions_per_month at free limit" do
-      assert Plans.check(:full_sessions_per_month, :free, 10) == {:error, :limit_reached}
+      assert Plans.check(:full_sessions_per_month, :free, 50) == {:error, :limit_reached}
     end
   end
 end

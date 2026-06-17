@@ -13,8 +13,8 @@ defmodule Speechwave.Plans do
   @type limit :: non_neg_integer() | :unlimited
 
   @spec limit(feature(), plan()) :: limit()
-  def limit(:max_participants, :free), do: 50
-  def limit(:full_sessions_per_month, :free), do: 10
+  def limit(:max_participants, :free), do: 15
+  def limit(:full_sessions_per_month, :free), do: 50
   def limit(:max_participants, :pro), do: :unlimited
   def limit(:full_sessions_per_month, :pro), do: :unlimited
   def limit(feature, :org), do: limit(feature, :pro)
