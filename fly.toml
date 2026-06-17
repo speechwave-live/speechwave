@@ -4,9 +4,6 @@ console_command = '/app/bin/speechwave remote'
 
 [build]
 
-[deploy]
-  release_command = "/app/bin/speechwave eval \"Speechwave.Release.migrate()\""
-
 [env]
   PHX_HOST = 'speechwave.live'
   PORT = '8080'

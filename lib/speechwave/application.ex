@@ -7,6 +7,8 @@ defmodule Speechwave.Application do
 
   @impl true
   def start(_type, _args) do
+    migrate_on_start()
+
     children =
       [
         SpeechwaveWeb.Telemetry,
@@ -24,6 +26,12 @@ defmodule Speechwave.Application do
     opts = [strategy: :one_for_one, name: Speechwave.Supervisor]
 
     Supervisor.start_link(children, opts)
+  end
+
+  defp migrate_on_start do
+    if Application.get_env(:speechwave, :run_migrations_on_start) do
+      Speechwave.Release.migrate()
+    end
   end
 
   defp backup_children do

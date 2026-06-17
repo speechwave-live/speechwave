@@ -24,6 +24,8 @@ config :speechwave, SpeechwaveWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
+  config :speechwave, run_migrations_on_start: true
+
   database_path =
     System.get_env("DATABASE_PATH") ||
       raise """
