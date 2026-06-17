@@ -4,6 +4,35 @@ defmodule SpeechwaveWeb.UserLive.LoginTest do
   import Phoenix.LiveViewTest
   import Speechwave.AccountsFixtures
 
+  describe "consent checkbox" do
+    test "renders unchecked consent checkbox", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/users/log-in")
+
+      assert has_element?(view, "#marketing-consent-checkbox")
+      refute has_element?(view, "#marketing-consent-checkbox[checked]")
+    end
+
+    test "submitting with consent checked shows magic link sent confirmation", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/users/log-in")
+
+      view
+      |> form("#magic-link-form", %{"user" => %{"email" => "test@example.com", "marketing_consent" => "true"}})
+      |> render_submit()
+
+      assert has_element?(view, "#magic-link-sent")
+    end
+
+    test "submitting without consent checked also shows confirmation", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/users/log-in")
+
+      view
+      |> form("#magic-link-form", %{"user" => %{"email" => "test@example.com", "marketing_consent" => "false"}})
+      |> render_submit()
+
+      assert has_element?(view, "#magic-link-sent")
+    end
+  end
+
   describe "login page" do
     test "renders the magic link form", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/users/log-in")

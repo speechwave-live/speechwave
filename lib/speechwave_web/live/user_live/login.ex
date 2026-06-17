@@ -44,6 +44,7 @@ defmodule SpeechwaveWeb.UserLive.Login do
             for={@form}
             id="magic-link-form"
             phx-submit="submit_magic"
+            phx-change="form_changed"
           >
             <.input
               field={@form[:email]}
@@ -54,6 +55,19 @@ defmodule SpeechwaveWeb.UserLive.Login do
               required
               phx-mounted={JS.focus()}
             />
+            <div class="flex items-start gap-2.5 py-1">
+              <input type="hidden" name="user[marketing_consent]" value="false" />
+              <input
+                type="checkbox"
+                id="marketing-consent-checkbox"
+                name="user[marketing_consent]"
+                value="true"
+                class="mt-0.5 h-4 w-4 rounded accent-mint shrink-0 cursor-pointer"
+              />
+              <label for="marketing-consent-checkbox" class="text-xs text-steel leading-relaxed cursor-pointer">
+                Keep me updated on new features and product announcements (no spam, no selling your email)
+              </label>
+            </div>
             <.button class="btn btn-primary w-full" phx-disable-with="Sending…">
               Send sign-in link <span aria-hidden="true">→</span>
             </.button>
@@ -71,7 +85,7 @@ defmodule SpeechwaveWeb.UserLive.Login do
             <div id="oauth-buttons" class="flex flex-col gap-2.5">
               <a
                 :if={oauth_provider_configured?(:google)}
-                href={~p"/auth/google"}
+                href={if @marketing_consent, do: "/auth/google?updates=true", else: "/auth/google"}
                 class="group flex items-center justify-center gap-3 w-full px-4 py-2.5 rounded-lg bg-white text-[#3c4043] text-sm font-medium shadow-sm border border-gray-200/80 hover:shadow-md hover:bg-gray-50 active:scale-[0.99] transition-all duration-150 select-none"
               >
                 <svg
@@ -102,7 +116,7 @@ defmodule SpeechwaveWeb.UserLive.Login do
               </a>
               <a
                 :if={oauth_provider_configured?(:microsoft)}
-                href={~p"/auth/microsoft"}
+                href={if @marketing_consent, do: "/auth/microsoft?updates=true", else: "/auth/microsoft"}
                 class="group flex items-center justify-center gap-3 w-full px-4 py-2.5 rounded-lg bg-white text-[#3c4043] text-sm font-medium shadow-sm border border-gray-200/80 hover:shadow-md hover:bg-gray-50 active:scale-[0.99] transition-all duration-150 select-none"
               >
                 <svg
@@ -121,7 +135,7 @@ defmodule SpeechwaveWeb.UserLive.Login do
               </a>
               <a
                 :if={oauth_provider_configured?(:github)}
-                href={~p"/auth/github"}
+                href={if @marketing_consent, do: "/auth/github?updates=true", else: "/auth/github"}
                 class="group flex items-center justify-center gap-3 w-full px-4 py-2.5 rounded-lg bg-white text-[#24292e] text-sm font-medium shadow-sm border border-gray-200/80 hover:shadow-md hover:bg-gray-50 active:scale-[0.99] transition-all duration-150 select-none"
               >
                 <svg
@@ -157,17 +171,36 @@ defmodule SpeechwaveWeb.UserLive.Login do
       |> RemoteIp.from()
       |> format_ip()
 
-    {:ok, assign(socket, form: form, link_sent: false, submitted_email: nil, client_ip: ip)}
+    {:ok,
+     assign(socket,
+       form: form,
+       link_sent: false,
+       submitted_email: nil,
+       client_ip: ip,
+       marketing_consent: false
+     )}
   end
 
   @impl true
-  def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
-    email = email |> String.trim() |> String.downcase()
+  def handle_event("form_changed", %{"user" => params}, socket) do
+    consent = Map.get(params, "marketing_consent") == "true"
+    {:noreply, assign(socket, :marketing_consent, consent)}
+  end
+
+  @impl true
+  def handle_event("submit_magic", %{"user" => params}, socket) do
+    email = params["email"] |> String.trim() |> String.downcase()
+    updates = Map.get(params, "marketing_consent") == "true"
+
+    url_fun =
+      if updates,
+        do: &(url(~p"/users/magic_link/#{&1}") <> "?updates=true"),
+        else: &url(~p"/users/magic_link/#{&1}")
 
     if auth_throttle_enabled?() do
-      maybe_send_magic_link(socket.assigns.client_ip, email)
+      maybe_send_magic_link(socket.assigns.client_ip, email, url_fun)
     else
-      send_magic_link(email)
+      send_magic_link(email, url_fun)
     end
 
     {:noreply, assign(socket, link_sent: true, submitted_email: email)}
@@ -189,28 +222,28 @@ defmodule SpeechwaveWeb.UserLive.Login do
   defp format_ip(nil), do: nil
   defp format_ip(ip), do: ip |> :inet.ntoa() |> to_string()
 
-  defp maybe_send_magic_link(ip, email) do
+  defp maybe_send_magic_link(ip, email, url_fun) do
     cond do
       is_nil(ip) ->
         Logger.info("auth_throttle: missing client ip, skipping ip check")
-        send_if_email_allowed(email)
+        send_if_email_allowed(email, url_fun)
 
       not AuthThrottle.allow_ip?(ip) ->
         :ok
 
       true ->
-        send_if_email_allowed(email)
+        send_if_email_allowed(email, url_fun)
     end
   end
 
-  defp send_if_email_allowed(email) do
-    if AuthThrottle.allow_email?(email), do: send_magic_link(email)
+  defp send_if_email_allowed(email, url_fun) do
+    if AuthThrottle.allow_email?(email), do: send_magic_link(email, url_fun)
   end
 
-  defp send_magic_link(email) do
+  defp send_magic_link(email, url_fun) do
     case Accounts.register_or_get_user_by_email(email) do
       {:ok, user} ->
-        Accounts.deliver_login_instructions(user, &url(~p"/users/magic_link/#{&1}"))
+        Accounts.deliver_login_instructions(user, url_fun)
 
       {:error, _} ->
         nil

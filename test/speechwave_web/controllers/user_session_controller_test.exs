@@ -3,6 +3,8 @@ defmodule SpeechwaveWeb.UserSessionControllerTest do
 
   import Speechwave.AccountsFixtures
 
+  alias Speechwave.Accounts
+
   setup do
     %{user: user_fixture()}
   end
@@ -48,6 +50,53 @@ defmodule SpeechwaveWeb.UserSessionControllerTest do
 
       assert redirected_to(conn) == ~p"/users/log-in"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not configured"
+    end
+  end
+
+  describe "magic_link/2 with consent params" do
+    setup do
+      user = user_fixture()
+      {token, _} = generate_user_magic_link_token(user)
+      %{user: user, token: token}
+    end
+
+    test "grants consent with source 'login' when ?updates=true", %{conn: conn, user: user, token: token} do
+      before = DateTime.utc_now() |> DateTime.truncate(:second)
+      get(conn, ~p"/users/magic_link/#{token}?updates=true")
+
+      consent = Accounts.get_consent(user, "marketing_email")
+      assert consent
+      assert consent.granted
+      assert consent.source == "login"
+      assert DateTime.compare(consent.granted_at, before) in [:gt, :eq]
+    end
+
+    test "sets source to 'pricing_pro' when ?updates=true&notify=pro", %{conn: conn, user: user, token: token} do
+      get(conn, ~p"/users/magic_link/#{token}?updates=true&notify=pro")
+
+      consent = Accounts.get_consent(user, "marketing_email")
+      assert consent.source == "pricing_pro"
+    end
+
+    test "shows plan-specific flash when ?notify present", %{conn: conn, token: token} do
+      conn = get(conn, ~p"/users/magic_link/#{token}?updates=true&notify=pro")
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Pro"
+    end
+
+    test "does not grant consent when ?updates absent", %{conn: conn, user: user, token: token} do
+      get(conn, ~p"/users/magic_link/#{token}")
+
+      refute Accounts.consented?(user, "marketing_email")
+    end
+
+    test "preserves existing consent on login without ?updates", %{conn: conn} do
+      user = consented_user_fixture()
+      {token, _} = generate_user_magic_link_token(user)
+
+      get(conn, ~p"/users/magic_link/#{token}")
+
+      assert Accounts.consented?(user, "marketing_email")
     end
   end
 

@@ -5,11 +5,24 @@ defmodule SpeechwaveWeb.UserSessionController do
   alias SpeechwaveWeb.UserAuth
 
   @doc "Handles the magic link click — verifies token and creates a session directly."
-  def magic_link(conn, %{"token" => token}) do
+  def magic_link(conn, %{"token" => token} = params) do
+    updates = params["updates"] == "true"
+    notify = params["notify"]
+
     case Accounts.login_user_by_magic_link(token) do
       {:ok, {user, _tokens}} ->
+        if updates do
+          source = if notify, do: "pricing_#{notify}", else: "login"
+          Accounts.grant_consent(user, "marketing_email", source: source)
+        end
+
+        flash =
+          if notify,
+            do: "You're on the list! We'll email you when #{String.capitalize(notify)} launches.",
+            else: "Welcome!"
+
         conn
-        |> put_flash(:info, "Welcome!")
+        |> put_flash(:info, flash)
         |> UserAuth.log_in_user(user)
 
       {:error, _} ->
@@ -22,7 +35,8 @@ defmodule SpeechwaveWeb.UserSessionController do
   @known_providers ~w[google github microsoft]
 
   @doc "Initiates OAuth authorization for the given provider."
-  def oauth_authorize(conn, %{"provider" => provider}) do
+  def oauth_authorize(conn, %{"provider" => provider} = params) do
+    updates = params["updates"] == "true"
     config = assent_config(provider, conn)
 
     case config && config[:strategy].authorize_url(config) do
@@ -30,6 +44,7 @@ defmodule SpeechwaveWeb.UserSessionController do
         conn
         |> put_session(:assent_session_params, session_params)
         |> put_session(:oauth_context, oauth_context(conn))
+        |> put_session(:marketing_updates, updates)
         |> redirect(external: url)
 
       _ ->
@@ -77,11 +92,18 @@ defmodule SpeechwaveWeb.UserSessionController do
   end
 
   defp handle_oauth_login(conn, provider, user_info) do
+    marketing_updates = get_session(conn, :marketing_updates) || false
+
     case Accounts.find_or_create_user_from_oauth(provider, user_info) do
       {:ok, user} ->
+        if marketing_updates do
+          Accounts.grant_consent(user, "marketing_email", source: "login")
+        end
+
         conn
         |> delete_session(:assent_session_params)
         |> delete_session(:oauth_context)
+        |> delete_session(:marketing_updates)
         |> put_flash(:info, "Welcome!")
         |> UserAuth.log_in_user(user)
 
