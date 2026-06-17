@@ -51,11 +51,11 @@ script. Exits non-zero if any failed.
 Checks `rodney` is on `PATH` and the dev server is reachable at `--base-url`
 before starting, with actionable error messages if not.
 
-**Dev-only** — refuses a non-local `--base-url`, since four of the five
-scripts depend on `/dev/mailbox` and `mix run` for seeding. The `ip`-cooldown
-mode of `auth_throttle.sh` isn't included here since it's production-only and
-needs a manual `fly logs` check afterward — run it separately per the
-"Magic-link auth throttle" section below.
+**Dev-only** — refuses a non-local `--base-url`, since most scripts depend on
+`/dev/mailbox` and `mix run` for seeding. The `ip`-cooldown mode of
+`auth_throttle.sh` isn't included here since it's production-only and needs a
+manual `fly logs` check afterward — run it separately per the "Magic-link auth
+throttle" section below.
 
 ## Conventions for new sections
 
@@ -260,6 +260,52 @@ attendees viewing the same talk:
    flow) shows both ❤️ and 😂.
 10. Deletes the talk (cleanup).
 11. Signs out.
+
+## Email consent collection
+
+Tests the three consent surfaces end-to-end: the login checkbox URL
+passthrough, the pricing page Notify Me modal, and the settings revoke flow.
+The key thing unit tests can't verify is that the real magic link URL in the
+real email actually carries the right query params before the user ever clicks
+it.
+
+Script: `scripts/manual_tests/email_consent.sh [--base-url URL]` (default
+`http://localhost:4000`)
+
+**Dev-only** — exits with an error against a non-local `--base-url`, since
+all three scenarios read from `/dev/mailbox`.
+
+**Scenario A — Login with consent checkbox:**
+
+1. Navigates to `/users/log-in`, inputs a fresh test email, checks the
+   marketing consent checkbox, submits.
+2. Reads the magic link from `/dev/mailbox`. Asserts the URL contains
+   `updates=true`.
+3. Clicks the magic link, navigates to `/users/settings`. Asserts
+   `#email-prefs-section[data-consented=true]` and `#revoke-consent-btn`
+   are present.
+4. Clicks `#revoke-consent-btn`. Asserts `data-consented=false` and the
+   revoke button is gone.
+
+**Scenario B — Login without consent checkbox:**
+
+1. Navigates to `/users/log-in`, inputs a fresh test email, submits
+   *without* checking the checkbox.
+2. Reads the magic link from `/dev/mailbox`. Asserts the URL does *not*
+   contain `updates`.
+3. Clicks the magic link, navigates to `/users/settings`. Asserts
+   `#email-prefs-section[data-consented=false]` and no `#revoke-consent-btn`.
+
+**Scenario C — Pricing Notify Me modal (logged-out user):**
+
+1. Navigates to `/pricing` (not logged in). Clicks `#notify-pro-btn`.
+   Asserts `#notify-modal` appears.
+2. Inputs a fresh test email in `#notify-form`, submits. Asserts
+   `#notify-sent-message` appears.
+3. Reads the magic link from `/dev/mailbox`. Asserts the URL contains
+   both `updates` and `notify` query params.
+4. Clicks the magic link. Asserts `#flash-info` appears (consent granted
+   with source `"pricing_pro"`).
 
 ## Account settings
 

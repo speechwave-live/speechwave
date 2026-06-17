@@ -13,7 +13,7 @@ parse_base_url "$@"
 if ! is_local; then
   echo "ERROR: run_all_dev.sh only runs scripts that require a local dev server" >&2
   echo "(auth_throttle.sh email mode, dashboard.sh, session_analytics.sh," >&2
-  echo "reaction_flow.sh, account_settings.sh)." >&2
+  echo "reaction_flow.sh, account_settings.sh, email_consent.sh)." >&2
   echo "Re-run with --base-url http://localhost:4000 (or omit --base-url)." >&2
   exit 1
 fi
@@ -53,6 +53,7 @@ run_script "dashboard.sh"           "$SCRIPT_DIR/dashboard.sh" --base-url "$BASE
 run_script "session_analytics.sh"   "$SCRIPT_DIR/session_analytics.sh" --base-url "$BASE_URL"
 run_script "reaction_flow.sh"       "$SCRIPT_DIR/reaction_flow.sh" --base-url "$BASE_URL"
 run_script "account_settings.sh"    "$SCRIPT_DIR/account_settings.sh" --base-url "$BASE_URL"
+run_script "email_consent.sh"       "$SCRIPT_DIR/email_consent.sh" --base-url "$BASE_URL"
 run_script "cleanup_manual_test_users.sh" "$SCRIPT_DIR/cleanup_manual_test_users.sh"
 
 echo

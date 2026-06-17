@@ -1,5 +1,22 @@
 # Administration Handbook
 
+## Database migrations
+
+Migrations run automatically at app startup in production. When you deploy,
+the new app machine runs all pending migrations before serving traffic.
+
+In development, run migrations manually after pulling new changes:
+
+```sh
+mix ecto.migrate
+```
+
+To check which migrations have and haven't run:
+
+```sh
+mix ecto.migrations
+```
+
 ## How to manually reset a user's password
 
 Connect to the running production node via a remote IEx console:
