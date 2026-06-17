@@ -4,6 +4,35 @@ Deferred work identified while working on other projects. Items here are
 acknowledged but intentionally not in scope for the work that surfaced them.
 Move an item out (with a link to its spec/plan) once it's actively planned.
 
+## Email & Marketing
+
+Deferred from `docs/specs/2026-06-16-email-collection-design.md`.
+
+### Email marketing platform integration
+
+The email collection spec stores consent and `notify_interest` locally and
+exports to CSV. When ready to send marketing emails, pick a platform
+(Mailchimp, ConvertKit, Brevo, Buttondown, etc.) and replace the CSV export
+with an API sync.
+
+Features that depend on the platform choice and are out of scope until then:
+double opt-in confirmation emails, unsubscribe links in outbound emails, and
+granular per-topic subscription preferences.
+
+### Super admin email export UI
+
+A LiveView form (checkboxes for `notify_interest` filter + CSV download) in
+the planned super admin section, behind the `is_admin` guard. Blocked on the
+super admin section existing. Until then, engineers can query consented users
+directly via IEx in the production console.
+
+### Enterprise "Contact us" button label
+
+The Enterprise card on the pricing page currently reads "Contact us" while the
+Pro card reads "Notify me". Once the Notify Me modal is wired up, decide
+whether to rename the Enterprise button to "Notify me" for consistency, or
+keep "Contact us" as a signal that Enterprise requires a conversation.
+
 ## Auth & Accounts
 
 ### Clean up unconfirmed "junk" users
