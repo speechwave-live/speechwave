@@ -200,12 +200,18 @@ echo "PASS: Notify Me magic link contains 'updates' and 'notify' query params"
 
 rodney open "$magic_url" >/dev/null
 rodney waitload >/dev/null
-rodney waitstable >/dev/null
-if ! rodney exists "#flash-info" >/dev/null; then
-  echo "FAIL: #flash-info not present after clicking Notify Me magic link" >&2
+rodney open "$BASE_URL/users/settings" >/dev/null
+rodney waitload >/dev/null
+if ! rodney exists "#email-prefs-section" >/dev/null; then
+  echo "FAIL: #email-prefs-section not found on /users/settings after clicking Notify Me magic link" >&2
   exit 1
 fi
-echo "PASS: #flash-info appears after clicking Notify Me magic link (consent granted)"
+consented=$(rodney attr "#email-prefs-section" data-consented)
+if [ "$consented" != "true" ]; then
+  echo "FAIL: expected data-consented=true after clicking Notify Me magic link, got '$consented'" >&2
+  exit 1
+fi
+echo "PASS: /users/settings shows data-consented=true after clicking Notify Me magic link"
 
 rodney click 'a[href="/users/log-out"]' >/dev/null
 rodney waitload >/dev/null

@@ -304,8 +304,10 @@ all three scenarios read from `/dev/mailbox`.
    `#notify-sent-message` appears.
 3. Reads the magic link from `/dev/mailbox`. Asserts the URL contains
    both `updates` and `notify` query params.
-4. Clicks the magic link. Asserts `#flash-info` appears (consent granted
-   with source `"pricing_pro"`).
+4. Clicks the magic link, navigates to `/users/settings`. Asserts
+   `#email-prefs-section[data-consented=true]` (consent stored with source
+   `"pricing_pro"`). The flash auto-dismisses too quickly to assert reliably
+   in headless Chrome — the settings page is the stable proof.
 
 ## Account settings
 
