@@ -7,7 +7,6 @@ defmodule SpeechwaveWeb.PageController do
     render(conn, :home)
   end
 
-  def pricing(conn, _params), do: render(conn, :pricing, free_limits())
   def terms(conn, _params), do: render(conn, :terms, free_limits())
   def privacy(conn, _params), do: render(conn, :privacy)
 
