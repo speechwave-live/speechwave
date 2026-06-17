@@ -11,10 +11,7 @@ defmodule SpeechwaveWeb.UserSessionController do
 
     case Accounts.login_user_by_magic_link(token) do
       {:ok, {user, _tokens}} ->
-        if updates do
-          source = if notify, do: "pricing_#{notify}", else: "login"
-          Accounts.grant_consent(user, "marketing_email", source: source)
-        end
+        maybe_grant_magic_link_consent(user, updates, notify)
 
         flash =
           if notify && updates,
@@ -167,6 +164,13 @@ defmodule SpeechwaveWeb.UserSessionController do
       "login"
     end
   end
+
+  defp maybe_grant_magic_link_consent(user, true, notify) do
+    source = if notify, do: "pricing_#{notify}", else: "login"
+    Accounts.grant_consent(user, "marketing_email", source: source)
+  end
+
+  defp maybe_grant_magic_link_consent(_user, false, _notify), do: :ok
 
   # Returns nil for unknown providers to redirect gracefully rather than raising.
   defp assent_config(provider, _conn) when provider not in @known_providers, do: nil
