@@ -440,7 +440,8 @@ defmodule Speechwave.AccountsTest do
       changeset =
         UserConsent.changeset(%UserConsent{}, %{
           consent_type: "marketing_email",
-          granted: false
+          granted: false,
+          source: "login"
         })
 
       assert changeset.valid?
@@ -520,6 +521,17 @@ defmodule Speechwave.AccountsTest do
       user = user_fixture()
 
       assert {:ok, nil} = Accounts.revoke_consent(user, "marketing_email")
+    end
+
+    test "is a no-op when already revoked" do
+      user = user_fixture()
+      {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+      {:ok, revoked} = Accounts.revoke_consent(user, "marketing_email")
+      original_revoked_at = revoked.revoked_at
+
+      {:ok, same} = Accounts.revoke_consent(user, "marketing_email")
+
+      assert same.revoked_at == original_revoked_at
     end
   end
 

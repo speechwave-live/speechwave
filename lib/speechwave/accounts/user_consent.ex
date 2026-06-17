@@ -25,7 +25,7 @@ defmodule Speechwave.Accounts.UserConsent do
   def changeset(consent, attrs) do
     consent
     |> cast(attrs, [:consent_type, :granted, :granted_at, :source, :revoked_at])
-    |> validate_required([:consent_type, :granted])
+    |> validate_required([:consent_type, :granted, :source])
     |> validate_granted_at_when_granted()
     |> unique_constraint([:user_id, :consent_type])
   end

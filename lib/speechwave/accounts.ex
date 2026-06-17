@@ -128,6 +128,9 @@ defmodule Speechwave.Accounts do
       nil ->
         {:ok, nil}
 
+      %UserConsent{granted: false} = consent ->
+        {:ok, consent}
+
       consent ->
         consent
         |> UserConsent.changeset(%{
