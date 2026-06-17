@@ -4,6 +4,70 @@ Deferred work identified while working on other projects. Items here are
 acknowledged but intentionally not in scope for the work that surfaced them.
 Move an item out (with a link to its spec/plan) once it's actively planned.
 
+## Pre-launch Tasks
+
+Work required before the free tier can be publicly launched. Items large enough
+to warrant a spec/plan should get one when they're ready to be worked.
+
+### Must-haves
+
+#### Chrome extension: API key auth (own spec/plan needed)
+
+The server's `ReactionChannel` now requires `api_key` in channel params, but
+the extension has not been updated since that change. Before submission to the
+Chrome Web Store the extension needs:
+
+- A one-time setup screen in the popup to enter and save the API key to
+  `chrome.storage.sync` (shown on first open if no key is stored)
+- Pass `{ api_key: storedApiKey }` in channel params on join
+- Handle new error cases: `"unauthorized"`, `"email_not_confirmed"`
+- End-to-end test against the current server
+
+Once working, submit to the Chrome Web Store. Review for new extensions can
+take days to weeks — this is the longest lead-time item and should be
+submitted as soon as possible.
+
+**Soft launch option:** if Web Store review is delayed, the web app is fully
+launchable on its own. The pricing/home pages could note "Chrome extension
+coming soon" and direct early users to the waitlist email consent flow.
+
+#### Terms of Service and Privacy Policy review
+
+Both pages exist (`/terms`, `/privacy`) but content has only been lightly
+updated from template text. Requires a final review and update before launch.
+
+#### Code cleanup for public repository
+
+The GitHub repository is public. Before launch:
+
+- Delete `lib/speechwave_web/live/admin_live.html.heex` — orphaned template
+  with no matching module or route
+- Delete `lib/speechwave_web/controllers/page_html/pricing.html.heex` —
+  leftover from before pricing moved to `PricingLive`
+- Style 404/500 error pages — currently render bare plain text
+
+### Nice-to-haves
+
+#### Super-admin panel (own spec/plan needed)
+
+A LiveView behind the existing `is_admin` guard for tracking initial traction
+post-launch. Two core views:
+
+1. **User stats** — confirmed user count, junk user count (no session token,
+   no identity), total signups
+2. **Email consent export** — filter consented users by `source` / date range,
+   CSV download; this directly unblocks the "Super admin email export UI"
+   item in the Email & Marketing section below
+
+#### OG / SEO meta tags
+
+Add `<meta name="description">` and Open Graph / Twitter card tags to public
+pages (`/`, `/pricing`) so links share well and search engines have context.
+
+#### SSH/eval magic link helper for production test scripts
+
+See the Manual/Live-Environment Testing section below.
+
 ## Email & Marketing
 
 Deferred from `docs/specs/2026-06-16-email-collection-design.md`.
