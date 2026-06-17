@@ -4,7 +4,7 @@ defmodule Speechwave.AccountsTest do
   alias Speechwave.Accounts
 
   import Speechwave.AccountsFixtures
-  alias Speechwave.Accounts.{User, UserToken}
+  alias Speechwave.Accounts.{User, UserConsent, UserToken}
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -408,6 +408,160 @@ defmodule Speechwave.AccountsTest do
 
       assert {:ok, _} = Accounts.delete_user_identity(identity)
       assert Accounts.list_user_identities(user) == []
+    end
+  end
+
+  describe "UserConsent.changeset/2" do
+    test "is valid when granted with granted_at present" do
+      changeset =
+        UserConsent.changeset(%UserConsent{}, %{
+          consent_type: "marketing_email",
+          granted: true,
+          granted_at: DateTime.utc_now() |> DateTime.truncate(:second),
+          source: "login"
+        })
+
+      assert changeset.valid?
+    end
+
+    test "is invalid when granted: true without granted_at" do
+      changeset =
+        UserConsent.changeset(%UserConsent{}, %{
+          consent_type: "marketing_email",
+          granted: true,
+          source: "login"
+        })
+
+      refute changeset.valid?
+      assert errors_on(changeset)[:granted_at]
+    end
+
+    test "is valid when granted: false without granted_at" do
+      changeset =
+        UserConsent.changeset(%UserConsent{}, %{
+          consent_type: "marketing_email",
+          granted: false
+        })
+
+      assert changeset.valid?
+    end
+  end
+
+  describe "grant_consent/3" do
+    test "creates a consent record for a new user" do
+      user = user_fixture()
+      before = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      {:ok, consent} = Accounts.grant_consent(user, "marketing_email", source: "login")
+
+      assert consent.granted
+      assert consent.consent_type == "marketing_email"
+      assert consent.source == "login"
+      assert DateTime.compare(consent.granted_at, before) in [:gt, :eq]
+      assert is_nil(consent.revoked_at)
+    end
+
+    test "defaults source to 'login'" do
+      user = user_fixture()
+
+      {:ok, consent} = Accounts.grant_consent(user, "marketing_email")
+
+      assert consent.source == "login"
+    end
+
+    test "is a no-op when already consented with the same source" do
+      user = user_fixture()
+      {:ok, original} = Accounts.grant_consent(user, "marketing_email", source: "login")
+
+      {:ok, same} = Accounts.grant_consent(user, "marketing_email", source: "login")
+
+      assert same.id == original.id
+      assert same.granted_at == original.granted_at
+    end
+
+    test "updates source when already consented with a different source" do
+      user = user_fixture()
+      {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+
+      {:ok, updated} = Accounts.grant_consent(user, "marketing_email", source: "pricing_pro")
+
+      assert updated.source == "pricing_pro"
+      assert updated.granted
+    end
+
+    test "re-grants after revocation with granted set and revoked_at cleared" do
+      user = user_fixture()
+      {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+      {:ok, _} = Accounts.revoke_consent(user, "marketing_email")
+
+      {:ok, reconsented} = Accounts.grant_consent(user, "marketing_email", source: "login")
+
+      assert reconsented.granted
+      assert not is_nil(reconsented.granted_at)
+      assert is_nil(reconsented.revoked_at)
+    end
+  end
+
+  describe "revoke_consent/2" do
+    test "sets granted: false, records revoked_at, preserves granted_at" do
+      user = user_fixture()
+      {:ok, consented} = Accounts.grant_consent(user, "marketing_email", source: "login")
+      original_granted_at = consented.granted_at
+      before_revoke = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      {:ok, revoked} = Accounts.revoke_consent(user, "marketing_email")
+
+      refute revoked.granted
+      assert DateTime.compare(revoked.revoked_at, before_revoke) in [:gt, :eq]
+      assert revoked.granted_at == original_granted_at
+    end
+
+    test "is a no-op (returns {:ok, nil}) for a user who never consented" do
+      user = user_fixture()
+
+      assert {:ok, nil} = Accounts.revoke_consent(user, "marketing_email")
+    end
+  end
+
+  describe "consented?/2" do
+    test "returns false for a new user" do
+      user = user_fixture()
+
+      refute Accounts.consented?(user, "marketing_email")
+    end
+
+    test "returns true after consent is granted" do
+      user = user_fixture()
+      {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+
+      assert Accounts.consented?(user, "marketing_email")
+    end
+
+    test "returns false after consent is revoked" do
+      user = user_fixture()
+      {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+      {:ok, _} = Accounts.revoke_consent(user, "marketing_email")
+
+      refute Accounts.consented?(user, "marketing_email")
+    end
+  end
+
+  describe "get_consent/2" do
+    test "returns nil when no record exists" do
+      user = user_fixture()
+
+      assert is_nil(Accounts.get_consent(user, "marketing_email"))
+    end
+
+    test "returns the consent record after granting" do
+      user = user_fixture()
+      {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+
+      consent = Accounts.get_consent(user, "marketing_email")
+
+      assert %Speechwave.Accounts.UserConsent{} = consent
+      assert consent.consent_type == "marketing_email"
+      assert consent.granted
     end
   end
 end

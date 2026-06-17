@@ -6,7 +6,7 @@ defmodule Speechwave.Accounts do
   import Ecto.Query, warn: false
   alias Speechwave.Repo
 
-  alias Speechwave.Accounts.{User, UserIdentity, UserNotifier, UserToken}
+  alias Speechwave.Accounts.{User, UserConsent, UserIdentity, UserNotifier, UserToken}
 
   ## Database getters
 
@@ -55,6 +55,87 @@ defmodule Speechwave.Accounts do
     user
     |> Ecto.Changeset.change(api_key: new_key)
     |> Repo.update()
+  end
+
+  @doc "Returns the consent record for the given user and type, or nil."
+  def get_consent(%User{} = user, consent_type) do
+    Repo.get_by(UserConsent, user_id: user.id, consent_type: consent_type)
+  end
+
+  @doc "Returns true if the user currently has active consent of the given type."
+  def consented?(%User{} = user, consent_type) do
+    case get_consent(user, consent_type) do
+      %UserConsent{granted: true} -> true
+      _ -> false
+    end
+  end
+
+  @doc """
+  Grants consent of the given type for the user.
+
+  Idempotent: calling again with the same source is a no-op. Calling with a
+  different source updates the source (e.g. upgrading from "login" to
+  "pricing_pro" when the user clicks Notify Me). Re-grants after revocation
+  record a fresh `granted_at` timestamp.
+
+  Options:
+    - `:source` — where consent was collected; defaults to `"login"`.
+  """
+  def grant_consent(%User{} = user, consent_type, opts \\ []) do
+    source = Keyword.get(opts, :source, "login")
+    existing = get_consent(user, consent_type)
+
+    cond do
+      is_nil(existing) ->
+        %UserConsent{user_id: user.id}
+        |> UserConsent.changeset(%{
+          consent_type: consent_type,
+          granted: true,
+          granted_at: DateTime.utc_now() |> DateTime.truncate(:second),
+          source: source
+        })
+        |> Repo.insert()
+
+      not existing.granted ->
+        existing
+        |> UserConsent.changeset(%{
+          granted: true,
+          granted_at: DateTime.utc_now() |> DateTime.truncate(:second),
+          source: source,
+          revoked_at: nil
+        })
+        |> Repo.update()
+
+      existing.source == source ->
+        {:ok, existing}
+
+      true ->
+        existing
+        |> UserConsent.changeset(%{source: source})
+        |> Repo.update()
+    end
+  end
+
+  @doc """
+  Revokes consent of the given type for the user.
+
+  Records `revoked_at` for the audit trail but preserves `granted_at` so the
+  original consent timestamp remains. Is a no-op (returns `{:ok, nil}`) if no
+  consent record exists.
+  """
+  def revoke_consent(%User{} = user, consent_type) do
+    case get_consent(user, consent_type) do
+      nil ->
+        {:ok, nil}
+
+      consent ->
+        consent
+        |> UserConsent.changeset(%{
+          granted: false,
+          revoked_at: DateTime.utc_now() |> DateTime.truncate(:second)
+        })
+        |> Repo.update()
+    end
   end
 
   @doc """

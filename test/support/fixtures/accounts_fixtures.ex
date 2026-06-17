@@ -23,6 +23,13 @@ defmodule Speechwave.AccountsFixtures do
     user
   end
 
+  def consented_user_fixture(attrs \\ %{}) do
+    user = user_fixture()
+    source = Map.get(attrs, :source, "login")
+    {:ok, _} = Speechwave.Accounts.grant_consent(user, "marketing_email", source: source)
+    user
+  end
+
   def user_scope_fixture do
     user = user_fixture()
     user_scope_fixture(user)
