@@ -98,6 +98,36 @@ defmodule SpeechwaveWeb.UserLive.Settings do
           </button>
         </div>
       </div>
+
+      <div class="divider" />
+
+      <%!-- Email preferences section --%>
+      <div
+        id="email-prefs-section"
+        data-consented={to_string(@marketing_consent != nil and @marketing_consent.granted)}
+      >
+        <h3 class="font-semibold text-base-content">Email preferences</h3>
+        <div class="space-y-2 mt-2">
+          <p class="text-sm font-medium text-base-content">Product updates &amp; announcements</p>
+          <%= if @marketing_consent != nil and @marketing_consent.granted do %>
+            <p class="text-sm text-base-content/70">
+              You're subscribed. We'll let you know about new features and product updates.
+            </p>
+            <button
+              id="revoke-consent-btn"
+              phx-click="revoke_consent"
+              class="text-sm text-base-content/70 underline hover:text-base-content transition-colors"
+            >
+              Unsubscribe
+            </button>
+          <% else %>
+            <p class="text-sm text-base-content/70">
+              You're not subscribed to product updates.
+              Sign in again and check the "Keep me updated" box to subscribe.
+            </p>
+          <% end %>
+        </div>
+      </div>
     </Layouts.app>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".SelectOnClick">
       export default {
@@ -124,6 +154,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_scope.user
     email_changeset = Accounts.change_user_email(user, %{}, validate_unique: false)
+    marketing_consent = Accounts.get_consent(user, "marketing_email")
 
     socket =
       socket
@@ -131,6 +162,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
       |> assign(:email_form, to_form(email_changeset))
       |> assign(:api_key, user.api_key)
       |> assign(:identities, Accounts.list_user_identities(user))
+      |> assign(:marketing_consent, marketing_consent)
 
     {:ok, socket}
   end
@@ -179,6 +211,13 @@ defmodule SpeechwaveWeb.UserLive.Settings do
     else
       {:noreply, put_flash(socket, :error, "Could not disconnect that account.")}
     end
+  end
+
+  def handle_event("revoke_consent", _params, socket) do
+    user = socket.assigns.current_scope.user
+    {:ok, _} = Accounts.revoke_consent(user, "marketing_email")
+    marketing_consent = Accounts.get_consent(user, "marketing_email")
+    {:noreply, assign(socket, :marketing_consent, marketing_consent)}
   end
 
   def handle_event("regenerate_api_key", _params, socket) do
