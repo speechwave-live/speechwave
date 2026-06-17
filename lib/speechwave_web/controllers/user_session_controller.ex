@@ -7,7 +7,7 @@ defmodule SpeechwaveWeb.UserSessionController do
   @doc "Handles the magic link click — verifies token and creates a session directly."
   def magic_link(conn, %{"token" => token} = params) do
     updates = params["updates"] == "true"
-    notify = params["notify"]
+    notify = if params["notify"] in ~w[pro enterprise], do: params["notify"], else: nil
 
     case Accounts.login_user_by_magic_link(token) do
       {:ok, {user, _tokens}} ->
@@ -17,7 +17,7 @@ defmodule SpeechwaveWeb.UserSessionController do
         end
 
         flash =
-          if notify,
+          if notify && updates,
             do: "You're on the list! We'll email you when #{String.capitalize(notify)} launches.",
             else: "Welcome!"
 
@@ -92,7 +92,7 @@ defmodule SpeechwaveWeb.UserSessionController do
   end
 
   defp handle_oauth_login(conn, provider, user_info) do
-    marketing_updates = get_session(conn, :marketing_updates) || false
+    marketing_updates = get_session(conn, :marketing_updates)
 
     case Accounts.find_or_create_user_from_oauth(provider, user_info) do
       {:ok, user} ->
