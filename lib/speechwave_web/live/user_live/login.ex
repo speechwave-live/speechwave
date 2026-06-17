@@ -64,7 +64,10 @@ defmodule SpeechwaveWeb.UserLive.Login do
                 value="true"
                 class="mt-0.5 h-4 w-4 rounded accent-mint shrink-0 cursor-pointer"
               />
-              <label for="marketing-consent-checkbox" class="text-xs text-steel leading-relaxed cursor-pointer">
+              <label
+                for="marketing-consent-checkbox"
+                class="text-xs text-steel leading-relaxed cursor-pointer"
+              >
                 Keep me updated on new features and product announcements (no spam, no selling your email)
               </label>
             </div>
@@ -85,7 +88,11 @@ defmodule SpeechwaveWeb.UserLive.Login do
             <div id="oauth-buttons" class="flex flex-col gap-2.5">
               <a
                 :if={oauth_provider_configured?(:google)}
-                href={if @marketing_consent, do: ~p"/auth/google" <> "?updates=true", else: ~p"/auth/google"}
+                href={
+                  if @marketing_consent,
+                    do: ~p"/auth/google" <> "?updates=true",
+                    else: ~p"/auth/google"
+                }
                 class="group flex items-center justify-center gap-3 w-full px-4 py-2.5 rounded-lg bg-white text-[#3c4043] text-sm font-medium shadow-sm border border-gray-200/80 hover:shadow-md hover:bg-gray-50 active:scale-[0.99] transition-all duration-150 select-none"
               >
                 <svg
@@ -116,7 +123,11 @@ defmodule SpeechwaveWeb.UserLive.Login do
               </a>
               <a
                 :if={oauth_provider_configured?(:microsoft)}
-                href={if @marketing_consent, do: ~p"/auth/microsoft" <> "?updates=true", else: ~p"/auth/microsoft"}
+                href={
+                  if @marketing_consent,
+                    do: ~p"/auth/microsoft" <> "?updates=true",
+                    else: ~p"/auth/microsoft"
+                }
                 class="group flex items-center justify-center gap-3 w-full px-4 py-2.5 rounded-lg bg-white text-[#3c4043] text-sm font-medium shadow-sm border border-gray-200/80 hover:shadow-md hover:bg-gray-50 active:scale-[0.99] transition-all duration-150 select-none"
               >
                 <svg
@@ -135,7 +146,11 @@ defmodule SpeechwaveWeb.UserLive.Login do
               </a>
               <a
                 :if={oauth_provider_configured?(:github)}
-                href={if @marketing_consent, do: ~p"/auth/github" <> "?updates=true", else: ~p"/auth/github"}
+                href={
+                  if @marketing_consent,
+                    do: ~p"/auth/github" <> "?updates=true",
+                    else: ~p"/auth/github"
+                }
                 class="group flex items-center justify-center gap-3 w-full px-4 py-2.5 rounded-lg bg-white text-[#24292e] text-sm font-medium shadow-sm border border-gray-200/80 hover:shadow-md hover:bg-gray-50 active:scale-[0.99] transition-all duration-150 select-none"
               >
                 <svg

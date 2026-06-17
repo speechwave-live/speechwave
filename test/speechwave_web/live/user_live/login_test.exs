@@ -16,7 +16,9 @@ defmodule SpeechwaveWeb.UserLive.LoginTest do
       {:ok, view, _html} = live(conn, ~p"/users/log-in")
 
       view
-      |> form("#magic-link-form", %{"user" => %{"email" => "test@example.com", "marketing_consent" => "true"}})
+      |> form("#magic-link-form", %{
+        "user" => %{"email" => "test@example.com", "marketing_consent" => "true"}
+      })
       |> render_submit()
 
       assert has_element?(view, "#magic-link-sent")
@@ -26,7 +28,9 @@ defmodule SpeechwaveWeb.UserLive.LoginTest do
       {:ok, view, _html} = live(conn, ~p"/users/log-in")
 
       view
-      |> form("#magic-link-form", %{"user" => %{"email" => "test@example.com", "marketing_consent" => "false"}})
+      |> form("#magic-link-form", %{
+        "user" => %{"email" => "test@example.com", "marketing_consent" => "false"}
+      })
       |> render_submit()
 
       assert has_element?(view, "#magic-link-sent")

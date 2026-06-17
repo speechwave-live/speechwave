@@ -33,7 +33,8 @@ defmodule SpeechwaveWeb.Layouts do
 
   attr :full_width, :boolean,
     default: false,
-    doc: "when true, skips the max-w-2xl wrapper — for marketing pages that handle their own width"
+    doc:
+      "when true, skips the max-w-2xl wrapper — for marketing pages that handle their own width"
 
   slot :inner_block, required: true
 

@@ -60,7 +60,11 @@ defmodule SpeechwaveWeb.UserSessionControllerTest do
       %{user: user, token: token}
     end
 
-    test "grants consent with source 'login' when ?updates=true", %{conn: conn, user: user, token: token} do
+    test "grants consent with source 'login' when ?updates=true", %{
+      conn: conn,
+      user: user,
+      token: token
+    } do
       before = DateTime.utc_now() |> DateTime.truncate(:second)
       get(conn, ~p"/users/magic_link/#{token}?updates=true")
 
@@ -71,7 +75,11 @@ defmodule SpeechwaveWeb.UserSessionControllerTest do
       assert DateTime.compare(consent.granted_at, before) in [:gt, :eq]
     end
 
-    test "sets source to 'pricing_pro' when ?updates=true&notify=pro", %{conn: conn, user: user, token: token} do
+    test "sets source to 'pricing_pro' when ?updates=true&notify=pro", %{
+      conn: conn,
+      user: user,
+      token: token
+    } do
       get(conn, ~p"/users/magic_link/#{token}?updates=true&notify=pro")
 
       consent = Accounts.get_consent(user, "marketing_email")
