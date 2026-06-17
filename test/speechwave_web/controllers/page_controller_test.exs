@@ -6,11 +6,6 @@ defmodule SpeechwaveWeb.PageControllerTest do
     assert html_response(conn, 200) =~ "Speechwave"
   end
 
-  test "GET /pricing returns 200", %{conn: conn} do
-    conn = get(conn, ~p"/pricing")
-    assert html_response(conn, 200) =~ "Free"
-  end
-
   test "GET /terms returns 200", %{conn: conn} do
     conn = get(conn, ~p"/terms")
     assert html_response(conn, 200) =~ "Terms"

@@ -31,6 +31,10 @@ defmodule SpeechwaveWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :full_width, :boolean,
+    default: false,
+    doc: "when true, skips the max-w-2xl wrapper — for marketing pages that handle their own width"
+
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -57,15 +61,15 @@ defmodule SpeechwaveWeb.Layouts do
           </div>
         </div>
       </header>
-      <main class="pt-14 px-4 py-8 sm:px-6 lg:px-8">
-        <div class="mx-auto max-w-2xl space-y-4">
+      <main class={["pt-14", not @full_width && "px-4 py-8 sm:px-6 lg:px-8"]}>
+        <div class={[@full_width || "mx-auto max-w-2xl space-y-4"]}>
           {render_slot(@inner_block)}
         </div>
       </main>
     <% else %>
       <.public_nav current_scope={@current_scope} />
-      <main class="pt-16 px-4 py-8 sm:px-6 lg:px-8">
-        <div class="mx-auto max-w-2xl space-y-4">
+      <main class={["pt-16", not @full_width && "px-4 py-8 sm:px-6 lg:px-8"]}>
+        <div class={[@full_width || "mx-auto max-w-2xl space-y-4"]}>
           {render_slot(@inner_block)}
         </div>
       </main>

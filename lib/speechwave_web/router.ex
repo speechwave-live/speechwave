@@ -25,7 +25,6 @@ defmodule SpeechwaveWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
-    get "/pricing", PageController, :pricing
     get "/terms", PageController, :terms
     get "/privacy", PageController, :privacy
     live "/t/:slug", TalkLive
@@ -58,6 +57,7 @@ defmodule SpeechwaveWeb.Router do
     live_session :current_user,
       on_mount: [{SpeechwaveWeb.UserAuth, :mount_current_scope}] do
       live "/users/log-in", UserLive.Login, :new
+      live "/pricing", PricingLive
     end
 
     get "/users/magic_link/:token", UserSessionController, :magic_link
