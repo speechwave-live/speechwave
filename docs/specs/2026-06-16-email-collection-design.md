@@ -5,7 +5,11 @@
 
 ## Overview
 
-Add GDPR-compliant marketing consent collection to cover three surfaces: the magic link login screen (which also serves as registration), the "Notify me" modal on the pricing page, and an export UI in the planned super admin section. Consent, once granted, can only be revoked explicitly — never implicitly via a subsequent login.
+Add GDPR-compliant marketing consent collection to cover three surfaces: the
+magic link login screen (which also serves as registration), the "Notify me"
+modal on the pricing page, and an export UI in the planned super admin section.
+Consent, once granted, can only be revoked explicitly — never implicitly via a
+subsequent login.
 
 ---
 
@@ -13,15 +17,19 @@ Add GDPR-compliant marketing consent collection to cover three surfaces: the mag
 
 One migration adds three columns to `users`:
 
-| Column | Type | Default | Notes |
-|---|---|---|---|
-| `marketing_consent` | `boolean` | `false` | Whether the user has opted in |
-| `marketing_consent_at` | `utc_datetime` | `nil` | When consent was last granted — GDPR audit trail |
-| `notify_interest` | `string` | `nil` | Source/segment: `"pro"`, `"enterprise"`, or `"login"` |
+| Column                 | Type           | Default | Notes                                                 |
+| ---------------------- | -------------- | ------- | ----------------------------------------------------- |
+| `marketing_consent`    | `boolean`      | `false` | Whether the user has opted in                         |
+| `marketing_consent_at` | `utc_datetime` | `nil`   | When consent was last granted — GDPR audit trail      |
+| `notify_interest`      | `string`       | `nil`   | Source/segment: `"pro"`, `"enterprise"`, or `"login"` |
 
-`notify_interest` is a **segmentation tag**, not a permission scope. All consented users share the same permission level (general product updates). The value tells you how they arrived: via the Pro card, the Enterprise card, or the login screen directly.
+`notify_interest` is a **segmentation tag**, not a permission scope. All
+consented users share the same permission level (general product updates). The
+value tells you how they arrived: via the Pro card, the Enterprise card, or the
+login screen directly.
 
-A new `marketing_changeset/2` on `User` handles updates to these three fields, separate from the existing `email_changeset` and `plan_changeset`.
+A new `marketing_changeset/2` on `User` handles updates to these three fields,
+separate from the existing `email_changeset` and `plan_changeset`.
 
 ---
 
@@ -29,7 +37,9 @@ A new `marketing_changeset/2` on `User` handles updates to these three fields, s
 
 ### Checkbox placement and copy
 
-An unchecked opt-in checkbox is added to the login form between the email input and the "Send sign-in link" button. It appears above the SSO divider, so it's visible regardless of which auth method the user chooses.
+An unchecked opt-in checkbox is added to the login form between the email input
+and the "Send sign-in link" button. It appears above the SSO divider, so it's
+visible regardless of which auth method the user chooses.
 
 **Label copy:**
 > Keep me updated on new features and product announcements (no spam, no selling your email)
@@ -38,27 +48,33 @@ Unchecked by default. Not required. Applies to both magic link and SSO flows.
 
 ### Magic link passthrough
 
-Consent cannot be stored in the Phoenix session because the user may open the magic link in a different browser or device. Instead, consent is encoded in the magic link URL:
+Consent cannot be stored in the Phoenix session because the user may open the
+magic link in a different browser or device. Instead, consent is encoded in the
+magic link URL:
 
 - Checkbox checked → magic link URL includes `?updates=true`
 - Checkbox unchecked → no param added
 
-`UserSessionController.magic_link/2` reads the param on callback and applies consent after a successful login.
+`UserSessionController.magic_link/2` reads the param on callback and applies
+consent after a successful login.
 
 ### SSO passthrough
 
-OAuth callbacks always happen in the same browser. Consent is stored in the Phoenix session (alongside the existing `oauth_context` key) before the OAuth redirect and applied in `handle_oauth_login/3` on callback.
+OAuth callbacks always happen in the same browser. Consent is stored in the
+Phoenix session (alongside the existing `oauth_context` key) before the OAuth
+redirect and applied in `handle_oauth_login/3` on callback.
 
 ### Server-side consent rule
 
-The checkbox can only **grant** consent, never revoke it. The rule applied on every callback:
+The checkbox can only **grant** consent, never revoke it. The rule applied on
+every callback:
 
-| `marketing_consent` (current) | `?updates=true` present | Action |
-|---|---|---|
-| `false` | yes | Set `true`, record timestamp, set `notify_interest: "login"` |
-| `true` | yes | No change (already consented) |
-| `false` | no | No change |
-| `true` | no | **No change** — not checking the box on re-login does not revoke consent |
+| `marketing_consent` (current) | `?updates=true` present | Action                                                                   |
+| ----------------------------- | ----------------------- | ------------------------------------------------------------------------ |
+| `false`                       | yes                     | Set `true`, record timestamp, set `notify_interest: "login"`             |
+| `true`                        | yes                     | No change (already consented)                                            |
+| `false`                       | no                      | No change                                                                |
+| `true`                        | no                      | **No change** — not checking the box on re-login does not revoke consent |
 
 Revocation is an explicit user action in account settings only (see below).
 
@@ -68,11 +84,16 @@ Revocation is an explicit user action in account settings only (see below).
 
 ### Trigger behaviour
 
-The "Notify me" button on the Pro card and the "Contact us" button on the Enterprise card (both currently disabled stubs) trigger the same behaviour depending on auth state. The Enterprise button label may be updated to "Notify me" for consistency, or kept as "Contact us" — either works with this flow.
+The "Notify me" button on both the Pro and Enterprise cards (both currently
+disabled stubs) trigger the same behaviour depending on auth state. The
+Enterprise card button label will be updated from "Contact us" to "Notify me"
+for consistency.
 
 - **Logged-out user** → opens a modal with an email input
-- **Logged-in user without consent** → no modal; applies consent immediately and shows a flash: *"You're on the list! We'll keep you posted."*
-- **Logged-in user already consented** → no modal; shows flash: *"You're already on the list!"*
+- **Logged-in user without consent** → no modal; applies consent immediately
+  and shows a flash: *"You're on the list! We'll keep you posted."*
+- **Logged-in user already consented** → no modal; shows flash: *"You're
+  already on the list!"*
 
 ### Modal copy
 
@@ -97,15 +118,22 @@ The user lands on the app dashboard (created or logged in) with a flash message:
 
 ### Consent copy alignment
 
-The modal copy deliberately matches the broader scope of the login screen checkbox — general product updates, not just the Pro launch. `notify_interest` captures that they arrived via the Pro card, but the underlying permission is the same for all consented users.
+The modal copy deliberately matches the broader scope of the login screen
+checkbox — general product updates, not just the Pro launch. `notify_interest`
+captures that they arrived via the Pro card, but the underlying permission is
+the same for all consented users.
 
 ---
 
 ## Account Settings — Revocation
 
-A dedicated "Email preferences" row in account settings shows the current consent state and lets users opt out. This is the **only** revocation path. Unsetting `marketing_consent` also clears `marketing_consent_at` and `notify_interest`.
+A dedicated "Email preferences" row in account settings shows the current
+consent state and lets users opt out. This is the **only** revocation path.
+Unsetting `marketing_consent` also clears `marketing_consent_at` and
+`notify_interest`.
 
-If a right-to-be-forgotten request is ever needed, account deletion handles it via standard cascade.
+If a right-to-be-forgotten request is ever needed, account deletion handles it
+via standard cascade.
 
 ---
 

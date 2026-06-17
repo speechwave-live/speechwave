@@ -26,13 +26,6 @@ the planned super admin section, behind the `is_admin` guard. Blocked on the
 super admin section existing. Until then, engineers can query consented users
 directly via IEx in the production console.
 
-### Enterprise "Contact us" button label
-
-The Enterprise card on the pricing page currently reads "Contact us" while the
-Pro card reads "Notify me". Once the Notify Me modal is wired up, decide
-whether to rename the Enterprise button to "Notify me" for consistency, or
-keep "Contact us" as a signal that Enterprise requires a conversation.
-
 ## Auth & Accounts
 
 ### Clean up unconfirmed "junk" users
