@@ -4,7 +4,7 @@
 
 **Goal:** Add GDPR-compliant marketing consent collection across three surfaces: the login screen, the pricing page "Notify me" modal, and account settings revocation.
 
-**Architecture:** Three new columns on `users` (`marketing_consent`, `marketing_consent_at`, `notify_interest`) drive all consent logic. Consent is encoded in magic link URLs (`?updates=true&notify=pro`) and SSO session state so it survives cross-device clicks. A new `PricingLive` replaces the static pricing controller page to enable the interactive "Notify me" modal.
+**Architecture:** A new `user_consents` table stores one record per `(user_id, consent_type)` — extensible to future consent types without migrations. Each record carries `granted_at` (original consent timestamp) and `revoked_at` (revocation timestamp), so the full audit trail is preserved. Consent intent is encoded in magic link URLs (`?updates=true&notify=pro`) and SSO session state so it survives cross-device clicks. A new `PricingLive` replaces the static pricing controller page to enable the interactive "Notify me" modal.
 
 **Tech Stack:** Phoenix LiveView, Ecto, existing `Accounts` context, `UserSessionController`, `Layouts.app`.
 
@@ -16,9 +16,9 @@
 
 | Action | File | Purpose |
 |---|---|---|
-| Modify | `lib/speechwave/accounts/user.ex` | Add 3 fields + `marketing_changeset/2` |
-| Create | `priv/repo/migrations/*_add_marketing_fields_to_users.exs` | DB migration |
-| Modify | `lib/speechwave/accounts.ex` | Add `apply_marketing_consent/2`, `revoke_marketing_consent/1` |
+| Create | `lib/speechwave/accounts/user_consent.ex` | `UserConsent` schema with changeset validation |
+| Create | `priv/repo/migrations/*_create_user_consents.exs` | DB migration (generated) |
+| Modify | `lib/speechwave/accounts.ex` | Add `grant_consent/3`, `revoke_consent/2`, `consented?/2`, `get_consent/2` |
 | Modify | `test/support/fixtures/accounts_fixtures.ex` | Add `consented_user_fixture/1` |
 | Modify | `test/speechwave/accounts_test.exs` | Tests for new context functions |
 | Modify | `lib/speechwave_web/live/user_live/login.ex` | Consent checkbox + URL passthrough |
@@ -34,45 +34,76 @@
 
 ---
 
-## Task 1: Data model — schema, migration, context functions
+## Task 1: Data model — `user_consents` table, schema, context functions
 
 **Files:**
-- Modify: `lib/speechwave/accounts/user.ex`
-- Create: `priv/repo/migrations/*_add_marketing_fields_to_users.exs` (generated)
+- Create: `lib/speechwave/accounts/user_consent.ex`
+- Create: `priv/repo/migrations/*_create_user_consents.exs` (generated)
 - Modify: `lib/speechwave/accounts.ex`
 - Modify: `test/support/fixtures/accounts_fixtures.ex`
 - Modify: `test/speechwave/accounts_test.exs`
 
-- [ ] **Step 1: Write failing tests for `marketing_changeset/2`**
+### Schema design
 
-Add to `test/speechwave/accounts_test.exs` inside the existing `describe "user"` block or add a new describe block:
+One row per `(user_id, consent_type)`. Fields:
+- `consent_type` — string identifying the type, e.g. `"marketing_email"`. Adding a new consent type later is just a new value — no migration needed.
+- `granted` — boolean, current state.
+- `granted_at` — when consent was granted; preserved on revocation for the audit trail.
+- `source` — where consent was collected: `"login"`, `"pricing_pro"`, `"pricing_enterprise"`.
+- `revoked_at` — when consent was revoked; nil when currently consented.
+
+The changeset validates that `granted_at` is present whenever `granted: true` (addresses Finding 1 from the review: prevents a corrupted record where someone consented but has no timestamp).
+
+### Context API
+
+- `Accounts.grant_consent(user, type, opts)` — upserts; idempotent; updates `source` when it changes.
+- `Accounts.revoke_consent(user, type)` — sets `granted: false`, records `revoked_at`, preserves `granted_at`.
+- `Accounts.consented?(user, type)` — boolean; returns `true` only when a record exists and `granted: true`.
+- `Accounts.get_consent(user, type)` — returns `%UserConsent{}` or `nil`.
+
+---
+
+- [ ] **Step 1: Write failing tests for `UserConsent.changeset/2`**
+
+Add to `test/speechwave/accounts_test.exs`. Place the two new describe blocks before the closing `end` of the module. You'll need to add `alias Speechwave.Accounts.UserConsent` to the existing alias list at the top of the file:
 
 ```elixir
-describe "marketing_changeset/2" do
-  test "sets all three fields" do
-    user = user_fixture()
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+alias Speechwave.Accounts.{User, UserConsent, UserToken}
+```
 
+Then add the describe blocks:
+
+```elixir
+describe "UserConsent.changeset/2" do
+  test "is valid when granted with granted_at present" do
     changeset =
-      Speechwave.Accounts.User.marketing_changeset(user, %{
-        marketing_consent: true,
-        marketing_consent_at: now,
-        notify_interest: "pro"
+      UserConsent.changeset(%UserConsent{}, %{
+        consent_type: "marketing_email",
+        granted: true,
+        granted_at: DateTime.utc_now() |> DateTime.truncate(:second),
+        source: "login"
       })
 
     assert changeset.valid?
-    assert Ecto.Changeset.get_change(changeset, :marketing_consent) == true
-    assert Ecto.Changeset.get_change(changeset, :notify_interest) == "pro"
   end
 
-  test "allows clearing all three fields" do
-    user = user_fixture()
-
+  test "is invalid when granted: true without granted_at" do
     changeset =
-      Speechwave.Accounts.User.marketing_changeset(user, %{
-        marketing_consent: false,
-        marketing_consent_at: nil,
-        notify_interest: nil
+      UserConsent.changeset(%UserConsent{}, %{
+        consent_type: "marketing_email",
+        granted: true,
+        source: "login"
+      })
+
+    refute changeset.valid?
+    assert errors_on(changeset)[:granted_at]
+  end
+
+  test "is valid when granted: false without granted_at" do
+    changeset =
+      UserConsent.changeset(%UserConsent{}, %{
+        consent_type: "marketing_email",
+        granted: false
       })
 
     assert changeset.valid?
@@ -80,78 +111,126 @@ describe "marketing_changeset/2" do
 end
 ```
 
-- [ ] **Step 2: Write failing tests for `apply_marketing_consent/2` and `revoke_marketing_consent/1`**
+- [ ] **Step 2: Write failing tests for the four context functions**
 
-Add to `test/speechwave/accounts_test.exs`:
+Add to `test/speechwave/accounts_test.exs` (same file, new describe blocks):
 
 ```elixir
-describe "apply_marketing_consent/2" do
-  test "grants consent when not yet consented, defaults interest to 'login'" do
+describe "grant_consent/3" do
+  test "creates a consent record for a new user" do
     user = user_fixture()
-    refute user.marketing_consent
+    before = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    {:ok, updated} = Accounts.apply_marketing_consent(user, grant: true)
+    {:ok, consent} = Accounts.grant_consent(user, "marketing_email", source: "login")
 
-    assert updated.marketing_consent
-    assert updated.marketing_consent_at
-    assert updated.notify_interest == "login"
+    assert consent.granted
+    assert consent.consent_type == "marketing_email"
+    assert consent.source == "login"
+    assert DateTime.compare(consent.granted_at, before) in [:gt, :eq]
+    assert is_nil(consent.revoked_at)
   end
 
-  test "sets notify_interest from opts" do
-    user = user_fixture()
-
-    {:ok, updated} = Accounts.apply_marketing_consent(user, grant: true, notify_interest: "pro")
-
-    assert updated.notify_interest == "pro"
-  end
-
-  test "is a no-op when grant: false" do
+  test "defaults source to 'login'" do
     user = user_fixture()
 
-    {:ok, unchanged} = Accounts.apply_marketing_consent(user, grant: false)
+    {:ok, consent} = Accounts.grant_consent(user, "marketing_email")
 
-    refute unchanged.marketing_consent
+    assert consent.source == "login"
   end
 
-  test "does not revoke existing consent when grant: false" do
-    user = consented_user_fixture()
+  test "is a no-op when already consented with the same source" do
+    user = user_fixture()
+    {:ok, original} = Accounts.grant_consent(user, "marketing_email", source: "login")
 
-    {:ok, unchanged} = Accounts.apply_marketing_consent(user, grant: false)
+    {:ok, same} = Accounts.grant_consent(user, "marketing_email", source: "login")
 
-    assert unchanged.marketing_consent
+    assert same.id == original.id
+    assert same.granted_at == original.granted_at
   end
 
-  test "updates notify_interest when already consented and value differs" do
-    user = consented_user_fixture(%{notify_interest: "login"})
+  test "updates source when already consented with a different source" do
+    user = user_fixture()
+    {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
 
-    {:ok, updated} =
-      Accounts.apply_marketing_consent(user, grant: true, notify_interest: "pro")
+    {:ok, updated} = Accounts.grant_consent(user, "marketing_email", source: "pricing_pro")
 
-    assert updated.marketing_consent
-    assert updated.notify_interest == "pro"
+    assert updated.source == "pricing_pro"
+    assert updated.granted
   end
 
-  test "is a no-op when already consented with same interest" do
-    user = consented_user_fixture(%{notify_interest: "pro"})
-    original_at = user.marketing_consent_at
+  test "re-grants after revocation with granted set and revoked_at cleared" do
+    user = user_fixture()
+    {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+    {:ok, _} = Accounts.revoke_consent(user, "marketing_email")
 
-    {:ok, unchanged} =
-      Accounts.apply_marketing_consent(user, grant: true, notify_interest: "pro")
+    {:ok, reconsented} = Accounts.grant_consent(user, "marketing_email", source: "login")
 
-    assert unchanged.notify_interest == "pro"
-    assert unchanged.marketing_consent_at == original_at
+    assert reconsented.granted
+    assert not is_nil(reconsented.granted_at)
+    assert is_nil(reconsented.revoked_at)
   end
 end
 
-describe "revoke_marketing_consent/1" do
-  test "clears consent, timestamp, and interest" do
-    user = consented_user_fixture(%{notify_interest: "pro"})
+describe "revoke_consent/2" do
+  test "sets granted: false, records revoked_at, preserves granted_at" do
+    user = user_fixture()
+    {:ok, consented} = Accounts.grant_consent(user, "marketing_email", source: "login")
+    original_granted_at = consented.granted_at
+    before_revoke = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    {:ok, updated} = Accounts.revoke_marketing_consent(user)
+    {:ok, revoked} = Accounts.revoke_consent(user, "marketing_email")
 
-    refute updated.marketing_consent
-    assert is_nil(updated.marketing_consent_at)
-    assert is_nil(updated.notify_interest)
+    refute revoked.granted
+    assert DateTime.compare(revoked.revoked_at, before_revoke) in [:gt, :eq]
+    assert revoked.granted_at == original_granted_at
+  end
+
+  test "is a no-op (returns {:ok, nil}) for a user who never consented" do
+    user = user_fixture()
+
+    assert {:ok, nil} = Accounts.revoke_consent(user, "marketing_email")
+  end
+end
+
+describe "consented?/2" do
+  test "returns false for a new user" do
+    user = user_fixture()
+
+    refute Accounts.consented?(user, "marketing_email")
+  end
+
+  test "returns true after consent is granted" do
+    user = user_fixture()
+    {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+
+    assert Accounts.consented?(user, "marketing_email")
+  end
+
+  test "returns false after consent is revoked" do
+    user = user_fixture()
+    {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+    {:ok, _} = Accounts.revoke_consent(user, "marketing_email")
+
+    refute Accounts.consented?(user, "marketing_email")
+  end
+end
+
+describe "get_consent/2" do
+  test "returns nil when no record exists" do
+    user = user_fixture()
+
+    assert is_nil(Accounts.get_consent(user, "marketing_email"))
+  end
+
+  test "returns the consent record after granting" do
+    user = user_fixture()
+    {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "login")
+
+    consent = Accounts.get_consent(user, "marketing_email")
+
+    assert %Speechwave.Accounts.UserConsent{} = consent
+    assert consent.consent_type == "marketing_email"
+    assert consent.granted
   end
 end
 ```
@@ -159,155 +238,220 @@ end
 - [ ] **Step 3: Run tests — expect failures**
 
 ```bash
-mix test test/speechwave/accounts_test.exs --failed 2>/dev/null || mix test test/speechwave/accounts_test.exs
+mix test test/speechwave/accounts_test.exs 2>&1 | tail -20
 ```
 
-Expected: compile errors or test failures on missing functions/fields.
+Expected: compile errors because `UserConsent` does not exist yet.
 
-- [ ] **Step 4: Add `consented_user_fixture/1` to test fixtures**
-
-In `test/support/fixtures/accounts_fixtures.ex`, add after `user_fixture/1`:
+- [ ] **Step 4: Create `lib/speechwave/accounts/user_consent.ex`**
 
 ```elixir
-def consented_user_fixture(attrs \\ %{}) do
-  user = user_fixture()
-  now = DateTime.utc_now() |> DateTime.truncate(:second)
+defmodule Speechwave.Accounts.UserConsent do
+  use Ecto.Schema
+  import Ecto.Changeset
 
-  interest = Map.get(attrs, :notify_interest, "login")
+  alias Speechwave.Accounts.User
 
-  {:ok, consented} =
-    user
-    |> Speechwave.Accounts.User.marketing_changeset(%{
-      marketing_consent: true,
-      marketing_consent_at: now,
-      notify_interest: interest
-    })
-    |> Speechwave.Repo.update()
+  schema "user_consents" do
+    belongs_to :user, User
+    field :consent_type, :string
+    field :granted, :boolean, default: false
+    field :granted_at, :utc_datetime
+    field :source, :string
+    field :revoked_at, :utc_datetime
 
-  consented
+    timestamps(type: :utc_datetime)
+  end
+
+  def changeset(consent, attrs) do
+    consent
+    |> cast(attrs, [:consent_type, :granted, :granted_at, :source, :revoked_at])
+    |> validate_required([:consent_type, :granted])
+    |> validate_granted_at_when_granted()
+    |> unique_constraint([:user_id, :consent_type])
+  end
+
+  defp validate_granted_at_when_granted(changeset) do
+    case get_field(changeset, :granted) do
+      true ->
+        if get_field(changeset, :granted_at) do
+          changeset
+        else
+          add_error(changeset, :granted_at, "is required when consent is granted")
+        end
+
+      _ ->
+        changeset
+    end
+  end
 end
 ```
 
-- [ ] **Step 5: Add fields and `marketing_changeset/2` to `User`**
-
-In `lib/speechwave/accounts/user.ex`, add three fields inside the `schema "users"` block (after the existing fields):
-
-```elixir
-field :marketing_consent, :boolean, default: false
-field :marketing_consent_at, :utc_datetime
-field :notify_interest, :string
-```
-
-Add the new changeset function after `plan_changeset/2`:
-
-```elixir
-@doc "Used exclusively for marketing consent changes."
-def marketing_changeset(user, attrs) do
-  user
-  |> cast(attrs, [:marketing_consent, :marketing_consent_at, :notify_interest])
-end
-```
-
-- [ ] **Step 6: Generate the migration**
+- [ ] **Step 5: Generate the migration**
 
 ```bash
-mix ecto.gen.migration add_marketing_fields_to_users
+mix ecto.gen.migration create_user_consents
 ```
 
 Open the generated file in `priv/repo/migrations/` and replace the `change/0` body:
 
 ```elixir
 def change do
-  alter table(:users) do
-    add :marketing_consent, :boolean, default: false, null: false
-    add :marketing_consent_at, :utc_datetime
-    add :notify_interest, :string
+  create table(:user_consents) do
+    add :user_id, references(:users, on_delete: :delete_all), null: false
+    add :consent_type, :string, null: false
+    add :granted, :boolean, null: false, default: false
+    add :granted_at, :utc_datetime
+    add :source, :string
+    add :revoked_at, :utc_datetime
+
+    timestamps(type: :utc_datetime)
   end
+
+  create unique_index(:user_consents, [:user_id, :consent_type])
 end
 ```
 
-- [ ] **Step 7: Run the migration**
+- [ ] **Step 6: Run the migration**
 
 ```bash
 mix ecto.migrate
 ```
 
-Expected: `== Running ... AddMarketingFieldsToUsers .. ok`
+Expected: `== Running ... CreateUserConsents .. ok`
 
-- [ ] **Step 8: Add `apply_marketing_consent/2` and `revoke_marketing_consent/1` to `Accounts`**
+- [ ] **Step 7: Add context functions to `lib/speechwave/accounts.ex`**
 
-In `lib/speechwave/accounts.ex`, add after the `regenerate_api_key/1` function:
+First, add `UserConsent` to the existing alias at the top of the file (around line 9):
 
 ```elixir
-@doc """
-Applies marketing consent following the grant-only rule from the spec.
+alias Speechwave.Accounts.{User, UserConsent, UserIdentity, UserNotifier, UserToken}
+```
 
-Consent can only be granted, never implicitly revoked. Calling with
-`grant: false` is always a no-op. Use `revoke_marketing_consent/1` for
-explicit revocation.
-"""
-def apply_marketing_consent(%User{} = user, opts \\ []) do
-  grant = Keyword.get(opts, :grant, false)
-  notify_interest = Keyword.get(opts, :notify_interest)
+Then add these four functions after the `regenerate_api_key/1` function:
 
-  cond do
-    not grant ->
-      {:ok, user}
+```elixir
+@doc "Returns the consent record for the given user and type, or nil."
+def get_consent(%User{} = user, consent_type) do
+  Repo.get_by(UserConsent, user_id: user.id, consent_type: consent_type)
+end
 
-    not user.marketing_consent ->
-      user
-      |> User.marketing_changeset(%{
-        marketing_consent: true,
-        marketing_consent_at: DateTime.utc_now() |> DateTime.truncate(:second),
-        notify_interest: notify_interest || "login"
-      })
-      |> Repo.update()
-
-    notify_interest && notify_interest != user.notify_interest ->
-      user
-      |> User.marketing_changeset(%{notify_interest: notify_interest})
-      |> Repo.update()
-
-    true ->
-      {:ok, user}
+@doc "Returns true if the user currently has active consent of the given type."
+def consented?(%User{} = user, consent_type) do
+  case get_consent(user, consent_type) do
+    %UserConsent{granted: true} -> true
+    _ -> false
   end
 end
 
-@doc "Explicitly revokes marketing consent and clears all related fields."
-def revoke_marketing_consent(%User{} = user) do
-  user
-  |> User.marketing_changeset(%{
-    marketing_consent: false,
-    marketing_consent_at: nil,
-    notify_interest: nil
-  })
-  |> Repo.update()
+@doc """
+Grants consent of the given type for the user.
+
+Idempotent: calling again with the same source is a no-op. Calling with a
+different source updates the source (e.g. upgrading from "login" to
+"pricing_pro" when the user clicks Notify Me). Re-grants after revocation
+record a fresh `granted_at` timestamp.
+
+Options:
+  - `:source` — where consent was collected; defaults to `"login"`.
+"""
+def grant_consent(%User{} = user, consent_type, opts \\ []) do
+  source = Keyword.get(opts, :source, "login")
+  existing = get_consent(user, consent_type)
+
+  cond do
+    is_nil(existing) ->
+      %UserConsent{user_id: user.id}
+      |> UserConsent.changeset(%{
+        consent_type: consent_type,
+        granted: true,
+        granted_at: DateTime.utc_now() |> DateTime.truncate(:second),
+        source: source
+      })
+      |> Repo.insert()
+
+    not existing.granted ->
+      existing
+      |> UserConsent.changeset(%{
+        granted: true,
+        granted_at: DateTime.utc_now() |> DateTime.truncate(:second),
+        source: source,
+        revoked_at: nil
+      })
+      |> Repo.update()
+
+    existing.source == source ->
+      {:ok, existing}
+
+    true ->
+      existing
+      |> UserConsent.changeset(%{source: source})
+      |> Repo.update()
+  end
+end
+
+@doc """
+Revokes consent of the given type for the user.
+
+Records `revoked_at` for the audit trail but preserves `granted_at` so the
+original consent timestamp remains. Is a no-op (returns `{:ok, nil}`) if no
+consent record exists.
+"""
+def revoke_consent(%User{} = user, consent_type) do
+  case get_consent(user, consent_type) do
+    nil ->
+      {:ok, nil}
+
+    consent ->
+      consent
+      |> UserConsent.changeset(%{
+        granted: false,
+        revoked_at: DateTime.utc_now() |> DateTime.truncate(:second)
+      })
+      |> Repo.update()
+  end
 end
 ```
 
-- [ ] **Step 9: Run tests — expect them to pass**
+- [ ] **Step 8: Add `consented_user_fixture/1` to `test/support/fixtures/accounts_fixtures.ex`**
+
+Add after `user_fixture/1`:
+
+```elixir
+def consented_user_fixture(attrs \\ %{}) do
+  user = user_fixture()
+  source = Map.get(attrs, :source, "login")
+  {:ok, _} = Speechwave.Accounts.grant_consent(user, "marketing_email", source: source)
+  user
+end
+```
+
+Note: the fixture returns the plain `User` struct (not the consent record). Callers check consent state via `Accounts.consented?(user, "marketing_email")` or `Accounts.get_consent(user, "marketing_email")`.
+
+- [ ] **Step 9: Run the accounts tests — expect them all to pass**
 
 ```bash
 mix test test/speechwave/accounts_test.exs
 ```
 
-Expected: all new tests pass.
+Expected: all tests pass (both old and new).
 
 - [ ] **Step 10: Commit**
 
 ```bash
-git add lib/speechwave/accounts/user.ex lib/speechwave/accounts.ex \
-  priv/repo/migrations/ \
-  test/speechwave/accounts_test.exs \
-  test/support/fixtures/accounts_fixtures.ex
-git commit -m "feat: add marketing consent fields and context functions"
+git add lib/speechwave/accounts/user_consent.ex \
+        lib/speechwave/accounts.ex \
+        priv/repo/migrations/ \
+        test/speechwave/accounts_test.exs \
+        test/support/fixtures/accounts_fixtures.ex
+git commit -m "feat: add user_consents table and consent context functions"
 ```
 
 ---
 
 ## Task 2: Login screen consent checkbox + passthrough
 
-The checkbox collects consent on the login screen. For magic link, consent is appended to the URL as `?updates=true`. For SSO, consent is stored in the session before the OAuth redirect and applied on callback.
+The checkbox collects consent on the login screen. For magic link, consent intent is appended to the URL as `?updates=true`. For SSO, consent intent is stored in the session before the OAuth redirect and applied on callback.
 
 **Files:**
 - Modify: `lib/speechwave_web/live/user_live/login.ex`
@@ -317,7 +461,7 @@ The checkbox collects consent on the login screen. For magic link, consent is ap
 
 - [ ] **Step 1: Write failing login LiveView tests**
 
-Add to `test/speechwave_web/live/user_live/login_test.exs`:
+Add to `test/speechwave_web/live/user_live/login_test.exs` (new describe block, inside the module):
 
 ```elixir
 describe "consent checkbox" do
@@ -328,22 +472,21 @@ describe "consent checkbox" do
     refute has_element?(view, "#marketing-consent-checkbox[checked]")
   end
 
-  test "magic link URL includes ?updates=true when consent checked", %{conn: conn} do
+  test "submitting with consent checked shows magic link sent confirmation", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/users/log-in")
 
     view
-    |> form("#magic-link-form", user: %{email: "test@example.com", marketing_consent: "true"})
+    |> form("#magic-link-form", %{"user" => %{"email" => "test@example.com", "marketing_consent" => "true"}})
     |> render_submit()
 
-    # The link_sent state is shown — email was accepted
     assert has_element?(view, "#magic-link-sent")
   end
 
-  test "magic link URL omits ?updates when consent unchecked", %{conn: conn} do
+  test "submitting without consent checked also shows confirmation", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/users/log-in")
 
     view
-    |> form("#magic-link-form", user: %{email: "test@example.com", marketing_consent: "false"})
+    |> form("#magic-link-form", %{"user" => %{"email" => "test@example.com", "marketing_consent" => "false"}})
     |> render_submit()
 
     assert has_element?(view, "#magic-link-sent")
@@ -353,7 +496,13 @@ end
 
 - [ ] **Step 2: Write failing controller consent tests**
 
-Add to `test/speechwave_web/controllers/user_session_controller_test.exs`:
+Add to `test/speechwave_web/controllers/user_session_controller_test.exs`. First add an alias at the top of the module (alongside the existing `import Speechwave.AccountsFixtures`):
+
+```elixir
+alias Speechwave.Accounts
+```
+
+Then add new describe blocks:
 
 ```elixir
 describe "magic_link/2 with consent params" do
@@ -363,68 +512,43 @@ describe "magic_link/2 with consent params" do
     %{user: user, token: token}
   end
 
-  test "grants consent when ?updates=true", %{conn: conn, user: user, token: token} do
-    conn = get(conn, ~p"/users/magic_link/#{token}?updates=true")
-    assert redirected_to(conn) == ~p"/dashboard"
+  test "grants consent with source 'login' when ?updates=true", %{conn: conn, user: user, token: token} do
+    before = DateTime.utc_now() |> DateTime.truncate(:second)
+    get(conn, ~p"/users/magic_link/#{token}?updates=true")
 
-    updated = Speechwave.Accounts.get_user!(user.id)
-    assert updated.marketing_consent
-    assert updated.notify_interest == "login"
+    consent = Accounts.get_consent(user, "marketing_email")
+    assert consent
+    assert consent.granted
+    assert consent.source == "login"
+    assert DateTime.compare(consent.granted_at, before) in [:gt, :eq]
   end
 
-  test "sets notify_interest from ?notify param", %{conn: conn, user: user, token: token} do
-    conn = get(conn, ~p"/users/magic_link/#{token}?updates=true&notify=pro")
-    assert redirected_to(conn) == ~p"/dashboard"
+  test "sets source to 'pricing_pro' when ?updates=true&notify=pro", %{conn: conn, user: user, token: token} do
+    get(conn, ~p"/users/magic_link/#{token}?updates=true&notify=pro")
 
-    updated = Speechwave.Accounts.get_user!(user.id)
-    assert updated.notify_interest == "pro"
+    consent = Accounts.get_consent(user, "marketing_email")
+    assert consent.source == "pricing_pro"
   end
 
-  test "shows plan-specific flash when ?notify param present",
-       %{conn: conn, token: token} do
+  test "shows plan-specific flash when ?notify present", %{conn: conn, token: token} do
     conn = get(conn, ~p"/users/magic_link/#{token}?updates=true&notify=pro")
+
     assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Pro"
   end
 
-  test "does not grant consent when ?updates param absent",
-       %{conn: conn, user: user, token: token} do
-    conn = get(conn, ~p"/users/magic_link/#{token}")
-    assert redirected_to(conn) == ~p"/dashboard"
+  test "does not grant consent when ?updates absent", %{conn: conn, user: user, token: token} do
+    get(conn, ~p"/users/magic_link/#{token}")
 
-    updated = Speechwave.Accounts.get_user!(user.id)
-    refute updated.marketing_consent
+    refute Accounts.consented?(user, "marketing_email")
   end
 
-  test "does not revoke existing consent on login without ?updates",
-       %{conn: conn, token: token} do
+  test "preserves existing consent on login without ?updates", %{conn: conn} do
     user = consented_user_fixture()
     {token, _} = generate_user_magic_link_token(user)
 
-    conn = get(conn, ~p"/users/magic_link/#{token}")
-    assert redirected_to(conn) == ~p"/dashboard"
+    get(conn, ~p"/users/magic_link/#{token}")
 
-    updated = Speechwave.Accounts.get_user!(user.id)
-    assert updated.marketing_consent
-  end
-end
-
-describe "oauth_callback/2 with consent" do
-  test "grants consent when :marketing_updates stored in session", %{conn: conn} do
-    user = user_fixture()
-
-    conn =
-      conn
-      |> put_session(:marketing_updates, true)
-      |> put_session(:assent_session_params, %{})
-
-    # Simulate a successful OAuth callback by calling handle_oauth_login directly
-    # via the full OAuth flow is complex; test apply_marketing_consent separately
-    # and verify session is cleared in integration
-    assert get_session(
-             conn
-             |> put_session(:marketing_updates, true),
-             :marketing_updates
-           ) == true
+    assert Accounts.consented?(user, "marketing_email")
   end
 end
 ```
@@ -436,13 +560,11 @@ mix test test/speechwave_web/live/user_live/login_test.exs \
          test/speechwave_web/controllers/user_session_controller_test.exs
 ```
 
-Expected: failures on missing checkbox element and consent not being applied.
+Expected: failures on missing `#marketing-consent-checkbox` and consent not being applied.
 
-- [ ] **Step 4: Update `login.ex` — add consent assign, checkbox, and URL passthrough**
+- [ ] **Step 4: Update `mount/3` in `lib/speechwave_web/live/user_live/login.ex`**
 
-Replace the entire `render/1`, `mount/3`, and all private helper functions in `lib/speechwave_web/live/user_live/login.ex`. The key changes: add `marketing_consent: false` to mount, add `form_changed` event handler, add checkbox to form template, update `submit_magic` and private helpers to accept a `url_fun` argument, update SSO hrefs to include `?updates=true` when consent is checked.
-
-Replace `mount/3`:
+Replace the existing `mount/3` function:
 
 ```elixir
 @impl true
@@ -467,7 +589,9 @@ def mount(_params, _session, socket) do
 end
 ```
 
-Add a new event handler after `mount/3`:
+- [ ] **Step 5: Add a `form_changed` event handler in `lib/speechwave_web/live/user_live/login.ex`**
+
+Add this new handler after `mount/3`:
 
 ```elixir
 @impl true
@@ -477,9 +601,12 @@ def handle_event("form_changed", %{"user" => params}, socket) do
 end
 ```
 
-Replace the `submit_magic` handler:
+- [ ] **Step 6: Replace `submit_magic` and private helpers in `lib/speechwave_web/live/user_live/login.ex`**
+
+Replace the existing `handle_event("submit_magic", ...)` handler:
 
 ```elixir
+@impl true
 def handle_event("submit_magic", %{"user" => params}, socket) do
   email = params["email"] |> String.trim() |> String.downcase()
   updates = Map.get(params, "marketing_consent") == "true"
@@ -499,7 +626,7 @@ def handle_event("submit_magic", %{"user" => params}, socket) do
 end
 ```
 
-Replace the three private helpers at the bottom to accept `url_fun`:
+Replace the three private helpers at the bottom of the file to accept `url_fun`:
 
 ```elixir
 defp maybe_send_magic_link(ip, email, url_fun) do
@@ -531,9 +658,9 @@ defp send_magic_link(email, url_fun) do
 end
 ```
 
-- [ ] **Step 5: Update the login template — add checkbox and reactive SSO hrefs**
+- [ ] **Step 7: Update the `<.form>` tag in `render/1` in `lib/speechwave_web/live/user_live/login.ex`**
 
-In `render/1`, update the `<.form>` tag to add `phx-change`:
+Find the `<.form>` tag (around line 43) and add `phx-change`:
 
 ```html
 <.form
@@ -544,7 +671,9 @@ In `render/1`, update the `<.form>` tag to add `phx-change`:
 >
 ```
 
-After the `<.input field={@form[:email]} .../>` block and before `<.button>`, add the consent checkbox:
+- [ ] **Step 8: Add the consent checkbox to the form in `lib/speechwave_web/live/user_live/login.ex`**
+
+In `render/1`, after the `<.input field={@form[:email]} .../>` block and before `<.button>`, add:
 
 ```html
 <div class="flex items-start gap-2.5 py-1">
@@ -562,36 +691,30 @@ After the `<.input field={@form[:email]} .../>` block and before `<.button>`, ad
 </div>
 ```
 
-Update the three SSO `<a>` tags to include `?updates=true` when consent is checked. Replace each SSO `href` attribute:
+The hidden input ensures `marketing_consent` is submitted as `"false"` when unchecked. The visible checkbox overrides it to `"true"` when checked.
 
+- [ ] **Step 9: Update SSO `<a>` hrefs in `render/1` in `lib/speechwave_web/live/user_live/login.ex`**
+
+Replace each SSO button's `href` to conditionally include `?updates=true`:
+
+For Google (find `href={~p"/auth/google"}`):
 ```html
-<%!-- Google --%>
-<a
-  :if={oauth_provider_configured?(:google)}
-  href={if @marketing_consent, do: "/auth/google?updates=true", else: "/auth/google"}
-  class="group flex items-center ..."
->
-
-<%!-- Microsoft --%>
-<a
-  :if={oauth_provider_configured?(:microsoft)}
-  href={if @marketing_consent, do: "/auth/microsoft?updates=true", else: "/auth/microsoft"}
-  class="group flex items-center ..."
->
-
-<%!-- GitHub --%>
-<a
-  :if={oauth_provider_configured?(:github)}
-  href={if @marketing_consent, do: "/auth/github?updates=true", else: "/auth/github"}
-  class="group flex items-center ..."
->
+href={if @marketing_consent, do: "/auth/google?updates=true", else: "/auth/google"}
 ```
 
-- [ ] **Step 6: Update `UserSessionController` — apply consent on magic link and SSO callbacks**
+For Microsoft (find `href={~p"/auth/microsoft"}`):
+```html
+href={if @marketing_consent, do: "/auth/microsoft?updates=true", else: "/auth/microsoft"}
+```
 
-In `lib/speechwave_web/controllers/user_session_controller.ex`:
+For GitHub (find `href={~p"/auth/github"}`):
+```html
+href={if @marketing_consent, do: "/auth/github?updates=true", else: "/auth/github"}
+```
 
-Replace `magic_link/2`:
+- [ ] **Step 10: Update `magic_link/2` in `lib/speechwave_web/controllers/user_session_controller.ex`**
+
+Replace the existing `magic_link/2` function:
 
 ```elixir
 @doc "Handles the magic link click — verifies token and creates a session directly."
@@ -601,7 +724,10 @@ def magic_link(conn, %{"token" => token} = params) do
 
   case Accounts.login_user_by_magic_link(token) do
     {:ok, {user, _tokens}} ->
-      Accounts.apply_marketing_consent(user, grant: updates, notify_interest: notify)
+      if updates do
+        source = if notify, do: "pricing_#{notify}", else: "login"
+        Accounts.grant_consent(user, "marketing_email", source: source)
+      end
 
       flash =
         if notify,
@@ -620,7 +746,9 @@ def magic_link(conn, %{"token" => token} = params) do
 end
 ```
 
-Update `oauth_authorize/2` to capture and store the `updates` param. Replace the function:
+- [ ] **Step 11: Update `oauth_authorize/2` in `lib/speechwave_web/controllers/user_session_controller.ex`**
+
+Replace the existing `oauth_authorize/2` function to capture and store the `updates` param:
 
 ```elixir
 @doc "Initiates OAuth authorization for the given provider."
@@ -644,7 +772,9 @@ def oauth_authorize(conn, %{"provider" => provider} = params) do
 end
 ```
 
-Replace `handle_oauth_login/3`:
+- [ ] **Step 12: Update `handle_oauth_login/3` in `lib/speechwave_web/controllers/user_session_controller.ex`**
+
+Replace the existing `handle_oauth_login/3` private function:
 
 ```elixir
 defp handle_oauth_login(conn, provider, user_info) do
@@ -652,7 +782,9 @@ defp handle_oauth_login(conn, provider, user_info) do
 
   case Accounts.find_or_create_user_from_oauth(provider, user_info) do
     {:ok, user} ->
-      Accounts.apply_marketing_consent(user, grant: marketing_updates)
+      if marketing_updates do
+        Accounts.grant_consent(user, "marketing_email", source: "login")
+      end
 
       conn
       |> delete_session(:assent_session_params)
@@ -677,7 +809,7 @@ defp handle_oauth_login(conn, provider, user_info) do
 end
 ```
 
-- [ ] **Step 7: Run tests**
+- [ ] **Step 13: Run the tests**
 
 ```bash
 mix test test/speechwave_web/live/user_live/login_test.exs \
@@ -686,7 +818,7 @@ mix test test/speechwave_web/live/user_live/login_test.exs \
 
 Expected: all tests pass.
 
-- [ ] **Step 8: Run full test suite**
+- [ ] **Step 14: Run full test suite**
 
 ```bash
 mix test
@@ -694,7 +826,7 @@ mix test
 
 Expected: all tests pass.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 15: Commit**
 
 ```bash
 git add lib/speechwave_web/live/user_live/login.ex \
@@ -715,6 +847,7 @@ Convert the static pricing controller page to a `PricingLive` with an interactiv
 - Create: `lib/speechwave_web/live/pricing_live.ex`
 - Modify: `lib/speechwave_web/router.ex`
 - Create: `test/speechwave_web/live/pricing_live_test.exs`
+- Modify: `test/speechwave_web/controllers/page_controller_test.exs`
 
 - [ ] **Step 1: Write failing pricing LiveView tests**
 
@@ -727,8 +860,10 @@ defmodule SpeechwaveWeb.PricingLiveTest do
   import Phoenix.LiveViewTest
   import Speechwave.AccountsFixtures
 
+  alias Speechwave.Accounts
+
   describe "pricing page" do
-    test "renders pricing cards", %{conn: conn} do
+    test "renders all three pricing tiers", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/pricing")
 
       assert html =~ "Free"
@@ -767,35 +902,42 @@ defmodule SpeechwaveWeb.PricingLiveTest do
       {:ok, view, _html} = live(conn, ~p"/pricing")
 
       view |> element("#notify-pro-btn") |> render_click()
-      view |> form("#notify-form", email: "interested@example.com") |> render_submit()
+      view |> form("#notify-form", %{"email" => "interested@example.com"}) |> render_submit()
 
       assert has_element?(view, "#notify-sent-message")
     end
   end
 
   describe "Notify me — logged-in user without consent" do
-    test "applies consent directly and shows flash", %{conn: conn} do
+    test "applies consent directly with source 'pricing_pro' and shows flash", %{conn: conn} do
       user = user_fixture()
-      conn = log_in_user(conn, user)
 
-      {:ok, view, _html} = live(conn, ~p"/pricing")
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user)
+        |> live(~p"/pricing")
+
       view |> element("#notify-pro-btn") |> render_click()
 
       refute has_element?(view, "#notify-modal")
       assert render(view) =~ "You&#39;re on the list"
 
-      updated = Speechwave.Accounts.get_user!(user.id)
-      assert updated.marketing_consent
-      assert updated.notify_interest == "pro"
+      consent = Accounts.get_consent(user, "marketing_email")
+      assert consent
+      assert consent.granted
+      assert consent.source == "pricing_pro"
     end
   end
 
   describe "Notify me — logged-in user already consented" do
     test "shows already-on-list flash without modal", %{conn: conn} do
       user = consented_user_fixture()
-      conn = log_in_user(conn, user)
 
-      {:ok, view, _html} = live(conn, ~p"/pricing")
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user)
+        |> live(~p"/pricing")
+
       view |> element("#notify-pro-btn") |> render_click()
 
       refute has_element?(view, "#notify-modal")
@@ -805,27 +947,28 @@ defmodule SpeechwaveWeb.PricingLiveTest do
 end
 ```
 
-- [ ] **Step 2: Run tests — expect failures (PricingLive doesn't exist yet)**
+- [ ] **Step 2: Run tests — expect failures (PricingLive doesn't exist)**
 
 ```bash
 mix test test/speechwave_web/live/pricing_live_test.exs
 ```
 
-Expected: compile error — module not found.
+Expected: compile error — `SpeechwaveWeb.PricingLive` module not found.
 
-- [ ] **Step 3: Add `full_width` attr to `Layouts.app`**
+- [ ] **Step 3: Add `full_width` attr to `Layouts.app` in `lib/speechwave_web/components/layouts.ex`**
 
-In `lib/speechwave_web/components/layouts.ex`, add the attr after the existing `current_scope` attr (around line 32):
+Add the new attr after the existing `current_scope` attr (around line 32):
 
 ```elixir
 attr :full_width, :boolean,
   default: false,
-  doc: "when true, skips the max-w-2xl wrapper for full-width marketing pages"
+  doc: "when true, skips the max-w-2xl wrapper — for marketing pages that handle their own width"
 ```
 
-In the `def app(assigns)` template, replace both `<main>` blocks (authenticated and unauthenticated) to conditionally skip the width wrapper:
+In `def app(assigns)`, replace both `<main>` blocks to conditionally skip the width wrapper.
 
-Authenticated main (replace lines ~60-64):
+Authenticated main (find `<main class="pt-14 px-4 py-8 sm:px-6 lg:px-8">` and its inner div):
+
 ```html
 <main class={["pt-14", not @full_width && "px-4 py-8 sm:px-6 lg:px-8"]}>
   <div class={[@full_width || "mx-auto max-w-2xl space-y-4"]}>
@@ -834,7 +977,8 @@ Authenticated main (replace lines ~60-64):
 </main>
 ```
 
-Unauthenticated main (replace lines ~67-71):
+Unauthenticated main (find `<main class="pt-16 px-4 py-8 sm:px-6 lg:px-8">` and its inner div):
+
 ```html
 <main class={["pt-16", not @full_width && "px-4 py-8 sm:px-6 lg:px-8"]}>
   <div class={[@full_width || "mx-auto max-w-2xl space-y-4"]}>
@@ -843,13 +987,17 @@ Unauthenticated main (replace lines ~67-71):
 </main>
 ```
 
-- [ ] **Step 4: Create `PricingLive`**
+How the class lists work:
+- `not @full_width && "px-4 py-8 sm:px-6 lg:px-8"` → adds padding when NOT full_width; evaluates to `false` when full_width, which HEEx ignores.
+- `@full_width || "mx-auto max-w-2xl space-y-4"` → when full_width is `true`, `true || ...` gives `true` (HEEx adds no class); when false, gives the string class.
 
-Create `lib/speechwave_web/live/pricing_live.ex`. The template content is ported from `lib/speechwave_web/controllers/page_html/pricing.html.heex` with these changes:
-- Wrap in `<Layouts.app flash={@flash} current_scope={@current_scope} full_width={true}>`
-- Replace disabled `<button disabled>` for Pro with `<button id="notify-pro-btn" phx-click="open_notify_modal" phx-value-plan="pro">`
-- Replace disabled `<button disabled>` for Enterprise with `<button id="notify-enterprise-btn" phx-click="open_notify_modal" phx-value-plan="enterprise">` and update the label from "Contact us" to "Notify me"
-- Add the modal at the bottom inside the layout
+- [ ] **Step 4: Create `lib/speechwave_web/live/pricing_live.ex`**
+
+The template is ported from `lib/speechwave_web/controllers/page_html/pricing.html.heex` with these changes:
+- Wrapped in `<Layouts.app>` with `full_width={true}`.
+- The outer content div uses `pt-8` instead of `pt-24` — the `pt-24` in the original was compensating for the absence of a wrapping layout; with `Layouts.app`, the main tag already clears the fixed header.
+- Pro and Enterprise buttons replaced with interactive `phx-click` buttons.
+- Modal appended inside the layout wrapper.
 
 ```elixir
 defmodule SpeechwaveWeb.PricingLive do
@@ -861,8 +1009,8 @@ defmodule SpeechwaveWeb.PricingLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} full_width={true}>
-      <div class="pt-24 min-h-screen bg-surface">
-        <div class="max-w-5xl mx-auto px-6 pb-24">
+      <div class="pt-8 pb-24 min-h-screen bg-surface">
+        <div class="max-w-5xl mx-auto px-6">
           <%!-- Header --%>
           <div class="text-center pt-14 mb-16">
             <p class="text-[11px] font-semibold text-steel uppercase tracking-[0.5px] mb-3">Pricing</p>
@@ -1081,11 +1229,11 @@ defmodule SpeechwaveWeb.PricingLive do
     user = socket.assigns.current_scope && socket.assigns.current_scope.user
 
     cond do
-      user && user.marketing_consent ->
+      user && Accounts.consented?(user, "marketing_email") ->
         {:noreply, put_flash(socket, :info, "You're already on the list!")}
 
       user ->
-        {:ok, _} = Accounts.apply_marketing_consent(user, grant: true, notify_interest: plan)
+        {:ok, _} = Accounts.grant_consent(user, "marketing_email", source: "pricing_#{plan}")
         {:noreply, put_flash(socket, :info, "You're on the list! We'll keep you posted.")}
 
       true ->
@@ -1112,13 +1260,13 @@ defmodule SpeechwaveWeb.PricingLive do
 end
 ```
 
-- [ ] **Step 5: Update the router**
+- [ ] **Step 5: Update `lib/speechwave_web/router.ex`**
 
-In `lib/speechwave_web/router.ex`, make two changes:
+Make two changes:
 
-1. Remove `get "/pricing", PageController, :pricing` from the public `scope "/"` block.
+**Remove** `get "/pricing", PageController, :pricing` from the public scope block (around line 29).
 
-2. Add `live "/pricing", PricingLive` inside the existing `live_session :current_user` block:
+**Add** `live "/pricing", PricingLive` inside the existing `live_session :current_user` block so it gets `@current_scope` mounted (required for the logged-in path in `open_notify_modal`):
 
 ```elixir
 live_session :current_user,
@@ -1128,7 +1276,7 @@ live_session :current_user,
 end
 ```
 
-- [ ] **Step 6: Run tests**
+- [ ] **Step 6: Run the pricing tests**
 
 ```bash
 mix test test/speechwave_web/live/pricing_live_test.exs
@@ -1136,25 +1284,24 @@ mix test test/speechwave_web/live/pricing_live_test.exs
 
 Expected: all tests pass.
 
-- [ ] **Step 7: Remove the stale controller test for `/pricing`**
+- [ ] **Step 7: Remove the stale controller test for `GET /pricing`**
 
-`test/speechwave_web/controllers/page_controller_test.exs` has a test for `GET /pricing` that will now return 404 because the route is handled by the LiveView. Delete that test:
+In `test/speechwave_web/controllers/page_controller_test.exs`, remove this test (the route now goes to PricingLive and will return a 404 for a plain HTTP request):
 
 ```elixir
-# Remove this entire test block:
 test "GET /pricing returns 200", %{conn: conn} do
   conn = get(conn, ~p"/pricing")
-  assert html_response(conn, 200)
+  assert html_response(conn, 200) =~ "Free"
 end
 ```
 
-- [ ] **Step 8: Run full test suite**
+- [ ] **Step 8: Run the full test suite**
 
 ```bash
 mix test
 ```
 
-Expected: all pass.
+Expected: all tests pass.
 
 - [ ] **Step 9: Commit**
 
@@ -1171,7 +1318,7 @@ git commit -m "feat: add Notify Me modal to pricing page via PricingLive"
 
 ## Task 4: Account settings email preferences
 
-Add an "Email preferences" section to the settings page that shows current consent state and lets users opt out.
+Add an "Email preferences" section to the settings page that shows current consent state and lets users revoke consent.
 
 **Files:**
 - Modify: `lib/speechwave_web/live/user_live/settings.ex`
@@ -1179,42 +1326,46 @@ Add an "Email preferences" section to the settings page that shows current conse
 
 - [ ] **Step 1: Write failing tests**
 
-Add to `test/speechwave_web/live/user_live/settings_test.exs`:
+Add to `test/speechwave_web/live/user_live/settings_test.exs` (new describe block, before the final `end`). The file already has `alias Speechwave.Accounts` and `import Speechwave.AccountsFixtures` at the top:
 
 ```elixir
 describe "email preferences" do
-  test "shows current consent state when opted in", %{conn: conn} do
+  test "shows opted-in state when consented", %{conn: conn} do
     user = consented_user_fixture()
-    conn = log_in_user(conn, user)
 
-    {:ok, view, _html} = live(conn, ~p"/users/settings")
+    {:ok, view, _html} =
+      conn
+      |> log_in_user(user)
+      |> live(~p"/users/settings")
 
     assert has_element?(view, "#email-preferences")
-    assert render(view) =~ "Opted in"
+    assert has_element?(view, "#consent-status[data-consented='true']")
   end
 
-  test "shows opted-out state when not consented", %{conn: conn} do
+  test "shows not-subscribed state when not consented", %{conn: conn} do
     user = user_fixture()
-    conn = log_in_user(conn, user)
 
-    {:ok, view, _html} = live(conn, ~p"/users/settings")
+    {:ok, view, _html} =
+      conn
+      |> log_in_user(user)
+      |> live(~p"/users/settings")
 
     assert has_element?(view, "#email-preferences")
-    assert render(view) =~ "Not subscribed"
+    assert has_element?(view, "#consent-status[data-consented='false']")
   end
 
-  test "revoking consent updates the UI", %{conn: conn} do
+  test "revoking consent updates the UI and persists to the database", %{conn: conn} do
     user = consented_user_fixture()
-    conn = log_in_user(conn, user)
 
-    {:ok, view, _html} = live(conn, ~p"/users/settings")
+    {:ok, view, _html} =
+      conn
+      |> log_in_user(user)
+      |> live(~p"/users/settings")
 
     view |> element("#revoke-consent-btn") |> render_click()
 
-    assert render(view) =~ "Not subscribed"
-
-    updated = Speechwave.Accounts.get_user!(user.id)
-    refute updated.marketing_consent
+    assert has_element?(view, "#consent-status[data-consented='false']")
+    refute Accounts.consented?(user, "marketing_email")
   end
 end
 ```
@@ -1227,14 +1378,15 @@ mix test test/speechwave_web/live/user_live/settings_test.exs
 
 Expected: failures on missing `#email-preferences` element.
 
-- [ ] **Step 3: Add `marketing_consent` to the settings mount**
+- [ ] **Step 3: Add `marketing_consent` to the settings mount in `lib/speechwave_web/live/user_live/settings.ex`**
 
-In `lib/speechwave_web/live/user_live/settings.ex`, in the `mount/2` that handles normal load (the one without a token), add `marketing_consent` to the assigns:
+Replace the `mount/2` that handles normal page load (the one that pattern-matches `_params`, not the one with `"token"`):
 
 ```elixir
 def mount(_params, _session, socket) do
   user = socket.assigns.current_scope.user
   email_changeset = Accounts.change_user_email(user, %{}, validate_unique: false)
+  consent = Accounts.get_consent(user, "marketing_email")
 
   socket =
     socket
@@ -1242,27 +1394,27 @@ def mount(_params, _session, socket) do
     |> assign(:email_form, to_form(email_changeset))
     |> assign(:api_key, user.api_key)
     |> assign(:identities, Accounts.list_user_identities(user))
-    |> assign(:marketing_consent, user.marketing_consent)
+    |> assign(:marketing_consent, consent != nil && consent.granted)
 
   {:ok, socket}
 end
 ```
 
-- [ ] **Step 4: Add the `revoke_consent` event handler**
+- [ ] **Step 4: Add the `revoke_consent` event handler to `lib/speechwave_web/live/user_live/settings.ex`**
 
 Add after the existing `handle_event("regenerate_api_key", ...)` function:
 
 ```elixir
 def handle_event("revoke_consent", _params, socket) do
   user = socket.assigns.current_scope.user
-  {:ok, _} = Accounts.revoke_marketing_consent(user)
+  {:ok, _} = Accounts.revoke_consent(user, "marketing_email")
   {:noreply, assign(socket, :marketing_consent, false)}
 end
 ```
 
-- [ ] **Step 5: Add the Email preferences section to the template**
+- [ ] **Step 5: Add the Email preferences section to the template in `lib/speechwave_web/live/user_live/settings.ex`**
 
-In `render/1`, add the Email preferences section after the API Key section's closing `</div>` and before `</Layouts.app>`:
+In `render/1`, add the following after the closing `</div>` of the API Key section and before `</Layouts.app>`:
 
 ```html
 <div class="divider" />
@@ -1270,11 +1422,20 @@ In `render/1`, add the Email preferences section after the API Key section's clo
 <%!-- Email preferences --%>
 <div id="email-preferences" class="space-y-3">
   <h3 class="font-semibold text-base-content">Email preferences</h3>
+  <p
+    id="consent-status"
+    data-consented={to_string(@marketing_consent)}
+    class="text-sm text-base-content/70"
+  >
+    <%= if @marketing_consent do %>
+      <span class="font-medium text-success">Opted in</span>
+      — you'll receive product updates and feature announcements from us.
+    <% else %>
+      <span class="font-medium">Not subscribed</span>
+      — you won't receive marketing emails from us.
+    <% end %>
+  </p>
   <%= if @marketing_consent do %>
-    <p class="text-sm text-base-content/70">
-      <span class="font-medium text-success">Opted in</span> — you'll receive product updates
-      and feature announcements from us.
-    </p>
     <button
       id="revoke-consent-btn"
       phx-click="revoke_consent"
@@ -1283,13 +1444,11 @@ In `render/1`, add the Email preferences section after the API Key section's clo
     >
       Unsubscribe
     </button>
-  <% else %>
-    <p class="text-sm text-base-content/70">
-      <span class="font-medium">Not subscribed</span> — you won't receive marketing emails from us.
-    </p>
   <% end %>
 </div>
 ```
+
+The `data-consented={to_string(@marketing_consent)}` renders as `data-consented="true"` or `data-consented="false"` for the test selectors.
 
 - [ ] **Step 6: Run tests**
 
@@ -1302,8 +1461,7 @@ Expected: all tests pass.
 - [ ] **Step 7: Run full test suite and precommit checks**
 
 ```bash
-mix test
-mix precommit
+mix test && mix precommit
 ```
 
 Expected: all tests pass, no precommit issues.

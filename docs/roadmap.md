@@ -10,10 +10,10 @@ Deferred from `docs/specs/2026-06-16-email-collection-design.md`.
 
 ### Email marketing platform integration
 
-The email collection spec stores consent and `notify_interest` locally and
-exports to CSV. When ready to send marketing emails, pick a platform
-(Mailchimp, ConvertKit, Brevo, Buttondown, etc.) and replace the CSV export
-with an API sync.
+Consent is stored in the `user_consents` table (`consent_type: "marketing_email"`,
+`source` encodes origin and plan interest e.g. `"login"`, `"pricing_pro"`).
+When ready to send marketing emails, pick a platform (Mailchimp, ConvertKit,
+Brevo, Buttondown, etc.) and sync consented users via their API.
 
 Features that depend on the platform choice and are out of scope until then:
 double opt-in confirmation emails, unsubscribe links in outbound emails, and
@@ -21,10 +21,11 @@ granular per-topic subscription preferences.
 
 ### Super admin email export UI
 
-A LiveView form (checkboxes for `notify_interest` filter + CSV download) in
-the planned super admin section, behind the `is_admin` guard. Blocked on the
+A LiveView form (filter by `source` / date range + CSV download) in the
+planned super admin section, behind the `is_admin` guard. Blocked on the
 super admin section existing. Until then, engineers can query consented users
-directly via IEx in the production console.
+directly via IEx in the production console:
+`Speechwave.Repo.all(Speechwave.Accounts.UserConsent, consent_type: "marketing_email", granted: true)`
 
 ## Auth & Accounts
 
