@@ -1,8 +1,6 @@
 defmodule SpeechwaveWeb.UserLive.Settings do
   use SpeechwaveWeb, :live_view
 
-  on_mount {SpeechwaveWeb.UserAuth, :require_sudo_mode}
-
   alias Speechwave.Accounts
 
   @impl true
@@ -183,7 +181,6 @@ defmodule SpeechwaveWeb.UserLive.Settings do
   def handle_event("update_email", params, socket) do
     %{"user" => user_params} = params
     user = socket.assigns.current_scope.user
-    true = Accounts.sudo_mode?(user)
 
     case Accounts.change_user_email(user, user_params) do
       %{valid?: true} = changeset ->
@@ -228,7 +225,6 @@ defmodule SpeechwaveWeb.UserLive.Settings do
 
   def handle_event("regenerate_api_key", _params, socket) do
     user = socket.assigns.current_scope.user
-    true = Accounts.sudo_mode?(user)
     {:ok, updated_user} = Accounts.regenerate_api_key(user)
 
     SpeechwaveWeb.Endpoint.broadcast!("user:#{user.id}:disconnect", "disconnect", %{})

@@ -8,7 +8,7 @@ defmodule Speechwave.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"Speechwave", "contact@example.com"})
+      |> from({"Speechwave", "noreply@contact.speechwave.live"})
       |> subject(subject)
       |> text_body(body)
 
