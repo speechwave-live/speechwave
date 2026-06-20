@@ -19,15 +19,15 @@ from any tab.
 ## Architecture
 
 ```
-┌──────────┐  chrome.runtime.sendMessage  ┌─────────────────────────┐
-│  Popup   │ ────────────────────────────▶ │  Service Worker         │
+┌──────────┐  chrome.runtime.sendMessage   ┌──────────────────────────┐
+│  Popup   │ ────────────────────────────▶ │  Service Worker          │
 │ popup.js │ ◀──────────────────────────── │  background/background.js│
-└──────────┘  SLIDE_CHANGED, CONNECT_ERROR └──────────┬──────────────┘
-                                                       │
+└──────────┘  SLIDE_CHANGED, CONNECT_ERROR └──────────┬───────────────┘
+                                                      │
                                           chrome.tabs.sendMessage
                                           (Google Slides tabs only)
-                                                       │
-                                           ┌───────────▼──────────┐
+                                                      │
+                                           ┌──────────▼────────────┐
                                            │  Content Script       │
                                            │  content/content.js   │
                                            │  (Slides pages only)  │
@@ -57,34 +57,34 @@ from any tab.
 
 ### Popup → Service Worker
 
-| Type | Payload | Response |
-|------|---------|----------|
-| `SET_SLUG` | `{ slug, apiKey }` | `{ connected: true }` (optimistic; errors arrive async via CONNECT_ERROR) |
-| `GET_STATUS` | — | `{ connected: bool, slide: number }` |
-| `START_SESSION` | — | `{ session_id, label }` or `{ error }` |
-| `STOP_SESSION` | `{ sessionId }` | `{ stopped: true }` or `{ error }` |
-| `SET_FIREWORKS` | `{ enabled }` | none (fire-and-forget) |
-| `TEST_FIREWORKS` | — | none (fire-and-forget, DEV_MODE only) |
+| Type             | Payload            | Response                                                                  |
+| ---------------- | ------------------ | ------------------------------------------------------------------------- |
+| `SET_SLUG`       | `{ slug, apiKey }` | `{ connected: true }` (optimistic; errors arrive async via CONNECT_ERROR) |
+| `GET_STATUS`     | —                  | `{ connected: bool, slide: number }`                                      |
+| `START_SESSION`  | —                  | `{ session_id, label }` or `{ error }`                                    |
+| `STOP_SESSION`   | `{ sessionId }`    | `{ stopped: true }` or `{ error }`                                        |
+| `SET_FIREWORKS`  | `{ enabled }`      | none (fire-and-forget)                                                    |
+| `TEST_FIREWORKS` | —                  | none (fire-and-forget, DEV_MODE only)                                     |
 
 ### Service Worker → Content Scripts (Slides tabs only, via chrome.tabs.query + sendMessage)
 
-| Type | Payload |
-|------|---------|
-| `RENDER_EMOJI` | `{ emoji }` |
-| `SET_FIREWORKS` | `{ enabled }` |
-| `TEST_FIREWORKS` | — |
+| Type             | Payload       |
+| ---------------- | ------------- |
+| `RENDER_EMOJI`   | `{ emoji }`   |
+| `SET_FIREWORKS`  | `{ enabled }` |
+| `TEST_FIREWORKS` | —             |
 
 ### Content Script → Service Worker
 
-| Type | Payload |
-|------|---------|
+| Type            | Payload     |
+| --------------- | ----------- |
 | `SLIDE_CHANGED` | `{ slide }` |
 
 ### Service Worker → Popup (async, popup may be closed — errors suppressed)
 
-| Type | Payload |
-|------|---------|
-| `SLIDE_CHANGED` | `{ slide }` |
+| Type            | Payload      |
+| --------------- | ------------ |
+| `SLIDE_CHANGED` | `{ slide }`  |
 | `CONNECT_ERROR` | `{ reason }` |
 
 ---
