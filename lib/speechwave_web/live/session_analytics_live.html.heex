@@ -1,7 +1,7 @@
 <Layouts.app flash={@flash}>
   <div class="p-6 max-w-4xl mx-auto">
     <div class="mb-6">
-      <a href="/admin" class="text-blue-400 hover:text-blue-300 text-sm">← Back to Admin</a>
+      <.link navigate={~p"/dashboard"} class="text-blue-400 hover:text-blue-300 text-sm">← Back to Dashboard</.link>
       <h1 class="text-2xl font-bold mt-2">{@session.label}</h1>
       <p class="text-zinc-400">{@talk.title}</p>
       <p class="text-zinc-500 text-sm mt-1">
@@ -25,7 +25,7 @@
           <span class="text-zinc-400">Compare with: </span>
           <%= for %{session: other} <- @other_sessions do %>
             <.link
-              navigate={"/admin/sessions/#{@session.id}/compare/#{other.id}"}
+              navigate={~p"/sessions/#{@session.id}/compare/#{other.id}"}
               class="text-blue-400 hover:text-blue-300 mr-3"
             >
               {other.label}
