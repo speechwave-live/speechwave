@@ -131,6 +131,10 @@ defmodule Speechwave.TalksTest do
     test "collapses multiple spaces" do
       assert Talks.generate_slug("a  b") == "a-b"
     end
+
+    test "trims leading/trailing spaces" do
+      assert Talks.generate_slug("  island  ") == "island"
+    end
   end
 
   describe "count_full_sessions_this_month/1" do
