@@ -44,7 +44,7 @@ defmodule SpeechwaveWeb.Layouts do
       <header class="fixed top-0 left-0 right-0 z-50 bg-canvas border-b border-hairline">
         <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
           <a href={~p"/"} class="flex items-center gap-2 text-ink font-semibold text-sm shrink-0">
-            <span class="text-base leading-none">🎤</span> Speechwave
+            <img src={~p"/images/logo.svg"} alt="" class="w-5 h-5" /> Speechwave
           </a>
           <div class="flex items-center gap-4 text-sm ml-auto">
             <a href={~p"/dashboard"} class="text-steel hover:text-ink transition-colors">Dashboard</a>
@@ -91,7 +91,7 @@ defmodule SpeechwaveWeb.Layouts do
           href="/"
           class="flex items-center gap-2 text-ink font-semibold text-[15px] tracking-tight shrink-0"
         >
-          <span class="text-xl leading-none">🎤</span> Speechwave
+          <img src={~p"/images/logo.svg"} alt="" class="w-6 h-6" /> Speechwave
         </a>
         <nav class="flex items-center gap-1">
           <a href={~p"/pricing"} class="px-3 py-2 text-sm text-steel hover:text-ink transition-colors">
@@ -146,7 +146,7 @@ defmodule SpeechwaveWeb.Layouts do
     <footer class="py-12 px-6 bg-canvas-dark">
       <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-sm">
         <a href="/" class="flex items-center gap-2 text-on-dark font-medium">
-          <span>🎤</span> Speechwave
+          <img src={~p"/images/logo.svg"} alt="" class="w-5 h-5" /> Speechwave
         </a>
         <div class="flex gap-6 text-on-dark-muted">
           <a href={~p"/pricing"} class="hover:text-on-dark transition-colors">Pricing</a>
