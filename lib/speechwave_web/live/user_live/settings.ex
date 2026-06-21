@@ -87,6 +87,21 @@ defmodule SpeechwaveWeb.UserLive.Settings do
             phx-hook=".SelectOnClick"
           />
           <button
+            id="copy-api-key-btn"
+            type="button"
+            phx-hook="CopyToClipboard"
+            data-clipboard-text={@api_key}
+            data-flash-message="API key copied to clipboard"
+            title="Copy API key"
+            class="shrink-0 p-2 text-base-content/40 hover:text-base-content rounded-lg border border-base-300 hover:bg-base-200 transition-colors"
+          >
+            <.icon name="hero-clipboard-document" class="copy-icon-idle w-4 h-4" />
+            <.icon
+              name="hero-clipboard-document-check"
+              class="copy-icon-copied hidden w-4 h-4 text-green-600"
+            />
+          </button>
+          <button
             id="regenerate-api-key-btn"
             phx-click="regenerate_api_key"
             data-confirm="Regenerate your API key? Any active extension connections will be disconnected immediately."
@@ -221,6 +236,10 @@ defmodule SpeechwaveWeb.UserLive.Settings do
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Could not unsubscribe. Please try again.")}
     end
+  end
+
+  def handle_event("clipboard_copy", %{"message" => message}, socket) do
+    {:noreply, put_flash(socket, :info, message)}
   end
 
   def handle_event("regenerate_api_key", _params, socket) do

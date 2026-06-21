@@ -189,8 +189,9 @@
               <button
                 id="copy-talk-link"
                 type="button"
-                phx-hook=".CopyToClipboard"
+                phx-hook="CopyToClipboard"
                 data-clipboard-text={@selected_talk_url}
+                data-flash-message="Talk link copied to clipboard"
                 title="Copy link"
                 class="shrink-0 p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
               >
@@ -200,26 +201,6 @@
                   class="copy-icon-copied hidden w-4 h-4 text-green-600"
                 />
               </button>
-              <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyToClipboard">
-                export default {
-                  mounted() {
-                    this.el.addEventListener("click", () => {
-                      const text = this.el.dataset.clipboardText
-                      navigator.clipboard.writeText(text).then(() => {
-                        const idle = this.el.querySelector(".copy-icon-idle")
-                        const copied = this.el.querySelector(".copy-icon-copied")
-                        idle.classList.add("hidden")
-                        copied.classList.remove("hidden")
-                        clearTimeout(this.resetTimer)
-                        this.resetTimer = setTimeout(() => {
-                          idle.classList.remove("hidden")
-                          copied.classList.add("hidden")
-                        }, 1500)
-                      })
-                    })
-                  }
-                }
-              </script>
             </div>
 
             <%= if @selected_qr_data_uri do %>

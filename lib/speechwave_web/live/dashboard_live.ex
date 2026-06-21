@@ -144,5 +144,9 @@ defmodule SpeechwaveWeb.DashboardLive do
     {:noreply, assign(socket, sessions: Talks.list_sessions(socket.assigns.selected_talk.id))}
   end
 
+  def handle_event("clipboard_copy", %{"message" => message}, socket) do
+    {:noreply, put_flash(socket, :info, message)}
+  end
+
   defp talk_url(talk), do: SpeechwaveWeb.Endpoint.url() <> "/t/#{talk.slug}"
 end

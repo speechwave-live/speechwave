@@ -24,6 +24,7 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/speechwave"
 import topbar from "../vendor/topbar"
+import CopyToClipboard from "./hooks/copy_to_clipboard"
 import EmojiButtons from "./hooks/emoji_buttons"
 import EmojiStream from "./hooks/emoji_stream"
 
@@ -31,7 +32,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, EmojiButtons, EmojiStream},
+  hooks: {...colocatedHooks, CopyToClipboard, EmojiButtons, EmojiStream},
 })
 
 // Show progress bar on live navigation and form submits
