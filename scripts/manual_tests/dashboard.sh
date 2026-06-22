@@ -81,7 +81,14 @@ else
   exit 1
 fi
 rodney click "#copy-talk-link" >/dev/null
-echo "NOTE: #copy-talk-link clicked; icon-toggle on successful clipboard write is not verified -- headless Chrome has no clipboard permission, so navigator.clipboard.writeText() never resolves"
+rodney waitstable >/dev/null
+if rodney exists "#flash-info" >/dev/null; then
+  rodney click "#flash-info" >/dev/null
+  rodney waitstable >/dev/null
+  echo "PASS: copy-link click triggered flash notification, dismissed"
+else
+  echo "NOTE: #copy-talk-link clicked but no flash appeared (clipboard may not be available)"
+fi
 
 confirm_and_click "#delete-talk-$talk_id"
 rodney waitstable >/dev/null
