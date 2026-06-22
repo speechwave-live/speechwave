@@ -1,7 +1,9 @@
 <Layouts.app flash={@flash}>
   <div class="p-6 max-w-4xl mx-auto">
     <div class="mb-6">
-      <.link navigate={~p"/dashboard"} class="text-blue-400 hover:text-blue-300 text-sm">← Back to Dashboard</.link>
+      <.link navigate={~p"/dashboard"} class="text-blue-400 hover:text-blue-300 text-sm">
+        ← Back to Dashboard
+      </.link>
       <h1 class="text-2xl font-bold mt-2">{@session.label}</h1>
       <p class="text-zinc-400">{@talk.title}</p>
       <p class="text-zinc-500 text-sm mt-1">
