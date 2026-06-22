@@ -41,11 +41,15 @@ coming soon" and direct early users to the waitlist email consent flow.
 Both pages exist (`/terms`, `/privacy`) but content has only been lightly
 updated from template text. Requires a final review and update before launch.
 
-#### ~~Code cleanup for public repository~~ DONE
+#### Code cleanup for public repository
 
-Orphaned templates deleted, 404/500 error pages styled. One minor remaining
-item: error pages use the 🎤 emoji instead of the SVG logo (they are static
-HTML and can't use `~p` paths — would need an absolute URL or inline SVG).
+Orphaned templates deleted and 404/500 error pages styled. Still needs:
+
+- Review `README.md` — still lists PostgreSQL as a prerequisite (uses SQLite),
+  and may have other stale content from the initial Phoenix generator
+- Error pages use the 🎤 emoji instead of the SVG logo (static HTML can't use
+  `~p` paths — needs an absolute URL or inline SVG)
+- General content review of docs and comments for stale references
 
 ### Nice-to-haves
 
