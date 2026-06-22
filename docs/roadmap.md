@@ -11,21 +11,26 @@ to warrant a spec/plan should get one when they're ready to be worked.
 
 ### Must-haves
 
-#### Chrome extension: API key auth (own spec/plan needed)
+#### Chrome extension: Web Store submission
 
-The server's `ReactionChannel` now requires `api_key` in channel params, but
-the extension has not been updated since that change. Before submission to the
-Chrome Web Store the extension needs:
+API key auth, service worker architecture, and production readiness are
+complete. See `docs/specs/2026-06-18-extension-service-worker-design.md` and
+`docs/specs/2026-06-17-chrome-extension-production-submission-design.md`.
 
-- A one-time setup screen in the popup to enter and save the API key to
-  `chrome.storage.sync` (shown on first open if no key is stored)
-- Pass `{ api_key: storedApiKey }` in channel params on join
-- Handle new error cases: `"unauthorized"`, `"email_not_confirmed"`
-- End-to-end test against the current server
+**Done:**
+- API key setup screen in popup (save/change key flow)
+- Service worker manages Phoenix WebSocket (works from any tab)
+- Connection, session, slide tracking, fireworks all functional
+- Stale-connection race condition fixed (auto-reconnect safe)
+- Automated test suite (64 tests across popup, content, background)
+- Consistent branding (mic icon across app and extension)
 
-Once working, submit to the Chrome Web Store. Review for new extensions can
-take days to weeks — this is the longest lead-time item and should be
-submitted as soon as possible.
+**Remaining for submission:**
+- Final manual tests: slide tracking, fireworks, multi-tab Slides, error paths
+- Package extension zip
+- Prepare store listing screenshots and description
+- Create Chrome Web Store developer account ($5 one-time fee)
+- Submit for review (can take days to weeks)
 
 **Soft launch option:** if Web Store review is delayed, the web app is fully
 launchable on its own. The pricing/home pages could note "Chrome extension
@@ -36,15 +41,11 @@ coming soon" and direct early users to the waitlist email consent flow.
 Both pages exist (`/terms`, `/privacy`) but content has only been lightly
 updated from template text. Requires a final review and update before launch.
 
-#### Code cleanup for public repository
+#### ~~Code cleanup for public repository~~ DONE
 
-The GitHub repository is public. Before launch:
-
-- Delete `lib/speechwave_web/live/admin_live.html.heex` — orphaned template
-  with no matching module or route
-- Delete `lib/speechwave_web/controllers/page_html/pricing.html.heex` —
-  leftover from before pricing moved to `PricingLive`
-- Style 404/500 error pages — currently render bare plain text
+Orphaned templates deleted, 404/500 error pages styled. One minor remaining
+item: error pages use the 🎤 emoji instead of the SVG logo (they are static
+HTML and can't use `~p` paths — would need an absolute URL or inline SVG).
 
 ### Nice-to-haves
 
@@ -171,4 +172,54 @@ Connecting/disconnecting Google/Microsoft/GitHub identities from
 provider's own hosted consent UI — a genuinely different category from the
 rest of `docs/manual_tests.md`, not just a sequencing question. Deferred
 until there's a concrete need to test this path.
+
+## Chrome Extension Troubleshooting / FAQ
+
+Common issues encountered during development and testing. This section should
+eventually become a user-facing help page or be included in the Web Store
+listing description.
+
+### No emojis appearing on Google Slides
+
+**After installing, updating, or reloading the extension**, you must refresh
+any Google Slides tabs that were already open. Chrome does not automatically
+reinject content scripts into existing tabs — the overlay and message listener
+only activate after a page load.
+
+### "Invalid API key" error after regenerating key
+
+After regenerating your API key in Account Settings:
+1. Click "Change API key" in the extension popup
+2. Copy the new key from the settings page (use the copy button)
+3. Paste and save in the extension
+4. Click Connect
+
+The extension's service worker may briefly attempt to reconnect with the old
+key from storage. This auto-reconnect error is suppressed and should not
+appear in the popup. If you see a flash of "Invalid API key," it resolves
+once the new key is saved and Connect is clicked.
+
+### Extension shows "Connected" but no emojis on Slides
+
+- Verify a Google Slides presentation tab is open and was loaded **after**
+  the extension was installed
+- Check that the emoji overlay hasn't been hidden behind the Slides UI —
+  it's positioned fixed at the bottom-right of the viewport
+- In Slides presentation mode (fullscreen), the overlay automatically
+  re-parents into the fullscreen element
+
+### Extension not connecting
+
+- Verify the slug matches a talk you own (check the Dashboard)
+- Verify your API key matches the one shown in Account Settings
+- If you see "Talk is at capacity," the plan's connection limit was reached
+- If you see "Please confirm your email," complete email verification first
+
+### Duplicate emojis on Slides
+
+If each reaction produces two emojis on the same Slides tab, the most likely
+cause is an **old content script still running** from a previous version of
+the extension. This happens when the extension code is updated (during
+development or via Chrome auto-update) but the Slides tab was not refreshed.
+Refresh the Slides tab to resolve.
 
