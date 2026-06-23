@@ -24,11 +24,11 @@ complete. See `docs/specs/2026-06-18-extension-service-worker-design.md` and
 - Stale-connection race condition fixed (auto-reconnect safe)
 - Automated test suite (64 tests across popup, content, background)
 - Consistent branding (mic icon across app and extension)
+- Final manual tests: slide tracking, fireworks, multi-tab Slides, error paths
 
 **Remaining for submission:**
-- Final manual tests: slide tracking, fireworks, multi-tab Slides, error paths
-- Package extension zip
 - Prepare store listing screenshots and description
+- Package extension zip
 - Create Chrome Web Store developer account ($5 one-time fee)
 - Submit for review (can take days to weeks)
 
@@ -41,7 +41,7 @@ coming soon" and direct early users to the waitlist email consent flow.
 Both pages exist (`/terms`, `/privacy`) but content has only been lightly
 updated from template text. Requires a final review and update before launch.
 
-#### Code cleanup for public repository
+#### Code cleanup for public repositories
 
 Orphaned templates deleted and 404/500 error pages styled. Still needs:
 
