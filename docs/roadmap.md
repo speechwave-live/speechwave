@@ -25,11 +25,11 @@ complete. See `docs/specs/2026-06-18-extension-service-worker-design.md` and
 - Automated test suite (64 tests across popup, content, background)
 - Consistent branding (mic icon across app and extension)
 - Final manual tests: slide tracking, fireworks, multi-tab Slides, error paths
+- Create Chrome Web Store developer account ($5 one-time fee)
 
 **Remaining for submission:**
 - Prepare store listing screenshots and description
 - Package extension zip
-- Create Chrome Web Store developer account ($5 one-time fee)
 - Submit for review (can take days to weeks)
 
 **Soft launch option:** if Web Store review is delayed, the web app is fully
