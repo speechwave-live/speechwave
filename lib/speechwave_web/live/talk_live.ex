@@ -3,7 +3,7 @@ defmodule SpeechwaveWeb.TalkLive do
 
   alias Speechwave.{RateLimiter, Reactions, Talks}
 
-  @emojis ["❤️", "😂", "👏", "🤯", "🙋🏻", "🎉", "💩", "😮", "🎯"]
+  @emojis ["❤️", "😂", "👏", "🤯", "🎉", "😮", "🎯", "🔥", "💡"]
 
   def mount(%{"slug" => slug}, _session, socket) do
     case Talks.get_talk_by_slug(slug) do
