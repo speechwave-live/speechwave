@@ -30,9 +30,9 @@ complete. See `docs/specs/2026-06-18-extension-service-worker-design.md` and
 - Packaged extension zip and submitted for review (2026-07-02)
 - Debug logging UI hidden behind DEV_MODE (end-user popup cleanup)
 - Default emoji set updated: removed 💩 and 🙋🏻, added 🔥 and 💡
-
-**Pending:**
 - Web Store review (can take days to weeks; submitted 2026-07-02)
+- Web Store submission approved (2026-07-03)
+
 
 #### Terms of Service and Privacy Policy review
 
@@ -56,11 +56,22 @@ Orphaned templates deleted and 404/500 error pages styled. Still needs:
 A LiveView behind the existing `is_admin` guard for tracking initial traction
 post-launch. Two core views:
 
-1. **User stats** — confirmed user count, junk user count (no session token,
-   no identity), total signups
+1. **User stats** — confirmed user count, notification signups, junk user count (no session token, no identity), total signups
 2. **Email consent export** — filter consented users by `source` / date range,
    CSV download; this directly unblocks the "Super admin email export UI"
    item in the Email & Marketing section below
+
+#### Account deletion and consent revocation features for GDPR compliance
+
+### Documentation
+
+Should documentation be served from speechwave.live or from another server
+(docs.speechwave.live)? If the latter, it should be a separate repo with its
+own CI/CD pipeline?
+
+Include:
+- [ ] Getting started guide for speaker
+- [ ] Troubleshooting guide for speaker
 
 #### OG / SEO meta tags
 
