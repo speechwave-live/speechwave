@@ -26,15 +26,13 @@ complete. See `docs/specs/2026-06-18-extension-service-worker-design.md` and
 - Consistent branding (mic icon across app and extension)
 - Final manual tests: slide tracking, fireworks, multi-tab Slides, error paths
 - Create Chrome Web Store developer account ($5 one-time fee)
+- Store listing screenshots (4 × 1280×800) and description
+- Packaged extension zip and submitted for review (2026-07-02)
+- Debug logging UI hidden behind DEV_MODE (end-user popup cleanup)
+- Default emoji set updated: removed 💩 and 🙋🏻, added 🔥 and 💡
 
-**Remaining for submission:**
-- Prepare store listing screenshots and description
-- Package extension zip
-- Submit for review (can take days to weeks)
-
-**Soft launch option:** if Web Store review is delayed, the web app is fully
-launchable on its own. The pricing/home pages could note "Chrome extension
-coming soon" and direct early users to the waitlist email consent flow.
+**Pending:**
+- Web Store review (can take days to weeks; submitted 2026-07-02)
 
 #### Terms of Service and Privacy Policy review
 
