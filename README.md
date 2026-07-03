@@ -31,8 +31,9 @@ For the story of writing the project (the whys and the bugs), see [this blog pos
 ### Prerequisites
 
 - Elixir 1.14+ / Erlang 26+
-- PostgreSQL running locally
 - Node.js (for asset building, handled by Mix)
+
+No separate database server needed — Speechwave uses SQLite (file-based, via `ecto_sqlite3`).
 
 ### Setup
 

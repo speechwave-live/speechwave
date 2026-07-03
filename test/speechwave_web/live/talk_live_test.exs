@@ -17,9 +17,10 @@ defmodule SpeechwaveWeb.TalkLiveTest do
     assert has_element?(view, "#emoji-buttons")
     assert render(view) =~ "❤️"
     assert render(view) =~ "😂"
-    assert render(view) =~ "🙋🏻"
     assert render(view) =~ "👏"
     assert render(view) =~ "🤯"
+    assert render(view) =~ "🔥"
+    assert render(view) =~ "💡"
   end
 
   test "redirects for unknown slug", %{conn: conn} do

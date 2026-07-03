@@ -9,46 +9,6 @@ Move an item out (with a link to its spec/plan) once it's actively planned.
 Work required before the free tier can be publicly launched. Items large enough
 to warrant a spec/plan should get one when they're ready to be worked.
 
-### Must-haves
-
-#### Chrome extension: Web Store submission
-
-API key auth, service worker architecture, and production readiness are
-complete. See `docs/specs/2026-06-18-extension-service-worker-design.md` and
-`docs/specs/2026-06-17-chrome-extension-production-submission-design.md`.
-
-**Done:**
-- API key setup screen in popup (save/change key flow)
-- Service worker manages Phoenix WebSocket (works from any tab)
-- Connection, session, slide tracking, fireworks all functional
-- Stale-connection race condition fixed (auto-reconnect safe)
-- Automated test suite (64 tests across popup, content, background)
-- Consistent branding (mic icon across app and extension)
-- Final manual tests: slide tracking, fireworks, multi-tab Slides, error paths
-- Create Chrome Web Store developer account ($5 one-time fee)
-- Store listing screenshots (4 × 1280×800) and description
-- Packaged extension zip and submitted for review (2026-07-02)
-- Debug logging UI hidden behind DEV_MODE (end-user popup cleanup)
-- Default emoji set updated: removed 💩 and 🙋🏻, added 🔥 and 💡
-- Web Store review (can take days to weeks; submitted 2026-07-02)
-- Web Store submission approved (2026-07-03)
-
-
-#### Terms of Service and Privacy Policy review
-
-Both pages exist (`/terms`, `/privacy`) but content has only been lightly
-updated from template text. Requires a final review and update before launch.
-
-#### Code cleanup for public repositories
-
-Orphaned templates deleted and 404/500 error pages styled. Still needs:
-
-- Review `README.md` — still lists PostgreSQL as a prerequisite (uses SQLite),
-  and may have other stale content from the initial Phoenix generator
-- Error pages use the 🎤 emoji instead of the SVG logo (static HTML can't use
-  `~p` paths — needs an absolute URL or inline SVG)
-- General content review of docs and comments for stale references
-
 ### Nice-to-haves
 
 #### Super-admin panel (own spec/plan needed)

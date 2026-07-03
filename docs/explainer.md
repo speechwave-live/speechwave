@@ -467,7 +467,7 @@ Speechwave's:
 ```mermaid
 graph TD
     APP["Speechwave.Application\n(supervisor)"] --> TEL["Telemetry supervisor"]
-    APP --> REPO["Speechwave.Repo\n(Ecto / Postgres)"]
+    APP --> REPO["Speechwave.Repo\n(Ecto / SQLite)"]
     APP --> DNS["DNSCluster\n(multi-node discovery)"]
     APP --> PS["Phoenix.PubSub\n(name: Speechwave.PubSub)"]
     APP --> RL["Speechwave.RateLimiter\n(GenServer + ETS)"]
