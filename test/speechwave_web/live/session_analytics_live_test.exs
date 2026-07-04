@@ -74,4 +74,11 @@ defmodule SpeechwaveWeb.SessionAnalyticsLiveTest do
     assert render(view) =~ session.label
     assert render(view) =~ s2.label
   end
+
+  test "shows the authenticated header nav, not the public nav", %{conn: conn, session: session} do
+    {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+
+    assert has_element?(view, "header a[href='/users/settings']")
+    refute render(view) =~ "Get started free"
+  end
 end
