@@ -13,62 +13,11 @@ to warrant a spec/plan should get one when they're ready to be worked.
 
 #### UX fixes and improvements that are important for a smooth launch experience.
 
-**Talk slug visibility in dashboard**
-
-In the user dashboard, in the selected-talk-qr panel, we have the url and QR
-code for the user view (needed by the speaker to share with the audience).
-But the speaker also needs the talk slug (the last part of the URL) to connect the Chrome
-extension to the talk. We should surface the slug with an option to copy it to the clipboard.
-
-Currently, the dashboard selected-talk-qr panel shows the following:
-
-```text
-.------------------------.
-| Talk title             |
-|                        |
-| [user view url] [copy] |
-| [QR code] [download]   |
-| ---------------------- |
-| Sessions               |
-| ...                    |
-`------------------------'
-```
-
-Proposed change:
-
-```text
-.------------------------------.
-| Talk title                   |
-|                              |
-| URL for your audience:       |
-| [user view url] [copy]       |
-| [QR code]                    |
-| ---------------------------- |
-| Slug for browser extenstion: |
-| [talk slug] [copy]           |
-| ---------------------------- |
-| Sessions                     |
-| ...                          |
-`------------------------------'
-```
-
-**Session name visibility in dashboard**
-
-The session name is currently unreadable as the font color is nearly the same
-as the background color. We should make it more readable.
-
-The "Active" label also seems to appear over the top of the session name.
-
-We may need two lines here. The first for the sesson name, date, and optional "Active" label.
-The second for the reaction count and action links (analytics, edit, delete).
-
-The analytics link is easy to miss and this is a key feature of the site.
-Perhaps the icon could be in color to make it more visible.
-
-**Session analytics header**
-
-The header on the session analytics page shows "Pricing - Log in - (Get started free)" instead of "Dashboard - Settings - Email - (Log out)".
-This is confusing and should be fixed to be consistent with the rest of the site.
+Done 2026-07-04 (see `docs/specs/2026-07-04-dashboard-ux-fixes-design.md`):
+talk slug visibility in dashboard, session name visibility in dashboard, and
+the session analytics header. Follow-up to review after using it: the
+dashboard analytics link treatment (now a colored, labeled link — may need
+another pass once seen rendered).
 
 #### Onboarding docs and help pages
 
