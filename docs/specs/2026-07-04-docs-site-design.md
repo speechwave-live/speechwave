@@ -82,11 +82,12 @@ verified end-to-end deploy: a push to `main` results in the placeholder site
 visible at `https://docs.speechwave.live`.
 
 Manual one-time steps done by Tracy (credentials never handled by tooling):
-- Create the `docs.speechwave.live` subdomain (fully hosted) in the Dreamhost
-  panel and note its web directory path.
-- Create the empty `speechwave-live/docs` GitHub repo (or approve `gh repo
-  create`).
-- Add the three `DREAMHOST_*` secrets to the repo.
+- ~~Create the `docs.speechwave.live` subdomain~~ — done 2026-07-03; hosting
+  space exists at Dreamhost.
+- Create the empty `docs` repo in the `speechwave-live` GitHub org.
+- Add the three `DREAMHOST_*` secrets, scoped to the repo (or org). These are
+  **different credentials** from the blog's Dreamhost secrets — the docs site
+  uses its own Dreamhost user.
 
 **Phase 2 — content:**
 Write the five pages. Prose composition is dispatched to capably-powered
