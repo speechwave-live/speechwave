@@ -59,6 +59,18 @@ defmodule SpeechwaveWeb.DashboardLiveTest do
     assert has_element?(view, "#download-qr-code[download='elixir-for-rubyists-qr-code.png']")
   end
 
+  test "selected talk panel shows the slug with a copy button", %{conn: conn, user: user} do
+    talk_fixture(user, %{title: "Prime Talk", slug: "prime"})
+    {:ok, view, _html} = live(conn, "/dashboard")
+
+    view |> element("#talk-list button", "Prime Talk") |> render_click()
+
+    assert has_element?(view, "#talk-slug", "prime")
+    assert has_element?(view, "#copy-talk-slug[data-clipboard-text='prime']")
+    assert render(view) =~ "Slug for browser extension"
+    assert render(view) =~ "URL for your audience"
+  end
+
   test "shows validation errors for blank fields", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/dashboard")
     view |> form("#talk-form", talk: %{title: "", slug: ""}) |> render_submit()
