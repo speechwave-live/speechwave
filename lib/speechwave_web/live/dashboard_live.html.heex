@@ -286,30 +286,36 @@
                           </button>
                         </.form>
                       <% else %>
-                        <div class="flex items-center justify-between gap-2">
-                          <div class="flex items-center gap-2 min-w-0">
-                            <span id={"session-label-#{session.id}"} class="font-medium truncate">
-                              {session.label}
+                        <div class="flex items-center gap-2 min-w-0">
+                          <span
+                            id={"session-label-#{session.id}"}
+                            class="font-medium text-gray-900 truncate"
+                          >
+                            {session.label}
+                          </span>
+                          <span class="text-gray-400 text-xs shrink-0">
+                            {Calendar.strftime(session.started_at, "%b %d, %Y")}
+                          </span>
+                          <%= if is_nil(session.ended_at) do %>
+                            <span class="session-active-badge px-1.5 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full shrink-0">
+                              Active
                             </span>
-                            <%= if is_nil(session.ended_at) do %>
-                              <span class="session-active-badge px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-full shrink-0">
-                                Active
-                              </span>
-                            <% end %>
-                            <span class="text-gray-400 text-xs shrink-0">
-                              {reaction_count} {if reaction_count == 1,
-                                do: "reaction",
-                                else: "reactions"}
-                            </span>
-                          </div>
-                          <div class="flex gap-1 shrink-0">
+                          <% end %>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 mt-1.5">
+                          <span class="text-gray-400 text-xs">
+                            {reaction_count} {if reaction_count == 1,
+                              do: "reaction",
+                              else: "reactions"}
+                          </span>
+                          <div class="flex items-center gap-1 shrink-0">
                             <.link
                               id={"analytics-link-#{session.id}"}
                               navigate={~p"/sessions/#{session.id}"}
-                              class="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors"
+                              class="inline-flex items-center gap-1 px-1.5 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 rounded transition-colors"
                               title="View analytics"
                             >
-                              <.icon name="hero-chart-bar" class="w-4 h-4" />
+                              <.icon name="hero-chart-bar" class="w-4 h-4" /> Analytics
                             </.link>
                             <button
                               id={"rename-session-#{session.id}"}

@@ -223,6 +223,25 @@ defmodule SpeechwaveWeb.DashboardLiveTest do
       view |> element("#talk-list button", "Prime Talk") |> render_click()
       assert has_element?(view, "#analytics-link-#{session.id}")
     end
+
+    test "session row shows start date and readable label", %{conn: conn, talk: talk} do
+      {:ok, session} = Speechwave.Talks.start_session(talk)
+      expected_date = Calendar.strftime(session.started_at, "%b %d, %Y")
+
+      {:ok, view, _html} = live(conn, "/dashboard")
+      view |> element("#talk-list button", "Prime Talk") |> render_click()
+
+      assert has_element?(view, "#session-#{session.id}", expected_date)
+      assert has_element?(view, "#session-label-#{session.id}.text-gray-900")
+    end
+
+    test "analytics link is labeled and prominent", %{conn: conn, talk: talk} do
+      {:ok, session} = Speechwave.Talks.start_session(talk)
+      {:ok, view, _html} = live(conn, "/dashboard")
+      view |> element("#talk-list button", "Prime Talk") |> render_click()
+
+      assert has_element?(view, "#analytics-link-#{session.id}", "Analytics")
+    end
   end
 
   describe "usage summary" do
