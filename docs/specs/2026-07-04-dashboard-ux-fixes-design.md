@@ -84,7 +84,7 @@ The route already lives in the `live_session :require_authenticated_user`
 block, so `@current_scope` is always assigned; the template just never passed
 it to the layout, which made `Layouts.app` fall back to the logged-out nav
 (Pricing / Log in / Get started free). With the assign passed, the logged-in
-nav (Dashboard / email / Log out) renders automatically.
+nav (Dashboard / Settings / email / Log out) renders automatically.
 
 ## Testing
 
