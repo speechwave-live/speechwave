@@ -9,6 +9,90 @@ Move an item out (with a link to its spec/plan) once it's actively planned.
 Work required before the free tier can be publicly launched. Items large enough
 to warrant a spec/plan should get one when they're ready to be worked.
 
+### Should haves
+
+#### UX fixes and improvements that are important for a smooth launch experience.
+
+**Talk slug visibility in dashboard**
+
+In the user dashboard, in the selected-talk-qr panel, we have the url and QR
+code for the user view (needed by the speaker to share with the audience).
+But the speaker also needs the talk slug (the last part of the URL) to connect the Chrome
+extension to the talk. We should surface the slug with an option to copy it to the clipboard.
+
+Currently, the dashboard selected-talk-qr panel shows the following:
+
+```text
+.------------------------.
+| Talk title             |
+|                        |
+| [user view url] [copy] |
+| [QR code] [download]   |
+| ---------------------- |
+| Sessions               |
+| ...                    |
+`------------------------'
+```
+
+Proposed change:
+
+```text
+.------------------------------.
+| Talk title                   |
+|                              |
+| URL for your audience:       |
+| [user view url] [copy]       |
+| [QR code]                    |
+| ---------------------------- |
+| Slug for browser extenstion: |
+| [talk slug] [copy]           |
+| ---------------------------- |
+| Sessions                     |
+| ...                          |
+`------------------------------'
+```
+
+**Session name visibility in dashboard**
+
+The session name is currently unreadable as the font color is nearly the same
+as the background color. We should make it more readable.
+
+The "Active" label also seems to appear over the top of the session name.
+
+We may need two lines here. The first for the sesson name, date, and optional "Active" label.
+The second for the reaction count and action links (analytics, edit, delete).
+
+The analytics link is easy to miss and this is a key feature of the site.
+Perhaps the icon could be in color to make it more visible.
+
+**Session analytics header**
+
+The header on the session analytics page shows "Pricing - Log in - (Get started free)" instead of "Dashboard - Settings - Email - (Log out)".
+This is confusing and should be fixed to be consistent with the rest of the site.
+
+#### Onboarding docs and help pages
+
+Onboarding docs and help pages for the Chrome extension, speaker dashboard, and
+session analytics. These can be served from docs.speechwave.live on a separate
+server (hosted with Dreamhost). The docs site would be a separate repo with
+its own CI/CD pipeline. My thought is a statically generated Jekyll site
+that is automatically built and deployed to Dreamhost on every push to main.
+
+We want onboarding to be as frictionless as possible, so we should provide clear instructions for:
+- System overview (the three pieces: Chrome extension, speaker dashboard, audience mobile view)
+- Creating a speaker account
+- Creating a talk
+- How to use the QR code and share the talk link
+- How to find the talk slug
+- How to use the dashboard and session analytics
+- How to find the API key
+- Installing the Chrome extension
+- Connecting the extension to a speaker account
+  - Entering your API key into the extension
+- Connecting the extension to a talk
+- Starting a session and why
+- More?
+
 ### Nice-to-haves
 
 #### Super-admin panel (own spec/plan needed)
@@ -16,7 +100,7 @@ to warrant a spec/plan should get one when they're ready to be worked.
 A LiveView behind the existing `is_admin` guard for tracking initial traction
 post-launch. Two core views:
 
-1. **User stats** — confirmed user count, notification signups, junk user count (no session token, no identity), total signups
+1. **User stats** — total user count, confirmed user count, junk user count (no session token, no identity), notification signups
 2. **Email consent export** — filter consented users by `source` / date range,
    CSV download; this directly unblocks the "Super admin email export UI"
    item in the Email & Marketing section below
