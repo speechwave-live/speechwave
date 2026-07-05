@@ -675,40 +675,77 @@ function getAdapter(url) {
 }
 ```
 
-The Google Slides adapter (`adapters/google_slides.js`) reads the slide number from the DOM:
+The Google Slides adapter (`adapters/google_slides.js`) reads the slide number from an accessibility element's `aria-label`, searching the document and any accessible same-origin iframes:
 
 ```javascript
 function getSlide() {
-  const input = document.querySelector('input[aria-label*="Slide"]');
-  if (!input) return 0;
-  const n = parseInt(input.value, 10);
-  return isNaN(n) ? 0 : n;
+  const docs = [document];
+  for (const iframe of document.querySelectorAll("iframe")) {
+    try {
+      if (iframe.contentDocument) docs.push(iframe.contentDocument);
+    } catch (e) {
+      // cross-origin iframe — skip
+    }
+  }
+
+  for (const doc of docs) {
+    const el = doc.querySelector('.punch-viewer-svgpage-a11yelement[aria-label*="Slide"]');
+    if (el) {
+      const match = el.getAttribute("aria-label").match(/^Slide (\d+)/);
+      if (match) return parseInt(match[1], 10);
+    }
+  }
+
+  return 0;
 }
 ```
+
+**Important caveat:** this element only exists once the slideshow is actually
+running (fullscreen or windowed presentation mode) — it is NOT present in
+the Slides editor view. Slide tracking therefore does nothing until the
+speaker starts presenting.
 
 This is brittle by nature (Google could change the DOM), but it's the only option without a first-party API. The fixture-based Jest tests in `tests/` (chrome-extension repo) snapshot the relevant DOM so regressions are caught before they ship.
 
-### MutationObserver
+### Polling
 
-The content script sets up a `MutationObserver` to watch for attribute changes on the slide input:
+The content script polls the adapter every 500ms and reports changes to the
+background service worker (rather than pushing to the channel directly — see
+"The Chrome extension" above):
 
 ```javascript
 function startSlideObserver() {
-  const observer = new MutationObserver(() => {
-    const slide = getAdapter(window.location.href).getSlide();
-    if (slide !== currentSlide && slide > 0) {
+  const registry = window.SpeechwaveAdapterRegistry;
+  if (!registry) return;
+
+  const adapter = registry.getAdapter(window.location.href);
+  if (!adapter) return;
+
+  function checkSlide() {
+    const slide = adapter.getSlide();
+    if (slide !== currentSlide) {
       currentSlide = slide;
-      channel.push("slide_changed", { slide });
+      chrome.runtime.sendMessage({ type: "SLIDE_CHANGED", slide: currentSlide }, () => {
+        void chrome.runtime.lastError;
+      });
     }
-  });
-  observer.observe(document.body, {
-    subtree: true,
-    attributeFilter: ["value", "aria-label"]
-  });
+  }
+
+  checkSlide();
+  slideInterval = setInterval(checkSlide, 500);
 }
 ```
 
-Slide `0` is a sentinel for "unknown" and is never sent — the server silently ignores it too.
+The background worker is the one that actually pushes to the channel:
+
+```javascript
+} else if (msg.type === 'SLIDE_CHANGED') {
+  currentSlide = msg.slide;
+  if (isConnected() && channel) {
+    channel.push('slide_changed', { slide: currentSlide });
+  }
+  notifyPopup({ type: 'SLIDE_CHANGED', slide: currentSlide });
+```
 
 The popup also displays the current slide number in real time ("Slide 3" or "Slide —" for unknown). This serves as an immediate sanity check that the adapter is reading the DOM correctly — if the number doesn't update when you advance slides, the DOM structure has changed and the adapter selector needs updating.
 
@@ -719,12 +756,23 @@ The popup also displays the current slide number in real time ("Slide 3" or "Sli
 ```elixir
 def handle_in("slide_changed", %{"slide" => slide}, socket)
     when is_integer(slide) and slide > 0 do
-  Endpoint.broadcast!("slides:#{socket.assigns.talk.slug}", "slide_changed", %{slide: slide})
+  SpeechwaveWeb.Endpoint.broadcast!(
+    "slides:#{socket.assigns.talk.slug}",
+    "slide_changed",
+    %{slide: slide}
+  )
+
   {:reply, :ok, socket}
 end
 ```
 
-`TalkLive` subscribes to this topic and updates `current_slide` in its assigns, so the next reaction tap carries the correct slide number.
+Slide `0` is a sentinel for "unknown": this `when slide > 0` guard means a
+`0` never gets broadcast — it falls through to a second `handle_in` clause
+that just acknowledges the message without broadcasting anything.
+
+`TalkLive` subscribes to the `"slides:#{slug}"` topic and updates
+`current_slide` in its assigns, so the next reaction tap carries the correct
+slide number.
 
 ---
 
