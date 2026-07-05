@@ -28,8 +28,8 @@ started, dashboard & analytics, Chrome extension, troubleshooting/FAQ.
 See `docs/specs/2026-07-04-docs-site-design.md`.
 
 Follow-ups:
-- [ ] Replace the placeholder Chrome Web Store link on the extension page
-      once the real listing URL exists
+- [x] Replace the placeholder Chrome Web Store link on the extension page
+      once the real listing URL exists (done 2026-07-04)
 - [ ] Add in-app "Help" links from speechwave.live to docs.speechwave.live
 - [ ] `docs/explainer.md` is stale: it predates API-key auth on the reaction
       channel (`reaction_channel.ex` now requires `api_key` on join)
