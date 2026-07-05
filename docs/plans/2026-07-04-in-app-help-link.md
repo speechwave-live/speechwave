@@ -4,7 +4,9 @@
 
 **Goal:** Add a "Help" link in the public nav bar that opens `https://docs.speechwave.live` in a new tab, closing out the last unchecked follow-up in `docs/roadmap.md` under "Onboarding docs and help pages."
 
-**Architecture:** Single HEEx change to the `public_nav/1` function component in `lib/speechwave_web/components/layouts.ex`. `public_nav/1` is only rendered by `Layouts.app/1` when `@current_scope` is `nil` (i.e. for logged-out visitors on public pages: home, pricing, login, terms, privacy) — the authenticated header and footer are explicitly out of scope per this decision. No context, schema, or router changes.
+**Architecture:** HEEx changes to `lib/speechwave_web/components/layouts.ex`. Every page renders through `Layouts.app/1`, which branches into one of two mutually-exclusive headers based on `@current_scope`: the authenticated header (Dashboard/Settings/logout, for logged-in users on any page) or `public_nav/1` (for logged-out visitors). The Help link must appear in **both** branches so it shows on every page — Dashboard, Settings, session analytics, home, pricing, login, terms, privacy. `public_footer/1` remains out of scope (footer, not header). No context, schema, or router changes.
+
+**Revision note (2026-07-04):** Task 1 originally added Help to `public_nav/1` only, per an initial scoping decision to limit it to logged-out marketing pages. User feedback after reviewing the branch: Help must appear for logged-in users too (Dashboard, Settings, etc.) — those are exactly the pages where help is most needed. Task 3 below adds it to the authenticated header to close that gap.
 
 **Tech Stack:** Phoenix 1.8 LiveView, HEEx, Tailwind v4, `Phoenix.ConnTest`.
 
@@ -121,4 +123,133 @@ to:
 ```bash
 git add docs/roadmap.md
 git commit -m "docs: check off in-app Help link follow-up"
+```
+
+---
+
+### Task 3: Add Help link to authenticated header
+
+**Files:**
+- Modify: `lib/speechwave_web/components/layouts.ex:49-53` (inside `app/1`'s authenticated branch, the `<div class="flex items-center gap-4 text-sm ml-auto">` block)
+- Test: `test/speechwave_web/live/dashboard_live_test.exs`
+
+**Interfaces:**
+- Consumes: `@current_scope` (already available in `app/1`'s authenticated branch — no new assign needed).
+- Produces: reuses the DOM id `id="help-nav-link"` from Task 1. The two branches of `app/1` are mutually exclusive (only one renders per request), so the id is never duplicated in a single page's DOM.
+
+- [ ] **Step 1: Write the failing test**
+
+The file has a top-level `setup` block (lines 10-13) that already logs a user in and provides an authenticated `conn`:
+
+```elixir
+setup %{conn: conn} do
+  user = user_fixture()
+  %{conn: log_in_user(conn, user), user: user}
+end
+```
+
+Add this test as a new top-level test (not inside a nested `describe`), right after the existing `"renders new talk form"` test (line 21-24):
+
+```elixir
+test "shows a Help link to the docs site", %{conn: conn} do
+  {:ok, _view, html} = live(conn, "/dashboard")
+
+  assert html =~ ~s(id="help-nav-link")
+  assert html =~ ~s(href="https://docs.speechwave.live")
+  assert html =~ ~s(target="_blank")
+  assert html =~ ~s(rel="noopener noreferrer")
+end
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `mix test test/speechwave_web/live/dashboard_live_test.exs`
+Expected: FAIL — `id="help-nav-link"` not found (the authenticated header doesn't have a Help link yet).
+
+- [ ] **Step 3: Add the Help link to the authenticated header**
+
+In `lib/speechwave_web/components/layouts.ex`, the authenticated header's link row currently reads (lines 49-53):
+
+```heex
+          <div class="flex items-center gap-4 text-sm ml-auto">
+            <a href={~p"/dashboard"} class="text-steel hover:text-ink transition-colors">Dashboard</a>
+            <a href={~p"/users/settings"} class="text-steel hover:text-ink transition-colors">
+              Settings
+            </a>
+```
+
+Change it to add the Help link after Settings, before the email span:
+
+```heex
+          <div class="flex items-center gap-4 text-sm ml-auto">
+            <a href={~p"/dashboard"} class="text-steel hover:text-ink transition-colors">Dashboard</a>
+            <a href={~p"/users/settings"} class="text-steel hover:text-ink transition-colors">
+              Settings
+            </a>
+            <a
+              id="help-nav-link"
+              href="https://docs.speechwave.live"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-steel hover:text-ink transition-colors"
+            >
+              Help
+            </a>
+```
+
+Note the class here matches the surrounding Dashboard/Settings links (`text-steel hover:text-ink transition-colors`, no `px-3 py-2`) — this header's links are unpadded, unlike `public_nav/1`'s padded links. Do not copy `public_nav/1`'s class string here.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `mix test test/speechwave_web/live/dashboard_live_test.exs`
+Expected: PASS.
+
+Also re-run the Task 1 test to confirm the shared id doesn't collide across branches:
+
+Run: `mix test test/speechwave_web/controllers/page_controller_test.exs`
+Expected: PASS (unchanged from Task 1).
+
+- [ ] **Step 5: Format and commit**
+
+```bash
+mix format
+git add lib/speechwave_web/components/layouts.ex test/speechwave_web/live/dashboard_live_test.exs
+git commit -m "feat: add Help link to authenticated header"
+```
+
+---
+
+### Task 4: Correct roadmap wording
+
+**Files:**
+- Modify: `docs/roadmap.md` (the line added in Task 2)
+
+**Interfaces:**
+- None — documentation-only change.
+
+**Context:** Task 2 committed roadmap wording that said "public nav only," which described Task 1's scope at the time. Task 3 closes that gap, so the note is now inaccurate and must be corrected to avoid misleading future readers.
+
+- [ ] **Step 1: Update the roadmap note**
+
+Change the line added in Task 2 from:
+
+```markdown
+- [x] Add in-app "Help" links from speechwave.live to docs.speechwave.live
+      (done 2026-07-04; public nav only — see
+      `docs/plans/2026-07-04-in-app-help-link.md`)
+```
+
+to:
+
+```markdown
+- [x] Add in-app "Help" links from speechwave.live to docs.speechwave.live
+      (done 2026-07-04; appears in the header on every page, logged in or
+      out — see `docs/plans/2026-07-04-in-app-help-link.md`)
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add docs/roadmap.md
+git commit -m "docs: correct Help link roadmap note to reflect full header coverage"
 ```
