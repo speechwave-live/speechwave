@@ -587,12 +587,19 @@ graph TD
     APP --> DNS["DNSCluster\n(multi-node discovery)"]
     APP --> PS["Phoenix.PubSub\n(name: Speechwave.PubSub)"]
     APP --> RL["Speechwave.RateLimiter\n(GenServer + ETS)"]
+    APP --> AT["Speechwave.AuthThrottle\n(magic-link send throttling)"]
     APP --> EP["SpeechwaveWeb.Endpoint\n(HTTP + WebSockets)"]
+    APP --> PR["SpeechwaveWeb.Presence\n(Channel capacity tracking)"]
+    APP -.->|"if STORAGE_BUCKET set"| DB["Speechwave.DbBackup\n(hourly SQLite backup)"]
 ```
 
 If `RateLimiter` crashes, the supervisor restarts it automatically. When it
 restarts, the ETS table is recreated empty and this is fine, it just means the
 cooldown state is lost and everyone gets a fresh window to react.
+
+`Speechwave.DbBackup` only starts when a `STORAGE_BUCKET` environment
+variable is configured (production); see `docs/administration.md` for the
+backup/restore runbook.
 
 ---
 
