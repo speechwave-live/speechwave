@@ -778,7 +778,11 @@ slide number.
 
 ## Analytics dashboard
 
-After a talk, the speaker can review per-slide engagement at `/admin/sessions/:id`.
+After a talk, the speaker can review per-slide engagement at `/sessions/:id`.
+Access requires being logged in as the talk's owner —
+`SessionAnalyticsLive.mount/3` calls
+`Talks.get_talk!(current_scope, session.talk_id)`, which raises if the
+session's talk isn't owned by the current user.
 
 ### The query
 
@@ -800,9 +804,9 @@ end
 
 ### Comparison mode
 
-At `/admin/sessions/:id/compare/:other_id`, `SessionAnalyticsLive` loads both sessions and renders two charts side by side. The comparison covers all slides that appeared in *either* session (union of slide numbers), so gaps are visible.
+At `/sessions/:id/compare/:other_id`, `SessionAnalyticsLive` loads both sessions and renders two charts side by side. The comparison covers all slides that appeared in *either* session (union of slide numbers), so gaps are visible.
 
-The admin sessions panel links to the analytics view for each session via `navigate={"/admin/sessions/#{session.id}"}`.
+The dashboard's sessions panel links to the analytics view for each session via `navigate={"/sessions/#{session.id}"}`.
 
 ---
 
