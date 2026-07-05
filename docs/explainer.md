@@ -249,13 +249,19 @@ the server. No HTTP request is made.
 
 ```elixir
 def handle_event("react", %{"emoji" => emoji}, socket) do
-  if RateLimiter.allow?(socket.id) do
-    slug = socket.assigns.talk.slug
-    if session = Talks.get_active_session(socket.assigns.talk.id) do
-      Reactions.create_reaction(session, emoji, socket.assigns.current_slide)
+  if RateLimiter.allow?(socket.assigns.session_id) do
+    case Talks.get_active_session(socket.assigns.talk.id) do
+      nil -> :ok
+      session -> Reactions.create_reaction(session, emoji, socket.assigns.current_slide)
     end
-    Endpoint.broadcast!("reactions:#{slug}", "new_reaction", %{emoji: emoji})
+
+    SpeechwaveWeb.Endpoint.broadcast!(
+      "reactions:#{socket.assigns.talk.slug}",
+      "new_reaction",
+      %{emoji: emoji}
+    )
   end
+
   {:noreply, socket}
 end
 ```
@@ -264,7 +270,9 @@ If a session is active, the reaction is persisted to the database with the curre
 
 `RateLimiter` uses an ETS table (an in-memory key/value store built into the
 BEAM) to track the last reaction time per session. If less than 3 seconds have
-passed, the event is silently dropped.
+passed, the event is silently dropped. `session_id` is assigned once in
+`mount/3` (`session_id: socket.id`) — see "LiveView mount and subscription"
+below.
 
 **3. Broadcasting**
 
@@ -547,28 +555,29 @@ and once after the WebSocket connects:
 
 ```elixir
 def mount(%{"slug" => slug}, _session, socket) do
-  talk = Talks.get_talk_by_slug(slug)
+  case Talks.get_talk_by_slug(slug) do
+    nil ->
+      {:ok, redirect(socket, to: "/")}
 
-  if connected?(socket) do
-    Endpoint.subscribe("reactions:#{slug}")
+    talk ->
+      if connected?(socket) do
+        Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{slug}")
+        Phoenix.PubSub.subscribe(Speechwave.PubSub, "slides:#{slug}")
+      end
+
+      {:ok, assign(socket, talk: talk, emojis: @emojis, session_id: socket.id, current_slide: 0)}
   end
-
-  {:ok, assign(socket, talk: talk, emojis: ["❤️", "😂", "🔥", "👏", "🤯"])}
 end
 ```
 
 `connected?(socket)` is `false` on the first (HTTP) render and `true` after the
 WebSocket upgrades. Subscribing only when connected avoids duplicate
-subscriptions and wasted work during the initial render.
+subscriptions and wasted work during the initial render. Two topics are
+subscribed: `"reactions:#{slug}"` (see "The full emoji journey" above) and
+`"slides:#{slug}"` (see "Slide tracking" below).
 
-If the slug doesn't exist in the database, the LiveView redirects to the home page:
-
-```elixir
-case Talks.get_talk_by_slug(slug) do
-  nil  -> {:ok, push_navigate(socket, to: ~p"/")}
-  talk -> {:ok, assign(socket, talk: talk, ...)}
-end
-```
+If the slug doesn't exist in the database, the LiveView redirects to the
+home page (`redirect(socket, to: "/")`) instead of assigning a talk.
 
 ---
 
