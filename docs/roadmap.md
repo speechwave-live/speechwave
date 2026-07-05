@@ -33,8 +33,12 @@ Follow-ups:
 - [x] Add in-app "Help" links from speechwave.live to docs.speechwave.live
       (done 2026-07-04; appears in the header on every page, logged in or
       out — see `docs/plans/2026-07-04-in-app-help-link.md`)
-- [ ] `docs/explainer.md` is stale: it predates API-key auth on the reaction
+- [x] `docs/explainer.md` is stale: it predates API-key auth on the reaction
       channel (`reaction_channel.ex` now requires `api_key` on join)
+      (done 2026-07-05; full accuracy refresh, not just the api_key section —
+      also fixed `docs/administration.md`'s stale password-reset runbook. See
+      `docs/specs/2026-07-04-explainer-docs-refresh-design.md` and
+      `docs/plans/2026-07-04-explainer-docs-refresh.md`)
 - [ ] Screenshots pass for the docs pages (`seed_screenshots.exs` can stage data)
 
 ### Nice-to-haves
