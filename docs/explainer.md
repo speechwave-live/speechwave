@@ -613,9 +613,23 @@ Session lifecycle is managed in `Speechwave.Talks`:
 - `stop_session/1` — idempotent: if `ended_at` is already set, returns the session unchanged.
 - `get_active_session/1` — queries for a session with `ended_at IS NULL`.
 - `list_sessions/1` — returns sessions with reaction counts, newest first.
-- `rename_session/2`, `delete_session/1` — admin operations.
+- `rename_session/2`, `delete_session/1` — dashboard operations.
 
 The `ReactionChannel` exposes `start_session` and `stop_session` as channel messages so the Chrome extension can control sessions without going through the web UI.
+
+`start_session` is plan-gated: before creating a session, the channel calls
+`Talks.count_full_sessions_this_month/1` (a "full" session is one lasting
+longer than 10 minutes) and checks it against
+`Plans.check(:full_sessions_per_month, user.plan, full_count)`. If the
+owner's plan limit is reached, the channel replies
+`{:error, %{reason: "session_limit_reached"}}` instead of creating the
+session.
+
+The channel also tracks each connected participant via
+`SpeechwaveWeb.Presence` (used for the `max_participants` capacity check on
+join — see "The two websocket connections in detail" above) and subscribes to
+`"user:#{user.id}:disconnect"`, so that logging out or regenerating an API
+key server-side force-disconnects the extension's channel.
 
 ---
 
