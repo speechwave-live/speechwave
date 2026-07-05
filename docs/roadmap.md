@@ -30,7 +30,9 @@ See `docs/specs/2026-07-04-docs-site-design.md`.
 Follow-ups:
 - [x] Replace the placeholder Chrome Web Store link on the extension page
       once the real listing URL exists (done 2026-07-04)
-- [ ] Add in-app "Help" links from speechwave.live to docs.speechwave.live
+- [x] Add in-app "Help" links from speechwave.live to docs.speechwave.live
+      (done 2026-07-04; public nav only — see
+      `docs/plans/2026-07-04-in-app-help-link.md`)
 - [ ] `docs/explainer.md` is stale: it predates API-key auth on the reaction
       channel (`reaction_channel.ex` now requires `api_key` on join)
 - [ ] Screenshots pass for the docs pages (`seed_screenshots.exs` can stage data)
