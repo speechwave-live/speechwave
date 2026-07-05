@@ -17,9 +17,11 @@ To check which migrations have and haven't run:
 mix ecto.migrations
 ```
 
-## How to manually reset a user's password
+## How to send a user a fresh login link
 
-Connect to the running production node via a remote IEx console:
+Speechwave auth is passwordless (magic link or OAuth) — there is no password
+to reset. If a user is stuck (e.g. their magic-link email never arrived),
+connect to the running production node via a remote IEx console:
 
 ```sh
 fly ssh console --app speechwave --pty -C "/app/bin/speechwave remote"
@@ -29,11 +31,16 @@ Then in IEx:
 
 ```elixir
 user = Speechwave.Accounts.get_user_by_email("user@example.com")
-Speechwave.Accounts.update_user_password(user, %{password: "newpassword123", password_confirmation: "newpassword123"})
+url_fun = fn token -> "https://speechwave.live/users/magic_link/#{token}" end
+Speechwave.Accounts.deliver_login_instructions(user, url_fun)
 ```
 
-A successful reset returns `{:ok, {%User{}, [...]}}` and invalidates all
-existing sessions for that user, requiring them to log in again.
+This calls the same `deliver_login_instructions/2` the app itself uses on
+every login attempt — it sends the user a real email with a fresh one-time
+login link. `url_fun` is built manually here (rather than using the `~p`
+verified-routes sigil) since there's no router/endpoint context available in
+a bare remote console. There's no session or password to invalidate in this
+model — a successful send just gives the user a new way in.
 
 ## How to perform a manual backup
 
