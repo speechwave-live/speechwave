@@ -30,7 +30,7 @@ plain screenshots everywhere else.
 | A | Dashboard talk list + create-talk form | Fresh capture, local dev | New |
 | B | Dashboard talk panel (audience URL, QR, slug, sessions list) | Fresh capture, local dev | New |
 | C | Account Settings — API key field | Fresh capture, local dev | New |
-| D | Extension popup — unconfigured "Save Key" setup screen | Fresh capture, unpacked extension | New |
+| D | Extension popup — unconfigured "Save Key" setup screen | Manual capture by Tracy | New |
 | E | Slides with floating emoji overlay + "Powered by Speechwave" badge | `tmp/store_01_slides.png` | Use as-is — badge and emoji cluster are both genuine parts of the slide/overlay, not composite artifacts |
 | F | Extension popup — connected + active session state | `tmp/store_02_popup.png` | Crop to isolate just the popup panel from the surrounding slide backdrop |
 | G | Audience mobile view with floating emoji, header, and reaction grid | `tmp/store_03_audience.png` | Crop to drop the dark frame/padding added for the store listing; keep only real page content |
@@ -64,14 +64,23 @@ file, embedded in both locations.
 4. Drive and capture with `rodney` at a 1280px-wide viewport: dashboard talk
    list, the `emojilove` talk panel expanded, and the Account Settings page.
 
-**Fresh capture (D — extension popup, unconfigured state):**
-1. Launch Chrome manually (not via `rodney start`, which has no flag for
-   loading an unpacked extension) with `--load-extension=<repo>/chrome-extension
-   --remote-debugging-port=<port>`.
-2. `rodney connect 127.0.0.1:<port>` to attach to that Chrome instance.
-3. Navigate directly to the popup's `chrome-extension://<extension-id>/popup/popup.html`
-   URL and screenshot it. No live connection to the app is needed for this
-   shot — it's the pre-setup state, before any API key is saved.
+**Manual capture (D — extension popup, unconfigured state):**
+Automating this turned out not to be viable on this machine: launching
+Chrome with `--load-extension=<repo>/chrome-extension
+--remote-debugging-port=<port>` and driving it via `rodney connect` hit a
+persistent Chrome content-verifier rejection
+(`Content verify job failed for extension: <id> at path: popup/popup.html
+and for reason:1`) specific to the command-line `--load-extension` path —
+confirmed to be unrelated to the Ghostty macOS Automation permission (same
+failure recurred after that permission was granted and Ghostty/Claude Code
+were fully restarted). Loading the same unpacked extension interactively via
+`chrome://extensions` → **Load unpacked** is the standard, fully-supported
+path and doesn't hit this check.
+
+So D is a manual step: Tracy loads the unpacked extension that way in her
+regular Chrome, opens the toolbar popup before saving any API key (the
+fresh/unconfigured state), and screenshots it herself, dropping the file for
+placement into `docs/assets/images/`.
 
 **Crops (F, G):**
 Use `magick`/`convert` (ImageMagick) for precise pixel-region crops:
