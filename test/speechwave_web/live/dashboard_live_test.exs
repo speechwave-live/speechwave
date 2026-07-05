@@ -23,6 +23,15 @@ defmodule SpeechwaveWeb.DashboardLiveTest do
     assert has_element?(view, "#talk-form")
   end
 
+  test "shows a Help link to the docs site", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/dashboard")
+
+    assert html =~ ~s(id="help-nav-link")
+    assert html =~ ~s(href="https://docs.speechwave.live")
+    assert html =~ ~s(target="_blank")
+    assert html =~ ~s(rel="noopener noreferrer")
+  end
+
   test "auto-generates slug from title on validate", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/dashboard")
 

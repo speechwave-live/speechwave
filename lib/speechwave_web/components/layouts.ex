@@ -51,6 +51,15 @@ defmodule SpeechwaveWeb.Layouts do
             <a href={~p"/users/settings"} class="text-steel hover:text-ink transition-colors">
               Settings
             </a>
+            <a
+              id="help-nav-link"
+              href="https://docs.speechwave.live"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-steel hover:text-ink transition-colors"
+            >
+              Help
+            </a>
             <span class="hidden sm:inline text-xs text-muted">{@current_scope.user.email}</span>
             <.link
               href={~p"/users/log-out"}
