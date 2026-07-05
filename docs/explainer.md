@@ -153,20 +153,57 @@ reactions group under a "General" label in the analytics view.
 ## Routing
 
 ```elixir
-# Public attendee page
-scope "/t" do
-  live "/:slug", TalkLive
+# Public — no auth required
+scope "/", SpeechwaveWeb do
+  pipe_through :browser
+
+  get "/", PageController, :home
+  get "/terms", PageController, :terms
+  get "/privacy", PageController, :privacy
+  live "/t/:slug", TalkLive
 end
 
-# Admin (HTTP Basic Auth required)
-scope "/admin" do
-  pipe_through [:browser, :admin]
-  live "/",                                  AdminLive,            :index
-  live "/talks/new",                         AdminLive,            :new
-  live "/sessions/:id",                      SessionAnalyticsLive, :show
-  live "/sessions/:id/compare/:other_id",    SessionAnalyticsLive, :compare
+# Requires login
+scope "/", SpeechwaveWeb do
+  pipe_through [:browser, :require_authenticated_user]
+
+  live_session :require_authenticated_user,
+    on_mount: [{SpeechwaveWeb.UserAuth, :require_authenticated}] do
+    live "/dashboard", DashboardLive
+    live "/sessions/:id", SessionAnalyticsLive, :show
+    live "/sessions/:id/compare/:other_id", SessionAnalyticsLive, :compare
+    live "/users/settings", UserLive.Settings, :edit
+    live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+  end
+end
+
+# Login itself — works whether or not you're already logged in
+scope "/", SpeechwaveWeb do
+  pipe_through [:browser]
+
+  live_session :current_user,
+    on_mount: [{SpeechwaveWeb.UserAuth, :mount_current_scope}] do
+    live "/users/log-in", UserLive.Login, :new
+    live "/pricing", PricingLive
+  end
+
+  get "/users/magic_link/:token", UserSessionController, :magic_link
+  delete "/users/log-out", UserSessionController, :delete
+end
+
+# OAuth login + connect flows
+scope "/auth", SpeechwaveWeb do
+  pipe_through :browser
+
+  get "/:provider", UserSessionController, :oauth_authorize
+  get "/:provider/callback", UserSessionController, :oauth_callback
 end
 ```
+
+There is no `/admin` scope and no HTTP Basic Auth pipeline. Session-analytics
+access is gated by ownership *inside* `SessionAnalyticsLive.mount/3` (it
+raises if the session's talk isn't owned by `current_scope.user`), not by a
+separate plug — see "Analytics dashboard" below.
 
 ---
 
