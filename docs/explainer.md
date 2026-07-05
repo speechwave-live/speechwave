@@ -827,7 +827,12 @@ The dashboard's sessions panel links to the analytics view for each session via 
 | **Adapter registry**    | Picks the right DOM scraper based on the presentation platform URL              |
 | **MutationObserver**    | Watches the Google Slides DOM for slide changes without polling                 |
 | **slide_changed**       | Channel event from extension → server → PubSub → TalkLive assigns              |
-| **SessionAnalyticsLive**| Admin-only LiveView: per-slide bar charts and session comparison mode           |
+| **SessionAnalyticsLive**| Owner-only, authenticated-user LiveView: per-slide bar charts and session comparison mode |
+| **Scope / `current_scope`** | Wraps the logged-in user; assigned to LiveView sockets and Plug conns by `UserAuth` on_mount hooks/plugs |
+| **`api_key`**           | Per-user secret; the Chrome extension passes it on Channel join to authenticate and identify the talk owner |
+| **Plans**                | Tier limits (`:free`/`:pro`/`:org`) for `:max_participants` and `:full_sessions_per_month`; enforced via `Plans.check/3` |
+| **Presence**              | `SpeechwaveWeb.Presence`; tracks connected Channel participants per talk to enforce the `max_participants` limit |
+| **Background service worker** | MV3 extension component (`background/background.js`) that owns the Socket/Channel connection, replacing the old content-script-owned socket |
 | **in-flight tracking**  | Per-emoji count of currently animating spans; the 2.5s animation is a sliding window |
 | **checkFireworksTrigger** | Pure function: `count >= minCount && count/total >= minPercent`               |
 | **fireworksActive**     | Global flag preventing concurrent bursts; safety-reset by timeout after 2s     |
