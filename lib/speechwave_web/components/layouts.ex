@@ -106,15 +106,6 @@ defmodule SpeechwaveWeb.Layouts do
           <a href={~p"/pricing"} class="px-3 py-2 text-sm text-steel hover:text-ink transition-colors">
             Pricing
           </a>
-          <a
-            id="help-nav-link"
-            href="https://docs.speechwave.live"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="px-3 py-2 text-sm text-steel hover:text-ink transition-colors"
-          >
-            Help
-          </a>
           <%= if @current_scope do %>
             <a
               href={~p"/dashboard"}
@@ -128,6 +119,15 @@ defmodule SpeechwaveWeb.Layouts do
             >
               Settings
             </a>
+            <a
+              id="help-nav-link"
+              href="https://docs.speechwave.live"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="px-3 py-2 text-sm text-steel hover:text-ink transition-colors"
+            >
+              Help
+            </a>
             <span class="hidden md:inline text-xs text-muted px-2 truncate max-w-40">
               {@current_scope.user.email}
             </span>
@@ -139,6 +139,15 @@ defmodule SpeechwaveWeb.Layouts do
               Log out
             </.link>
           <% else %>
+            <a
+              id="help-nav-link"
+              href="https://docs.speechwave.live"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="px-3 py-2 text-sm text-steel hover:text-ink transition-colors"
+            >
+              Help
+            </a>
             <a
               href={~p"/users/log-in"}
               class="hidden sm:block px-3 py-2 text-sm text-steel hover:text-ink transition-colors"
