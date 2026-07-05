@@ -95,22 +95,28 @@ assets/js/hooks/
 
 ## The data model
 
-There are three database tables.
+There are three database tables for the reaction flow (plus an auth/accounts
+side — `users`, `users_tokens`, `identities`, `user_consents` — covered in
+the "Dashboard flow" section below).
 
-**`talks`** — one row per conference talk:
+**`talks`** — one row per conference talk, owned by a user:
 
 ```elixir
 schema "talks" do
   field :title, :string   # e.g. "My talk"
   field :slug,  :string   # e.g. "my-talk"  ← used in URL and PubSub topic
   has_many :talk_sessions, TalkSession
+  belongs_to :user, Speechwave.Accounts.User
   timestamps(type: :utc_datetime)
 end
 ```
 
 Slugs are auto-generated from the title (lowercase, spaces → hyphens, special
 chars stripped) and are unique. The slug is the key that ties all three actors
-together: it's in the URL, the PubSub topic, and the Channel topic.
+together: it's in the URL, the PubSub topic, and the Channel topic. The
+`user` association is the owner — it gates dashboard listing, Channel join
+(see "The two websocket connections in detail" below), and session-analytics
+access.
 
 **`talk_sessions`** — a recording window within a talk (e.g. "Session 1", "Denver Practice"):
 
@@ -126,7 +132,7 @@ end
 
 Sessions are started and stopped by the speaker via the Chrome extension.
 `label` auto-increments ("Session 1", "Session 2", …) but can be renamed from
-the admin panel.
+the Dashboard.
 
 **`reactions`** — one row per emoji tap:
 
