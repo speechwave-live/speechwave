@@ -97,6 +97,15 @@ defmodule SpeechwaveWeb.Layouts do
           <a href={~p"/pricing"} class="px-3 py-2 text-sm text-steel hover:text-ink transition-colors">
             Pricing
           </a>
+          <a
+            id="help-nav-link"
+            href="https://docs.speechwave.live"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="px-3 py-2 text-sm text-steel hover:text-ink transition-colors"
+          >
+            Help
+          </a>
           <%= if @current_scope do %>
             <a
               href={~p"/dashboard"}
