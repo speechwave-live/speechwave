@@ -331,6 +331,49 @@ end
 The `"reactions:*"` pattern means the extension can join any topic matching
 that prefix (e.g. `"reactions:my-talk"`).
 
+Joining a topic isn't as open as the socket-level pattern above implies —
+`ReactionChannel.join/3` requires an `api_key` param and enforces four checks
+before accepting the join:
+
+```elixir
+def join("reactions:" <> slug, %{"api_key" => api_key}, socket) do
+  with {:talk, %Talks.Talk{} = talk} <- {:talk, Talks.get_talk_by_slug(slug)},
+       {:user, %Accounts.User{} = user} <- {:user, Accounts.get_user_by_api_key(api_key)},
+       {:owner, true} <- {:owner, talk.user_id == user.id},
+       {:capacity, :ok} <-
+         {:capacity,
+          Plans.check(
+            :max_participants,
+            user.plan,
+            Presence.list("reactions:#{slug}") |> map_size()
+          )} do
+    Phoenix.PubSub.subscribe(Speechwave.PubSub, "user:#{user.id}:disconnect")
+    send(self(), :after_join)
+    {:ok, assign(socket, talk: talk, user: user)}
+  else
+    {:talk, nil} -> {:error, %{reason: "not_found"}}
+    {:user, nil} -> {:error, %{reason: "unauthorized"}}
+    {:owner, false} -> {:error, %{reason: "unauthorized"}}
+    {:capacity, {:error, :limit_reached}} -> {:error, %{reason: "capacity_reached"}}
+  end
+end
+```
+
+In plain terms, joining fails with:
+- `"not_found"` — the slug doesn't match any talk
+- `"unauthorized"` — the API key doesn't resolve to a user, or resolves to a
+  user who doesn't own this talk
+- `"capacity_reached"` — the talk owner's plan-based participant limit
+  (`Plans.limit(:max_participants, plan)`) has already been reached, tracked
+  via `Presence.list/1`
+
+These map directly to what the Chrome extension's popup shows when a
+connection attempt fails. A successful join also subscribes the channel
+process to `"user:#{user.id}:disconnect"` — if the owner logs out or
+regenerates their API key elsewhere, the app broadcasts on that topic and the
+channel stops itself (`{:stop, :normal, socket}`), forcing the extension to
+reconnect with a fresh key.
+
 `check_origin: false` is set on this socket (in `endpoint.ex`) so that the
 Chrome extension, which runs from a `chrome-extension://` origin, is allowed
 to connect.
