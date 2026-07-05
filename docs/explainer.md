@@ -834,9 +834,9 @@ The dashboard's sessions panel links to the analytics view for each session via 
 | **TalkSession**         | A recording window; reactions are persisted against the active session          |
 | **slide_number**        | Stamped on each reaction; `0` is the sentinel for "unknown slide"               |
 | **Adapter registry**    | Picks the right DOM scraper based on the presentation platform URL              |
-| **MutationObserver**    | Watches the Google Slides DOM for slide changes without polling                 |
+| **Polling**             | Content script checks the adapter every 500ms (`setInterval`) and reports slide changes to the background worker |
 | **slide_changed**       | Channel event from extension → server → PubSub → TalkLive assigns              |
-| **SessionAnalyticsLive**| Owner-only, authenticated-user LiveView: per-slide bar charts and session comparison mode |
+| **SessionAnalyticsLive** | Owner-only, authenticated-user LiveView: per-slide bar charts and session comparison mode |
 | **Scope / `current_scope`** | Wraps the logged-in user; assigned to LiveView sockets and Plug conns by `UserAuth` on_mount hooks/plugs |
 | **`api_key`**           | Per-user secret; the Chrome extension passes it on Channel join to authenticate and identify the talk owner |
 | **Plans**                | Tier limits (`:free`/`:pro`/`:org`) for `:max_participants` and `:full_sessions_per_month`; enforced via `Plans.check/3` |
