@@ -37,36 +37,54 @@ Two different WebSocket connections are used:
 lib/
   speechwave/
     application.ex              # OTP supervision tree
+    accounts.ex                 # Auth/accounts context (users, tokens, identities, api keys)
+    accounts/
+      scope.ex                  # Scope struct wrapping the current user
+      user.ex                   # User Ecto schema (email, api_key, plan, is_admin)
+      user_token.ex             # Magic-link / session tokens
+      user_identity.ex          # OAuth identity records (Google/Microsoft/GitHub)
+      user_consent.ex           # Marketing-email consent records
+      user_notifier.ex          # Login-instructions / notification emails
+    plans.ex                    # Tier limits (:free/:pro/:org) + capacity checks
+    auth_throttle.ex            # Rate-limits magic-link sends per email/IP
     talks.ex                    # Talk + session context (CRUD, lifecycle)
-    talks/talk.ex               # Talk Ecto schema
+    talks/talk.ex               # Talk Ecto schema (owned by a user)
     talks/talk_session.ex       # TalkSession Ecto schema
     reactions.ex                # Reactions context (create, totals query)
     reactions/reaction.ex       # Reaction Ecto schema
     rate_limiter.ex             # GenServer + ETS rate limiting
-    qr_code.ex                  # QR code generation for admin
+    qr_code.ex                  # QR code generation for the dashboard
   speechwave_web/
     live/
       talk_live.ex              # Attendee reaction page (LiveView)
-      admin_live.ex             # Admin: talks, sessions panel
+      dashboard_live.ex         # Speaker dashboard: talks, sessions panel
       session_analytics_live.ex # Per-session analytics (LiveView)
+      user_live/
+        login.ex                # Magic-link login page
+        settings.ex             # Account settings, API key, OAuth connect/disconnect
     channels/
       user_socket.ex            # Socket definition for Chrome extension
       reaction_channel.ex       # Channel: reactions, sessions, slide_changed
-    plugs/
-      admin_auth.ex             # Basic auth for /admin routes
+    user_auth.ex                # Auth plugs + live_session on_mount hooks
+    presence.ex                 # Phoenix.Presence, used for capacity checks
+    controllers/
+      user_session_controller.ex # Magic-link consumption, log-out, OAuth callback
     endpoint.ex                 # Mounts both socket types
     router.ex                   # Route definitions
 
 chrome-extension/  (github.com/speechwave-live/chrome-extension)
+  background/
+    background.js        # MV3 service worker: owns the Socket/Channel lifecycle
   adapters/
     google_slides.js    # Reads current slide number from Google Slides DOM
     index.js            # Adapter registry (returns adapter for current URL)
   lib/
     fireworks.js        # Pure trigger logic for fireworks animation (dual-export: CJS + window global)
-  content/content.js    # Content script: WebSocket, overlay, in-flight tracking, fireworks spawner
-  popup/popup.{html,js} # Extension popup UI (connection, session, fireworks toggle)
+    phoenix.js          # Vendored Phoenix client, loaded via importScripts in the service worker
+  content/content.js    # Content script: overlay, slide polling, fireworks spawner
+  popup/popup.{html,js} # Extension popup UI (connection, API key, session, fireworks toggle)
   manifest.json
-  tests/                # Jest tests for adapters and fireworks trigger logic
+  tests/                # Jest tests for adapters, fireworks trigger logic, background worker, popup
 
 assets/js/hooks/
   emoji_buttons.js      # Disables buttons + shows cooldown countdown
