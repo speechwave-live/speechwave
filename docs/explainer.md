@@ -446,23 +446,47 @@ enforcement is server-side.
 
 ## The Chrome extension
 
-The extension has two parts:
+The extension has three parts:
 
 **Popup (`popup.html` + `popup.js`)** — A small UI that appears when you click
-the extension icon. The speaker enters the talk slug and clicks "Connect". The
-popup sends a message to the content script via `chrome.runtime.sendMessage`.
+the extension icon. The speaker enters the talk slug and their API key (from
+Account Settings; validated client-side as 64-char hex) and clicks "Connect".
+The popup sends messages to the **background service worker**, not the
+content script, via `chrome.runtime.sendMessage`.
 
-**Content script (`content.js`)** — Injected into Google Slides pages. It:
+**Background service worker (`background/background.js`)** — An MV3
+background script that owns the Phoenix `Socket`/Channel connection for the
+entire lifetime of the extension (not just one tab). It:
 
-1. Connects a Phoenix `Socket` to `wss://speechwave.fly.dev/socket`
-2. Joins the `reactions:${slug}` channel
-3. Listens for `"new_reaction"` messages and calls `spawnEmoji()`
+1. Connects a Phoenix `Socket` to `wss://speechwave.live/socket`
+2. Joins `reactions:${slug}` with `{ api_key: apiKey }` — this is the
+   `ReactionChannel.join/3` call described above
+3. On `"new_reaction"`, relays to every open Google Slides tab via
+   `chrome.tabs.sendMessage(tab.id, { type: "RENDER_EMOJI", emoji })`
+4. Relays `start_session`/`stop_session`/`slide_changed` channel pushes on
+   behalf of the popup and content script
+
+Because MV3 service workers can be terminated and restarted by Chrome at any
+time independent of open tabs, `background.js` has explicit reconnect/rejoin
+logic and guards against acting on a stale ("zombie") socket left over from
+before a restart.
+
+**Content script (`content.js`)** — Injected into Google Slides pages. It no
+longer owns any socket connection. It:
+
+1. Renders emojis when it receives `{ type: "RENDER_EMOJI", emoji }` from the
+   background worker, by calling `spawnEmoji()`
+2. Polls the current slide number and reports changes to the background
+   worker via `chrome.runtime.sendMessage({ type: "SLIDE_CHANGED", slide })`
+   (see "Slide tracking" below)
+3. Toggles the fireworks animation on/off based on `SET_FIREWORKS` messages
 
 ```mermaid
 graph LR
-    PP["Popup UI\n(enters slug)"] -->|chrome.runtime\n.sendMessage| CS["Content Script\n(runs in Slides tab)"]
-    CS -->|"Phoenix Socket\n/socket"| PH["Phoenix Server\nReactionChannel"]
-    PH -->|"new_reaction\n{emoji}"| CS
+    PP["Popup UI\n(enters slug + API key)"] -->|chrome.runtime\n.sendMessage| BG["Background Service Worker\n(owns the Socket)"]
+    BG -->|"Phoenix Socket\n/socket"| PH["Phoenix Server\nReactionChannel"]
+    PH -->|"new_reaction\n{emoji}"| BG
+    BG -->|"chrome.tabs\n.sendMessage"| CS["Content Script\n(runs in each Slides tab)"]
     CS --> OV["Overlay div\n(floats over slides)"]
 ```
 
