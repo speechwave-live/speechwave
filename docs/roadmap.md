@@ -11,35 +11,19 @@ to warrant a spec/plan should get one when they're ready to be worked.
 
 ### Should haves
 
-#### UX fixes and improvements that are important for a smooth launch experience.
+#### screenshots for docs site (../docs)
 
-Done 2026-07-04 (see `docs/specs/2026-07-04-dashboard-ux-fixes-design.md`):
-talk slug visibility in dashboard, session name visibility in dashboard, and
-the session analytics header. Follow-up to review after using it: the
-dashboard analytics link treatment (now a colored, labeled link — may need
-another pass once seen rendered).
+Docs served at https://docs.speechwave.live is live, a Jekyll/just-the-docs
+site in the `speechwave-live/docs` repo, auto-deployed to Dreamhost via GitHub
+Actions on push to main. See `docs/specs/2026-07-04-docs-site-design.md` if
+needed.
 
-#### Onboarding docs and help pages
+Screenshot sources:
 
-Done 2026-07-04: https://docs.speechwave.live is live — Jekyll/just-the-docs
-site in the `speechwave-live/docs` repo, auto-deployed to Dreamhost via
-GitHub Actions on push to main. Five pages: system overview, getting
-started, dashboard & analytics, Chrome extension, troubleshooting/FAQ.
-See `docs/specs/2026-07-04-docs-site-design.md`.
-
-Follow-ups:
-- [x] Replace the placeholder Chrome Web Store link on the extension page
-      once the real listing URL exists (done 2026-07-04)
-- [x] Add in-app "Help" links from speechwave.live to docs.speechwave.live
-      (done 2026-07-04; appears in the header on every page, logged in or
-      out — see `docs/plans/2026-07-04-in-app-help-link.md`)
-- [x] `docs/explainer.md` is stale: it predates API-key auth on the reaction
-      channel (`reaction_channel.ex` now requires `api_key` on join)
-      (done 2026-07-05; full accuracy refresh, not just the api_key section —
-      also fixed `docs/administration.md`'s stale password-reset runbook. See
-      `docs/specs/2026-07-04-explainer-docs-refresh-design.md` and
-      `docs/plans/2026-07-04-explainer-docs-refresh.md`)
-- [ ] Screenshots pass for the docs pages (`seed_screenshots.exs` can stage data)
+- `seed_screenshots.exs` can stage data
+- screenshots that were submitted for the Chrome Web Store listing. See `tmp/store_0*.png`.
+- screenshots can be taken with rodney (see `rodney --help` for usage)
+- Tracy can take manual screenshots as needed
 
 ### Nice-to-haves
 
@@ -55,12 +39,6 @@ post-launch. Two core views:
 
 #### Account deletion and consent revocation features for GDPR compliance
 
-### Documentation
-
-Resolved 2026-07-04: served from docs.speechwave.live (separate repo
-`speechwave-live/docs` with its own CI/CD). Getting-started and
-troubleshooting guides for speakers are live — see the Onboarding docs
-section above.
 
 #### OG / SEO meta tags
 
@@ -174,54 +152,4 @@ Connecting/disconnecting Google/Microsoft/GitHub identities from
 provider's own hosted consent UI — a genuinely different category from the
 rest of `docs/manual_tests.md`, not just a sequencing question. Deferred
 until there's a concrete need to test this path.
-
-## Chrome Extension Troubleshooting / FAQ
-
-Common issues encountered during development and testing. This section should
-eventually become a user-facing help page or be included in the Web Store
-listing description.
-
-### No emojis appearing on Google Slides
-
-**After installing, updating, or reloading the extension**, you must refresh
-any Google Slides tabs that were already open. Chrome does not automatically
-reinject content scripts into existing tabs — the overlay and message listener
-only activate after a page load.
-
-### "Invalid API key" error after regenerating key
-
-After regenerating your API key in Account Settings:
-1. Click "Change API key" in the extension popup
-2. Copy the new key from the settings page (use the copy button)
-3. Paste and save in the extension
-4. Click Connect
-
-The extension's service worker may briefly attempt to reconnect with the old
-key from storage. This auto-reconnect error is suppressed and should not
-appear in the popup. If you see a flash of "Invalid API key," it resolves
-once the new key is saved and Connect is clicked.
-
-### Extension shows "Connected" but no emojis on Slides
-
-- Verify a Google Slides presentation tab is open and was loaded **after**
-  the extension was installed
-- Check that the emoji overlay hasn't been hidden behind the Slides UI —
-  it's positioned fixed at the bottom-right of the viewport
-- In Slides presentation mode (fullscreen), the overlay automatically
-  re-parents into the fullscreen element
-
-### Extension not connecting
-
-- Verify the slug matches a talk you own (check the Dashboard)
-- Verify your API key matches the one shown in Account Settings
-- If you see "Talk is at capacity," the plan's connection limit was reached
-- If you see "Please confirm your email," complete email verification first
-
-### Duplicate emojis on Slides
-
-If each reaction produces two emojis on the same Slides tab, the most likely
-cause is an **old content script still running** from a previous version of
-the extension. This happens when the extension code is updated (during
-development or via Chrome auto-update) but the Slides tab was not refreshed.
-Refresh the Slides tab to resolve.
 
