@@ -21,26 +21,19 @@ another pass once seen rendered).
 
 #### Onboarding docs and help pages
 
-Onboarding docs and help pages for the Chrome extension, speaker dashboard, and
-session analytics. These can be served from docs.speechwave.live on a separate
-server (hosted with Dreamhost). The docs site would be a separate repo with
-its own CI/CD pipeline. My thought is a statically generated Jekyll site
-that is automatically built and deployed to Dreamhost on every push to main.
+Done 2026-07-04: https://docs.speechwave.live is live — Jekyll/just-the-docs
+site in the `speechwave-live/docs` repo, auto-deployed to Dreamhost via
+GitHub Actions on push to main. Five pages: system overview, getting
+started, dashboard & analytics, Chrome extension, troubleshooting/FAQ.
+See `docs/specs/2026-07-04-docs-site-design.md`.
 
-We want onboarding to be as frictionless as possible, so we should provide clear instructions for:
-- System overview (the three pieces: Chrome extension, speaker dashboard, audience mobile view)
-- Creating a speaker account
-- Creating a talk
-- How to use the QR code and share the talk link
-- How to find the talk slug
-- How to use the dashboard and session analytics
-- How to find the API key
-- Installing the Chrome extension
-- Connecting the extension to a speaker account
-  - Entering your API key into the extension
-- Connecting the extension to a talk
-- Starting a session and why
-- More?
+Follow-ups:
+- [ ] Replace the placeholder Chrome Web Store link on the extension page
+      once the real listing URL exists
+- [ ] Add in-app "Help" links from speechwave.live to docs.speechwave.live
+- [ ] `docs/explainer.md` is stale: it predates API-key auth on the reaction
+      channel (`reaction_channel.ex` now requires `api_key` on join)
+- [ ] Screenshots pass for the docs pages (`seed_screenshots.exs` can stage data)
 
 ### Nice-to-haves
 
@@ -58,13 +51,10 @@ post-launch. Two core views:
 
 ### Documentation
 
-Should documentation be served from speechwave.live or from another server
-(docs.speechwave.live)? If the latter, it should be a separate repo with its
-own CI/CD pipeline?
-
-Include:
-- [ ] Getting started guide for speaker
-- [ ] Troubleshooting guide for speaker
+Resolved 2026-07-04: served from docs.speechwave.live (separate repo
+`speechwave-live/docs` with its own CI/CD). Getting-started and
+troubleshooting guides for speakers are live — see the Onboarding docs
+section above.
 
 #### OG / SEO meta tags
 
