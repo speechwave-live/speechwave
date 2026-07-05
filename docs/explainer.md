@@ -548,18 +548,30 @@ end
 
 ---
 
-## Admin flow
+## Dashboard flow
 
-The admin panel at `/admin` is protected by HTTP Basic Auth (`AdminAuth` plug).
-From there, an organiser can:
+There's no HTTP Basic Auth admin panel anymore — the Dashboard at
+`/dashboard` requires a logged-in user. Login is magic-link (the app emails a
+one-time token) or OAuth (Google, Microsoft, or GitHub, via `/auth/:provider`
+— see the Routing section above); there's no username/password.
 
-1. Create a talk: enter a title, the slug is auto-generated
+From the Dashboard, a speaker can:
+
+1. Create a talk: enter a title, the slug is auto-generated, and the talk is
+   scoped to the logged-in user (`Talks.create_talk(scope, attrs)` sets
+   `user_id` from `scope.user.id`)
 2. Get a QR code: the `QRCode` module wraps `EQRCode` to generate a PNG
    encoded as a base64 data URI, ready to embed in an `<img>` tag or download
 
-The QR code encodes the full attendee URL
-(`https://speechwave.fly.dev/t/my-talk`), so speakers can display it on their
+The QR code encodes the talk's full attendee URL via
+`SpeechwaveWeb.Endpoint.url() <> "/t/#{talk.slug}"` (e.g.
+`https://speechwave.live/t/my-talk`), so speakers can display it on their
 first slide.
+
+`User` has an `is_admin` boolean field, and the Dashboard shows a "Super-admin
+controls coming soon" placeholder banner to admins — but the super-admin
+panel itself isn't built yet (it's a roadmap item). Don't take that banner as
+a sign a working admin panel exists.
 
 ---
 
