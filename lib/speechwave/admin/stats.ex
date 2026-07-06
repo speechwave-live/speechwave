@@ -76,29 +76,62 @@ defmodule Speechwave.Admin.Stats do
   # within the last `@history_days` days. Users confirmed earlier than that
   # don't need to appear here — they were already confirmed at the start of
   # the history window and are fully accounted for by `confirmed_current`.
+  #
+  # Two-phase because a user with e.g. an old session token (outside the
+  # window) and a newer identity (inside the window) must NOT be reported
+  # using just the newer timestamp — their true confirmed_at is the older
+  # one, which means they don't belong in this map at all. Phase 1 finds
+  # candidates where *either* channel shows recent activity (bounded: only
+  # users with something confirmation-related in the last 30 days). Phase 2
+  # recomputes each candidate's TRUE earliest timestamp across ALL their
+  # tokens/identities (still bounded — scoped to the small candidate set)
+  # before applying the recency cutoff for real.
   defp recent_confirmation_timestamps(cutoff) do
-    token_confirmations =
+    candidate_ids =
+      (Repo.all(
+         from t in UserToken,
+           where: t.context == "session",
+           group_by: t.user_id,
+           having: min(t.inserted_at) >= ^cutoff,
+           select: t.user_id
+       ) ++
+         Repo.all(
+           from i in UserIdentity,
+             group_by: i.user_id,
+             having: min(i.inserted_at) >= ^cutoff,
+             select: i.user_id
+         ))
+      |> Enum.uniq()
+
+    token_mins =
       Repo.all(
         from t in UserToken,
-          where: t.context == "session",
+          where: t.context == "session" and t.user_id in ^candidate_ids,
           group_by: t.user_id,
-          having: min(t.inserted_at) >= ^cutoff,
           select: {t.user_id, min(t.inserted_at)}
       )
       |> Map.new()
 
-    identity_confirmations =
+    identity_mins =
       Repo.all(
         from i in UserIdentity,
+          where: i.user_id in ^candidate_ids,
           group_by: i.user_id,
-          having: min(i.inserted_at) >= ^cutoff,
           select: {i.user_id, min(i.inserted_at)}
       )
       |> Map.new()
 
-    Map.merge(token_confirmations, identity_confirmations, fn _user_id, a, b ->
-      if DateTime.compare(a, b) == :lt, do: a, else: b
+    candidate_ids
+    |> Map.new(fn user_id ->
+      true_min =
+        [Map.get(token_mins, user_id), Map.get(identity_mins, user_id)]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.min(DateTime)
+
+      {user_id, true_min}
     end)
+    |> Enum.filter(fn {_user_id, ts} -> DateTime.compare(ts, cutoff) != :lt end)
+    |> Map.new()
   end
 
   # Reconstructs a daily history by subtracting, from `current_total`, the
