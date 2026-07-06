@@ -15,47 +15,13 @@ Done.
 
 ### Nice-to-haves
 
-#### Super-admin panel (own spec/plan needed)
+#### Super-admin panel: email consent export
 
-A LiveView available behind the existing `is_admin` guard for tracking initial
-traction post-launch. Two core views:
+The user-stats half of the super-admin panel is done — see
+`docs/specs/2026-07-06-super-admin-stats-design.md` and
+`docs/decisions.md` (2026-07-06 entry) for the design and its accepted
+reporting limitations. Remaining: an email consent export view.
 
-**User stats**
-This allows Tracy to easily track the progress of the launch, the effectiveness
-of marketing campaigns, and identify any potential issues with onboarding.
-
-Tracking data:
-- confirmed user count
-- unconfirmed user count
-— total user count (confirmed + unconfirmed)
-- junk user count (no session token, no identity)
-- pro notification signup counts
-- enterprise notification signup counts
-- total notification signup counts (pro + enterprise)
-- talks count
-- talks with sessions count
-- sessions count
-
-Charts:
-Each chart show cummulative daily values for the previous 30 days plus the
-current value separately.
-
-Example:
-```text
-.--------------------------------.
-| Total user count (current: 65) |
-|                                |
-|            [graph]             |
-|                                |
-`--------------------------------'
-```
-
-- How can we change the data model to make this more efficient?
-  - does user have a created_at timestamp, for example?
-- Is there other data that would be useful to monitor?
-  - errors?
-
-**Email consent export**
 This allows Tracy to export a list of users who have consented to marketing
 emails, so he can send them updates and promotions.
 
@@ -63,7 +29,31 @@ emails, so he can send them updates and promotions.
 — filter consented users by `source` / date range,
 
 This directly unblocks the "Super admin email export UI" item in the Email &
-Marketing section below.
+Marketing section below. May be able to share the `/admin/stats` page rather
+than needing its own route, given its small UI footprint.
+
+#### Super-admin stats dashboard follow-ups
+
+Deferred from the 2026-07-06 stats dashboard work (see
+`docs/decisions.md` for the reporting limitations these are separate from):
+
+- **Add DB indexes** on `users(inserted_at)`, `talks(inserted_at)`,
+  `talk_sessions(inserted_at)`, and `user_consents(consent_type, source)`.
+  Every metric's history query currently full-scans its base table (no
+  supporting index exists), which is cheap at today's table sizes but worth
+  fixing before they reach roughly 10^5+ rows. The two `users_tokens`
+  min-timestamp scans (confirmation reconstruction) won't benefit from an
+  index alone — that would need a dedicated `confirmed_at` column instead.
+- **Unify per-metric display metadata.** `Speechwave.Admin.Stats.@metric_order`
+  and `SpeechwaveWeb.Admin.StatsLive.@titles` are two hand-synced lists with
+  no compile-time link between them (a key present in one but not the other
+  crashes at render via `Map.fetch!`). A single metric-definition list
+  (key, title, and eventually chart type) would remove that hazard and make
+  per-metric chart-type variation easier if ever needed.
+- **Chart sizing is tuned for a 30-day window.** `Speechwave.Admin.Chart`'s
+  default width/height assume ~30 x-axis points; changing
+  `Stats.history_days/0` to a different window (e.g. 90 days) would need the
+  chart dimensions revisited too, since nothing currently ties them together.
 
 #### Account deletion and consent revocation features for GDPR compliance
 

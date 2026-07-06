@@ -10,10 +10,21 @@ defmodule Speechwave.Admin.Stats do
   falls within today's bucket since no future rows can exist in the DB).
 
   History is reconstructed by walking backward from a current aggregate
-  total using only rows that changed within the history window — never a
-  full scan of all-time data. See the design doc for why this is valid
-  (state transitions tracked here — signup, confirmation, consent,
-  talk/session creation — are monotonic or single-event within the window).
+  total using only rows that changed within the history window, so the
+  *result set* pulled into Elixir is bounded by recent activity, not by
+  table size. The underlying SQL query is not similarly bounded: no index
+  exists yet on the `inserted_at`/`source`/`context` columns these queries
+  filter on, so each metric's query is a full scan of its base table.
+  Cheap at today's table sizes — see docs/decisions.md before this matters
+  at scale.
+
+  Most state transitions tracked here (signup, talk/session creation,
+  consent grant/revoke) are monotonic or single-event within the window,
+  which is what makes the subtraction-from-current-total reconstruction
+  valid. "Confirmed" is the one exception: it is not strictly monotonic for
+  magic-link-only users, since logging out deletes the session token that
+  counts as their confirmation (see `confirmed_users_query/0`). This and
+  other accepted reporting limitations are recorded in docs/decisions.md.
   """
 
   import Ecto.Query
@@ -217,6 +228,12 @@ defmodule Speechwave.Admin.Stats do
     Enum.map(@metric_order, fn key -> {key, Map.fetch!(metrics, key)} end)
   end
 
+  # "Confirmed" is not strictly monotonic: a magic-link-only user (no linked
+  # identity) who logs out of their only session has their session token
+  # deleted (Accounts.delete_user_session_token/1), which is their only
+  # evidence of confirmation. Such a user can drop out of this count and
+  # later reappear, and their reconstructed confirmed_at can drift forward
+  # to their next login. Accepted limitation — see docs/decisions.md.
   defp confirmed_users_query do
     from u in User,
       as: :user,
