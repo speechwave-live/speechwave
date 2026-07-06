@@ -20,7 +20,12 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
   }
 
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, stats: Stats.dashboard())}
+    stats =
+      Enum.map(Stats.dashboard(), fn {key, stat} ->
+        {key, Map.put(stat, :chart_svg, Speechwave.Admin.Chart.render_svg(stat.history))}
+      end)
+
+    {:ok, assign(socket, stats: stats)}
   end
 
   defp title_for(key), do: Map.fetch!(@titles, key)

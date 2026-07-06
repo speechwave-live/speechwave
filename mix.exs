@@ -73,6 +73,7 @@ defmodule Speechwave.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:eqrcode, "~> 0.2"},
+      {:contex, "~> 0.5"},
       {:remote_ip, "~> 1.2"}
     ]
   end

@@ -38,4 +38,15 @@ defmodule SpeechwaveWeb.Admin.StatsLiveTest do
     assert has_element?(view, "#stat-talks", "1")
     assert has_element?(view, "#stat-confirmed", "1")
   end
+
+  test "each stat card renders an SVG trend chart", %{conn: conn} do
+    admin = admin_user_fixture()
+    conn = log_in_user(conn, admin)
+
+    {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+    assert view
+           |> element("#stat-total-users")
+           |> render() =~ "<svg"
+  end
 end
