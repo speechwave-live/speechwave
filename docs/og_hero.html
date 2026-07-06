@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Speechwave — OG Hero Image Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #e5e5e5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      color: #5a5a5c;
+      min-height: 100vh;
+    }
+
+    .label {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #8a8a8c;
+      margin-bottom: 16px;
+    }
+
+    /* The hero canvas — 1200×630, matches priv/static og:image dimensions */
+    .hero {
+      width: 1200px;
+      height: 630px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 40px 80px rgba(0,0,0,0.18);
+      /* Same gradient tokens as the real homepage hero section:
+         --color-hero-sky-from / --color-hero-sky-to */
+      background: linear-gradient(to bottom, #87a8c8 0%, #f5e9d8 100%);
+    }
+
+    /* Subtle dot grid, matching the old mockup's texture but muted for a light bg */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(10,10,10,0.05) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* Center content */
+    .hero-content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      z-index: 10;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* Real logo mark: mic capsule in a rounded black square, mint accent */
+    .logo-mark {
+      width: 88px;
+      height: 88px;
+      border-radius: 18px;
+      background: #0a0a0a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 12px 28px rgba(10,10,10,0.25);
+    }
+
+    .wordmark {
+      font-size: 76px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: #0a0a0a;
+    }
+
+    .wave-line { display: block; margin-top: -6px; }
+
+    .tagline {
+      font-size: 26px;
+      color: #3a3a3c;
+      letter-spacing: 0.01em;
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    /* Emoji cluster — bottom-right corner only, matching the in-product
+       reaction overlay convention (.demo-emoji-overlay in assets/css/app.css:
+       bottom:0, right:0, ~28% x 36% box) rather than symmetric side columns */
+    .emoji-cluster {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 34%;
+      height: 44%;
+      pointer-events: none;
+    }
+    .emoji {
+      position: absolute;
+      user-select: none;
+      line-height: 1;
+      filter: drop-shadow(0 4px 10px rgba(10,10,10,0.15));
+    }
+
+    .hint {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #8a8a8c;
+      text-align: center;
+      line-height: 1.7;
+    }
+    .hint code {
+      background: #f0f0f0;
+      border: 1px solid #d8d8d8;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: #00b48a;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="label">OG Hero — 1200 × 630 · screenshot at 1× zoom</div>
+
+  <div class="hero" id="hero">
+    <div class="hero-grid"></div>
+
+    <!-- Emoji cluster, bottom-right corner only -->
+    <div class="emoji-cluster">
+      <span class="emoji" style="right:30px;  bottom:40px;  font-size:56px; opacity:0.95;">🔥</span>
+      <span class="emoji" style="right:130px; bottom:30px;  font-size:44px; opacity:0.85;">❤️</span>
+      <span class="emoji" style="right:210px; bottom:100px; font-size:38px; opacity:0.7;">👏</span>
+      <span class="emoji" style="right:90px;  bottom:140px; font-size:34px; opacity:0.6;">🤯</span>
+      <span class="emoji" style="right:20px;  bottom:170px; font-size:30px; opacity:0.5;">😂</span>
+      <span class="emoji" style="right:180px; bottom:200px; font-size:26px; opacity:0.35;">❤️</span>
+      <span class="emoji" style="right:260px; bottom:170px; font-size:22px; opacity:0.25;">🔥</span>
+      <span class="emoji" style="right:60px;  bottom:230px; font-size:20px; opacity:0.18;">👏</span>
+    </div>
+
+    <!-- Center content -->
+    <div class="hero-content">
+      <div class="brand-row">
+        <div class="logo-mark">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="64" height="64">
+            <rect x="46" y="18" width="36" height="54" rx="18" fill="#00d4a4"/>
+            <path d="M30 70 C30 98 98 98 98 70" stroke="#00d4a4" stroke-width="7"
+                  fill="none" stroke-linecap="round"/>
+            <line x1="64" y1="97" x2="64" y2="112"
+                  stroke="#00d4a4" stroke-width="7" stroke-linecap="round"/>
+            <line x1="48" y1="112" x2="80" y2="112"
+                  stroke="#00d4a4" stroke-width="7" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="wordmark">Speechwave</div>
+      </div>
+      <svg class="wave-line" width="360" height="16" viewBox="0 0 360 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 8 C45 0, 90 16, 136 8 S227 0, 272 8 S317 16, 360 8" stroke="url(#wg)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <defs>
+          <linearGradient id="wg" x1="0" y1="0" x2="360" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stop-color="#00d4a4"/>
+            <stop offset="100%" stop-color="#00b48a"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <div class="tagline">Real-time audience reactions for speakers</div>
+    </div>
+  </div>
+
+  <div class="hint">
+    To screenshot at exact 1200×630: set browser zoom to <code>100%</code>, then use
+    <code>⌘⇧4</code> to drag-select just the hero card above.<br>
+    Or capture with rodney and crop/resize to 1200×630 with ImageMagick.
+  </div>
+
+</body>
+</html>
