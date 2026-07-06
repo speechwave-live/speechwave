@@ -76,5 +76,45 @@ defmodule Speechwave.Admin.StatsTest do
       assert count == 1
       assert confirmed.current == 1
     end
+
+    test "splits unconfirmed users into onboarding and suspicious by account age" do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      _onboarding_user =
+        user_fixture() |> backdate_user(DateTime.add(now, -1, :day))
+
+      _suspicious_user =
+        user_fixture() |> backdate_user(DateTime.add(now, -10, :day))
+
+      %{onboarding: onboarding, suspicious: suspicious, unconfirmed: unconfirmed} =
+        Stats.user_categories(now)
+
+      assert onboarding.current == 1
+      assert suspicious.current == 1
+      assert unconfirmed.current == 2
+    end
+
+    test "onboarding + suspicious always sum to unconfirmed, including in history" do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      _user_a = user_fixture() |> backdate_user(DateTime.add(now, -1, :day))
+      _user_b = user_fixture() |> backdate_user(DateTime.add(now, -35, :day))
+
+      confirmed_recently =
+        user_fixture() |> backdate_user(DateTime.add(now, -15, :day))
+
+      {_token, user_token} = session_token_fixture(confirmed_recently)
+      backdate_token(user_token.id, DateTime.add(now, -2, :day))
+
+      %{onboarding: onboarding, suspicious: suspicious, unconfirmed: unconfirmed} =
+        Stats.user_categories(now)
+
+      for i <- 0..(length(onboarding.history) - 1) do
+        {date, ob} = Enum.at(onboarding.history, i)
+        {_date, sp} = Enum.at(suspicious.history, i)
+        {_date2, u} = Enum.at(unconfirmed.history, i)
+        assert ob + sp == u, "mismatch on #{date}: #{ob} + #{sp} != #{u}"
+      end
+    end
   end
 end

@@ -30,7 +30,7 @@ defmodule Speechwave.Admin.Stats do
   @doc "Account age (in days) below which an unconfirmed user is 'onboarding' rather than 'suspicious'."
   def onboarding_threshold_days, do: @onboarding_threshold_days
 
-  @doc "Total, confirmed, and unconfirmed user counts, current and 30-day history."
+  @doc "Total, confirmed, unconfirmed, onboarding, and suspicious user counts, current and 30-day history."
   def user_categories(now \\ DateTime.utc_now()) do
     now = DateTime.truncate(now, :second)
     cutoff = DateTime.add(now, -@history_days, :day)
@@ -41,6 +41,8 @@ defmodule Speechwave.Admin.Stats do
 
     recent_signups = Repo.all(from(u in User, where: u.inserted_at >= ^cutoff, select: u.inserted_at))
     recent_confirmations = recent_confirmation_timestamps(cutoff)
+    recent_confirmers = recent_confirmers(recent_confirmations)
+    unconfirmed_now = Repo.all(from(u in unconfirmed_users_query(), select: u.inserted_at))
 
     total_history = history_from_baseline(total_current, recent_signups, days)
     confirmed_history = history_from_baseline(confirmed_current, Map.values(recent_confirmations), days)
@@ -48,10 +50,15 @@ defmodule Speechwave.Admin.Stats do
     unconfirmed_history =
       Enum.zip_with(total_history, confirmed_history, fn {date, t}, {_date, c} -> {date, t - c} end)
 
+    {onboarding_history, suspicious_history} =
+      age_split_history(unconfirmed_now, recent_confirmers, days)
+
     %{
       total_users: metric(total_history),
       confirmed: metric(confirmed_history),
-      unconfirmed: metric(unconfirmed_history)
+      unconfirmed: metric(unconfirmed_history),
+      onboarding: metric(onboarding_history),
+      suspicious: metric(suspicious_history)
     }
   end
 
@@ -69,6 +76,23 @@ defmodule Speechwave.Admin.Stats do
               where: i.user_id == parent_as(:user).id,
               select: 1
           )
+  end
+
+  defp unconfirmed_users_query do
+    from u in User,
+      as: :user,
+      where:
+        not exists(
+          from t in UserToken,
+            where: t.user_id == parent_as(:user).id and t.context == "session",
+            select: 1
+        ),
+      where:
+        not exists(
+          from i in UserIdentity,
+            where: i.user_id == parent_as(:user).id,
+            select: 1
+        )
   end
 
   # Returns %{user_id => confirmed_at} for users whose earliest confirmation
@@ -132,6 +156,51 @@ defmodule Speechwave.Admin.Stats do
     end)
     |> Enum.filter(fn {_user_id, ts} -> DateTime.compare(ts, cutoff) != :lt end)
     |> Map.new()
+  end
+
+  # Fetches inserted_at for users who confirmed within the history window, so
+  # `age_split_history/3` can determine what age bucket they were in on days
+  # before they confirmed.
+  defp recent_confirmers(recent_confirmations) do
+    user_ids = Map.keys(recent_confirmations)
+
+    inserted_ats =
+      Repo.all(from(u in User, where: u.id in ^user_ids, select: {u.id, u.inserted_at}))
+      |> Map.new()
+
+    Enum.map(recent_confirmations, fn {user_id, confirmed_at} ->
+      %{inserted_at: Map.fetch!(inserted_ats, user_id), confirmed_at: confirmed_at}
+    end)
+  end
+
+  # For each day, the "still unconfirmed as of that day" population is:
+  #   - users who are unconfirmed today, who already existed by that day, plus
+  #   - users who confirmed later (within the window) but hadn't yet as of that day.
+  # This exactly reconstructs the unconfirmed set for any day in the window
+  # without needing to touch the full users table (see stats_test.exs for the
+  # invariant this maintains: onboarding + suspicious == unconfirmed, every day).
+  defp age_split_history(unconfirmed_now, recent_confirmers, days) do
+    Enum.map(days, fn day ->
+      day_cutoff = day_end(day)
+
+      still_unconfirmed =
+        Enum.filter(unconfirmed_now, &(DateTime.compare(&1, day_cutoff) != :gt))
+
+      not_yet_confirmed =
+        recent_confirmers
+        |> Enum.filter(fn %{inserted_at: ia, confirmed_at: ca} ->
+          DateTime.compare(ia, day_cutoff) != :gt and DateTime.compare(ca, day_cutoff) == :gt
+        end)
+        |> Enum.map(& &1.inserted_at)
+
+      ages = still_unconfirmed ++ not_yet_confirmed
+
+      onboarding_count =
+        Enum.count(ages, &(DateTime.diff(day_cutoff, &1, :day) < @onboarding_threshold_days))
+
+      {{day, onboarding_count}, {day, length(ages) - onboarding_count}}
+    end)
+    |> Enum.unzip()
   end
 
   # Reconstructs a daily history by subtracting, from `current_total`, the
