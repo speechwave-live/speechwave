@@ -11,6 +11,10 @@ defmodule SpeechwaveWeb.Layouts do
   # and other static content.
   embed_templates "layouts/*"
 
+  defp default_description do
+    "Speechwave lets your audience react with emoji in real time during your talk, then gives you per-slide analytics to see what landed."
+  end
+
   @doc """
   Renders your app layout.
 
