@@ -224,6 +224,9 @@ defmodule SpeechwaveWeb.PricingLive do
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket,
+       page_title: "Pricing · Speechwave",
+       page_description:
+         "Compare Speechwave's free and paid plans. Start free, no credit card required, and upgrade when you need more participants or sessions.",
        free_participant_limit: Plans.limit(:max_participants, :free),
        free_session_limit: Plans.limit(:full_sessions_per_month, :free),
        show_modal: nil,

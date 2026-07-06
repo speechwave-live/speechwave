@@ -21,6 +21,18 @@ defmodule SpeechwaveWeb.PricingLiveTest do
       assert has_element?(view, "#notify-pro-btn")
       assert has_element?(view, "#notify-enterprise-btn")
     end
+
+    test "sets page title and SEO/OG meta tags", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/pricing")
+
+      assert html =~ ~r/<title[^>]*>\s*Pricing · Speechwave\s*<\/title>/
+
+      assert html =~
+               ~s(<meta name="description" content="Compare Speechwave&#39;s free and paid plans. Start free, no credit card required, and upgrade when you need more participants or sessions."/>)
+
+      assert html =~ ~s(<meta property="og:title" content="Pricing · Speechwave"/>)
+      assert html =~ ~s(<meta property="og:url" content="http://localhost:4000/pricing"/>)
+    end
   end
 
   describe "Notify me modal — logged-out user" do
