@@ -9,21 +9,9 @@ Move an item out (with a link to its spec/plan) once it's actively planned.
 Work required before the free tier can be publicly launched. Items large enough
 to warrant a spec/plan should get one when they're ready to be worked.
 
-### Should haves
+### Must haves
 
-#### screenshots for docs site (../docs)
-
-Docs served at https://docs.speechwave.live is live, a Jekyll/just-the-docs
-site in the `speechwave-live/docs` repo, auto-deployed to Dreamhost via GitHub
-Actions on push to main. See `docs/specs/2026-07-04-docs-site-design.md` if
-needed.
-
-Screenshot sources:
-
-- `seed_screenshots.exs` can stage data
-- screenshots that were submitted for the Chrome Web Store listing. See `tmp/store_0*.png`.
-- screenshots can be taken with rodney (see `rodney --help` for usage)
-- Tracy can take manual screenshots as needed
+Done.
 
 ### Nice-to-haves
 
@@ -39,11 +27,6 @@ post-launch. Two core views:
 
 #### Account deletion and consent revocation features for GDPR compliance
 
-
-#### OG / SEO meta tags
-
-Add `<meta name="description">` and Open Graph / Twitter card tags to public
-pages (`/`, `/pricing`) so links share well and search engines have context.
 
 #### SSH/eval magic link helper for production test scripts
 
