@@ -122,8 +122,20 @@ defmodule Speechwave.Admin.Stats do
   # its most recent grant/revoke cycle only. `grant_consent/3`/`revoke_consent/2`
   # overwrite `granted_at`/`revoked_at` on each cycle rather than keeping full
   # history, so a user who has toggled consent more than once within the
-  # history window can have earlier cycles undercounted. Acceptable for a
-  # traction-tracking dashboard — this isn't an audit log.
+  # history window will have earlier cycles overwritten — repeated toggling
+  # can undercount very old activity.
+  #
+  # Separately: `consent_history/3` groups by the row's CURRENT `source`. If a
+  # user grants via one source (e.g. "pricing_pro") and later re-triggers a
+  # fresh "notify me" click on a different source while already granted,
+  # `grant_consent/3` updates only `source` — `granted_at` is untouched. That
+  # row then vanishes from the old source's history entirely and appears in
+  # the new source's history backdated to the original `granted_at`,
+  # misattributing which plan they were interested in during the earlier
+  # period. `total_signups` (pro + enterprise combined) stays accurate
+  # throughout regardless — only the pro/enterprise split is affected. This is
+  # an accepted limitation, not a bug to fix: this dashboard tracks new
+  # notification-interest signups, not a full source-change audit log.
   defp consent_active_as_of?(granted_at, revoked_at, day_cutoff) do
     not is_nil(granted_at) and DateTime.compare(granted_at, day_cutoff) != :gt and
       (is_nil(revoked_at) or DateTime.compare(revoked_at, day_cutoff) == :gt)

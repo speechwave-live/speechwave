@@ -154,5 +154,27 @@ defmodule Speechwave.Admin.StatsTest do
       assert {^fifteen_days_ago, 0} = Enum.find(pro.history, fn {d, _} -> d == fifteen_days_ago end)
       assert pro.current == 1
     end
+
+    test "history reflects a grant followed by a revoke" do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      user = user_fixture()
+      {:ok, _} = Speechwave.Accounts.grant_consent(user, "marketing_email", source: "pricing_pro")
+      {:ok, _} = Speechwave.Accounts.revoke_consent(user, "marketing_email")
+
+      backdate_consent(user, "marketing_email",
+        granted_at: DateTime.add(now, -20, :day),
+        revoked_at: DateTime.add(now, -8, :day)
+      )
+
+      %{pro_signups: pro} = Stats.notification_signups(now)
+
+      active_day = Date.add(DateTime.to_date(now), -15)
+      inactive_day = Date.add(DateTime.to_date(now), -3)
+
+      assert {^active_day, 1} = Enum.find(pro.history, fn {d, _} -> d == active_day end)
+      assert {^inactive_day, 0} = Enum.find(pro.history, fn {d, _} -> d == inactive_day end)
+      assert pro.current == 0
+    end
   end
 end
