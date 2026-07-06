@@ -48,6 +48,22 @@ defmodule SpeechwaveWeb.Router do
   end
 
   # ---------------------------------------------------------------------------
+  # Admin routes — require is_admin
+  # ---------------------------------------------------------------------------
+
+  scope "/admin", SpeechwaveWeb.Admin do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :require_admin,
+      on_mount: [
+        {SpeechwaveWeb.UserAuth, :require_authenticated},
+        {SpeechwaveWeb.UserAuth, :require_admin}
+      ] do
+      live "/stats", StatsLive, :index
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Auth routes (login — no auth required)
   # ---------------------------------------------------------------------------
 

@@ -200,6 +200,12 @@ defmodule SpeechwaveWeb.UserAuth do
       on user_token.
       Redirects to login page if there's no logged user.
 
+    * `:require_admin` - Authenticates the user from the session, and
+      redirects to `/` if the user is not an admin. Assumes
+      `current_scope` has not already been mounted by an earlier
+      `on_mount` in the same `live_session` — safe to chain after
+      `:require_authenticated`.
+
   ## Examples
 
   Use the `on_mount` lifecycle macro in LiveViews to mount or authenticate
@@ -247,6 +253,22 @@ defmodule SpeechwaveWeb.UserAuth do
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
         |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+
+      {:halt, socket}
+    end
+  end
+
+  def on_mount(:require_admin, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    if socket.assigns.current_scope && socket.assigns.current_scope.user &&
+         socket.assigns.current_scope.user.is_admin do
+      {:cont, socket}
+    else
+      socket =
+        socket
+        |> Phoenix.LiveView.put_flash(:error, "You must be an admin to access this page.")
+        |> Phoenix.LiveView.redirect(to: ~p"/")
 
       {:halt, socket}
     end

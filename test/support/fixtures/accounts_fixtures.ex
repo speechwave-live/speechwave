@@ -81,4 +81,12 @@ defmodule Speechwave.AccountsFixtures do
 
     user
   end
+
+  def admin_user_fixture(attrs \\ %{}) do
+    user = user_fixture(attrs)
+
+    user
+    |> Ecto.Changeset.change(is_admin: true)
+    |> Speechwave.Repo.update!()
+  end
 end
