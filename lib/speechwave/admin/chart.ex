@@ -1,13 +1,13 @@
 defmodule Speechwave.Admin.Chart do
   @moduledoc """
-  Renders a stat's 30-day history as a server-side SVG line chart via
+  Renders a stat's 30-day history as a server-side SVG sparkline via
   Contex — no JS dependency, consistent with the project's SSR-first
   LiveView style.
   """
 
   alias Contex.{Dataset, LinePlot, Plot}
 
-  @doc "Renders `history` (a list of `{Date.t(), integer}`, oldest first) as an SVG line chart."
+  @doc "Renders `history` (a list of `{Date.t(), integer}`, oldest first) as an SVG sparkline."
   def render_svg(history, opts \\ []) do
     width = Keyword.get(opts, :width, 240)
     height = Keyword.get(opts, :height, 60)
@@ -19,8 +19,17 @@ defmodule Speechwave.Admin.Chart do
 
     dataset = Dataset.new(data, ["date", "count"])
 
+    # Contex reserves a fixed ~70px margin per axis for tick labels regardless
+    # of chart size. At this card's compact height that margin alone exceeds
+    # the total height, so an axis renders on top of itself as illegible
+    # overlapping text. Axes stay off; this is a sparkline, not a labeled
+    # chart — the date range is constant (last 30 days) across every card.
     dataset
-    |> Plot.new(LinePlot, width, height, mapping: %{x_col: "date", y_cols: ["count"]})
+    |> Plot.new(LinePlot, width, height,
+      mapping: %{x_col: "date", y_cols: ["count"]},
+      show_x_axis: false,
+      show_y_axis: false
+    )
     |> Plot.to_svg()
   end
 end
