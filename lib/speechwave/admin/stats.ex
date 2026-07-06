@@ -19,7 +19,7 @@ defmodule Speechwave.Admin.Stats do
   import Ecto.Query
 
   alias Speechwave.Repo
-  alias Speechwave.Accounts.{User, UserToken, UserIdentity}
+  alias Speechwave.Accounts.{User, UserToken, UserIdentity, UserConsent}
 
   @history_days 30
   @onboarding_threshold_days 3
@@ -60,6 +60,73 @@ defmodule Speechwave.Admin.Stats do
       onboarding: metric(onboarding_history),
       suspicious: metric(suspicious_history)
     }
+  end
+
+  @doc "Pro, enterprise, and total marketing-email notification signup counts, current and 30-day history."
+  def notification_signups(now \\ DateTime.utc_now()) do
+    now = DateTime.truncate(now, :second)
+    cutoff = DateTime.add(now, -@history_days, :day)
+    days = last_n_days(now, @history_days)
+
+    pro_history = consent_history(days, cutoff, "pricing_pro")
+    enterprise_history = consent_history(days, cutoff, "pricing_enterprise")
+
+    total_history =
+      Enum.zip_with(pro_history, enterprise_history, fn {date, p}, {_date, e} -> {date, p + e} end)
+
+    %{
+      pro_signups: metric(pro_history),
+      enterprise_signups: metric(enterprise_history),
+      total_signups: metric(total_history)
+    }
+  end
+
+  defp consent_history(days, cutoff, source) do
+    current_total =
+      Repo.aggregate(
+        from(c in UserConsent,
+          where: c.consent_type == "marketing_email" and c.source == ^source and c.granted == true
+        ),
+        :count
+      )
+
+    recent_changes =
+      Repo.all(
+        from c in UserConsent,
+          where:
+            c.consent_type == "marketing_email" and c.source == ^source and
+              ((not is_nil(c.granted_at) and c.granted_at >= ^cutoff) or
+                 (not is_nil(c.revoked_at) and c.revoked_at >= ^cutoff)),
+          select: {c.granted, c.granted_at, c.revoked_at}
+      )
+
+    Enum.map(days, fn day ->
+      day_cutoff = day_end(day)
+
+      adjustment =
+        Enum.reduce(recent_changes, 0, fn {granted, granted_at, revoked_at}, acc ->
+          active_then = consent_active_as_of?(granted_at, revoked_at, day_cutoff)
+
+          cond do
+            granted and not active_then -> acc - 1
+            not granted and active_then -> acc + 1
+            true -> acc
+          end
+        end)
+
+      {day, current_total + adjustment}
+    end)
+  end
+
+  # Reconstructs whether a consent row was active as of `day_cutoff`, based on
+  # its most recent grant/revoke cycle only. `grant_consent/3`/`revoke_consent/2`
+  # overwrite `granted_at`/`revoked_at` on each cycle rather than keeping full
+  # history, so a user who has toggled consent more than once within the
+  # history window can have earlier cycles undercounted. Acceptable for a
+  # traction-tracking dashboard — this isn't an audit log.
+  defp consent_active_as_of?(granted_at, revoked_at, day_cutoff) do
+    not is_nil(granted_at) and DateTime.compare(granted_at, day_cutoff) != :gt and
+      (is_nil(revoked_at) or DateTime.compare(revoked_at, day_cutoff) == :gt)
   end
 
   defp confirmed_users_query do

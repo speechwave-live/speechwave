@@ -117,4 +117,42 @@ defmodule Speechwave.Admin.StatsTest do
       end
     end
   end
+
+  describe "notification_signups/1" do
+    test "counts current pro, enterprise, and total signups" do
+      pro_user = user_fixture()
+      {:ok, _} = Speechwave.Accounts.grant_consent(pro_user, "marketing_email", source: "pricing_pro")
+
+      enterprise_user = user_fixture()
+
+      {:ok, _} =
+        Speechwave.Accounts.grant_consent(enterprise_user, "marketing_email", source: "pricing_enterprise")
+
+      _login_only_user = consented_user_fixture(%{source: "login"})
+
+      %{pro_signups: pro, enterprise_signups: enterprise, total_signups: total} =
+        Stats.notification_signups()
+
+      assert pro.current == 1
+      assert enterprise.current == 1
+      assert total.current == 2
+    end
+
+    test "history reflects grant/revoke state as of each day" do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      user = user_fixture()
+      {:ok, _} = Speechwave.Accounts.grant_consent(user, "marketing_email", source: "pricing_pro")
+      backdate_consent(user, "marketing_email", granted_at: DateTime.add(now, -10, :day))
+
+      %{pro_signups: pro} = Stats.notification_signups(now)
+
+      five_days_ago = Date.add(DateTime.to_date(now), -5)
+      fifteen_days_ago = Date.add(DateTime.to_date(now), -15)
+
+      assert {^five_days_ago, 1} = Enum.find(pro.history, fn {d, _} -> d == five_days_ago end)
+      assert {^fifteen_days_ago, 0} = Enum.find(pro.history, fn {d, _} -> d == fifteen_days_ago end)
+      assert pro.current == 1
+    end
+  end
 end
