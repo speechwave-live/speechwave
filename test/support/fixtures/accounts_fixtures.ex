@@ -89,4 +89,46 @@ defmodule Speechwave.AccountsFixtures do
     |> Ecto.Changeset.change(is_admin: true)
     |> Speechwave.Repo.update!()
   end
+
+  def backdate_user(user, inserted_at) do
+    Speechwave.Repo.update_all(
+      from(u in Accounts.User, where: u.id == ^user.id),
+      set: [inserted_at: inserted_at]
+    )
+
+    %{user | inserted_at: inserted_at}
+  end
+
+  def backdate_token(token_id, inserted_at) do
+    Speechwave.Repo.update_all(
+      from(t in Accounts.UserToken, where: t.id == ^token_id),
+      set: [inserted_at: inserted_at]
+    )
+  end
+
+  def backdate_identity(identity_id, inserted_at) do
+    Speechwave.Repo.update_all(
+      from(i in Accounts.UserIdentity, where: i.id == ^identity_id),
+      set: [inserted_at: inserted_at]
+    )
+  end
+
+  def session_token_fixture(user, inserted_at \\ nil) do
+    {token, user_token} = Accounts.UserToken.build_session_token(user)
+    user_token = Speechwave.Repo.insert!(user_token)
+
+    if inserted_at do
+      backdate_token(user_token.id, inserted_at)
+    end
+
+    {token, user_token}
+  end
+
+  def identity_fixture(user, attrs \\ %{}) do
+    provider = Map.get(attrs, :provider, "google")
+    uid = Map.get(attrs, :uid, "uid-#{System.unique_integer()}")
+
+    {:ok, identity} = Accounts.link_identity_to_user(user, provider, uid)
+    identity
+  end
 end
