@@ -32,6 +32,11 @@ defmodule SpeechwaveWeb.DashboardLiveTest do
     assert html =~ ~s(rel="noopener noreferrer")
   end
 
+  test "does not show an Admin nav link for non-admin users", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/dashboard")
+    refute has_element?(view, "#admin-nav-link")
+  end
+
   test "auto-generates slug from title on validate", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/dashboard")
 

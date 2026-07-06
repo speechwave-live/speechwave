@@ -49,4 +49,12 @@ defmodule SpeechwaveWeb.Admin.StatsLiveTest do
            |> element("#stat-total-users")
            |> render() =~ "<svg"
   end
+
+  test "shows an Admin nav link for admin users", %{conn: conn} do
+    admin = admin_user_fixture()
+    conn = log_in_user(conn, admin)
+
+    {:ok, view, _html} = live(conn, ~p"/admin/stats")
+    assert has_element?(view, "#admin-nav-link")
+  end
 end

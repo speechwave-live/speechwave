@@ -56,6 +56,14 @@ defmodule SpeechwaveWeb.Layouts do
               Settings
             </a>
             <a
+              :if={@current_scope.user.is_admin}
+              id="admin-nav-link"
+              href={~p"/admin/stats"}
+              class="text-steel hover:text-ink transition-colors"
+            >
+              Admin
+            </a>
+            <a
               id="help-nav-link"
               href="https://docs.speechwave.live"
               target="_blank"
