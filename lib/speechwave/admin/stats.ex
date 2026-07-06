@@ -18,8 +18,8 @@ defmodule Speechwave.Admin.Stats do
 
   import Ecto.Query
 
+  alias Speechwave.Accounts.{User, UserConsent, UserIdentity, UserToken}
   alias Speechwave.Repo
-  alias Speechwave.Accounts.{User, UserToken, UserIdentity, UserConsent}
   alias Speechwave.Talks.{Talk, TalkSession}
 
   @history_days 30
@@ -109,21 +109,20 @@ defmodule Speechwave.Admin.Stats do
 
     Enum.map(days, fn day ->
       day_cutoff = day_end(day)
-
-      adjustment =
-        Enum.reduce(recent_changes, 0, fn {granted, granted_at, revoked_at}, acc ->
-          active_then = consent_active_as_of?(granted_at, revoked_at, day_cutoff)
-
-          cond do
-            granted and not active_then -> acc - 1
-            not granted and active_then -> acc + 1
-            true -> acc
-          end
-        end)
-
-      {day, current_total + adjustment}
+      {day, current_total + consent_adjustment(recent_changes, day_cutoff)}
     end)
   end
+
+  defp consent_adjustment(recent_changes, day_cutoff) do
+    Enum.reduce(recent_changes, 0, fn {granted, granted_at, revoked_at}, acc ->
+      active_then = consent_active_as_of?(granted_at, revoked_at, day_cutoff)
+      acc + consent_delta(granted, active_then)
+    end)
+  end
+
+  defp consent_delta(true, false), do: -1
+  defp consent_delta(false, true), do: 1
+  defp consent_delta(_granted, _active_then), do: 0
 
   # Reconstructs whether a consent row was active as of `day_cutoff`, based on
   # its most recent grant/revoke cycle only. `grant_consent/3`/`revoke_consent/2`

@@ -3,6 +3,7 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
 
   import SpeechwaveWeb.AdminComponents
 
+  alias Speechwave.Admin.Chart
   alias Speechwave.Admin.Stats
 
   @titles %{
@@ -22,7 +23,7 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
   def mount(_params, _session, socket) do
     stats =
       Enum.map(Stats.dashboard(), fn {key, stat} ->
-        {key, Map.put(stat, :chart_svg, Speechwave.Admin.Chart.render_svg(stat.history))}
+        {key, Map.put(stat, :chart_svg, Chart.render_svg(stat.history))}
       end)
 
     {:ok, assign(socket, stats: stats)}

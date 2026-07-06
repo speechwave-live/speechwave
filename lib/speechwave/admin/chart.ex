@@ -17,10 +17,10 @@ defmodule Speechwave.Admin.Chart do
         {NaiveDateTime.new!(date, ~T[00:00:00]), count}
       end)
 
-    dataset = Dataset.new(data, [:date, :count])
+    dataset = Dataset.new(data, ["date", "count"])
 
     dataset
-    |> Plot.new(LinePlot, width, height, mapping: %{x_col: :date, y_cols: [:count]})
+    |> Plot.new(LinePlot, width, height, mapping: %{x_col: "date", y_cols: ["count"]})
     |> Plot.to_svg()
   end
 end
