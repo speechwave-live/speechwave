@@ -134,7 +134,9 @@ defmodule Speechwave.AccountsFixtures do
 
   def backdate_consent(user, consent_type, fields) do
     Speechwave.Repo.update_all(
-      from(c in Accounts.UserConsent, where: c.user_id == ^user.id and c.consent_type == ^consent_type),
+      from(c in Accounts.UserConsent,
+        where: c.user_id == ^user.id and c.consent_type == ^consent_type
+      ),
       set: fields
     )
   end
