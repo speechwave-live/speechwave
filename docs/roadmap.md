@@ -17,13 +17,53 @@ Done.
 
 #### Super-admin panel (own spec/plan needed)
 
-A LiveView behind the existing `is_admin` guard for tracking initial traction
-post-launch. Two core views:
+A LiveView available behind the existing `is_admin` guard for tracking initial
+traction post-launch. Two core views:
 
-1. **User stats** — total user count, confirmed user count, junk user count (no session token, no identity), notification signups
-2. **Email consent export** — filter consented users by `source` / date range,
-   CSV download; this directly unblocks the "Super admin email export UI"
-   item in the Email & Marketing section below
+**User stats**
+This allows Tracy to easily track the progress of the launch, the effectiveness
+of marketing campaigns, and identify any potential issues with onboarding.
+
+Tracking data:
+- confirmed user count
+- unconfirmed user count
+— total user count (confirmed + unconfirmed)
+- junk user count (no session token, no identity)
+- pro notification signup counts
+- enterprise notification signup counts
+- total notification signup counts (pro + enterprise)
+- talks count
+- talks with sessions count
+- sessions count
+
+Charts:
+Each chart show cummulative daily values for the previous 30 days plus the
+current value separately.
+
+Example:
+```text
+.--------------------------------.
+| Total user count (current: 65) |
+|                                |
+|            [graph]             |
+|                                |
+`--------------------------------'
+```
+
+- How can we change the data model to make this more efficient?
+  - does user have a created_at timestamp, for example?
+- Is there other data that would be useful to monitor?
+  - errors?
+
+**Email consent export**
+This allows Tracy to export a list of users who have consented to marketing
+emails, so he can send them updates and promotions.
+
+- CSV download
+— filter consented users by `source` / date range,
+
+This directly unblocks the "Super admin email export UI" item in the Email &
+Marketing section below.
 
 #### Account deletion and consent revocation features for GDPR compliance
 
