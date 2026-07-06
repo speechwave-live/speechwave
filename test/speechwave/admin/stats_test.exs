@@ -207,6 +207,37 @@ defmodule Speechwave.Admin.StatsTest do
       assert with_sessions.current == 1
       assert sessions.current == 1
     end
+
+    test "talks_with_sessions history reflects when each talk got its first session" do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+      user = user_fixture()
+
+      # Create a talk far in the past (60 days ago)
+      talk =
+        talk_fixture(user)
+        |> backdate_talk(DateTime.add(now, -60, :day))
+
+      # Give it its first session more recently (10 days ago)
+      _session =
+        session_fixture(talk)
+        |> backdate_session(DateTime.add(now, -10, :day))
+
+      %{talks_with_sessions: with_sessions} = Stats.talk_activity(now)
+
+      # Before the first session (20 days ago), the talk should not be counted
+      before_first_session = Date.add(DateTime.to_date(now), -20)
+      after_first_session = Date.add(DateTime.to_date(now), -5)
+
+      assert {^before_first_session, 0} =
+               Enum.find(with_sessions.history, fn {d, _} -> d == before_first_session end)
+
+      # After the first session (5 days ago), the talk should be counted
+      assert {^after_first_session, 1} =
+               Enum.find(with_sessions.history, fn {d, _} -> d == after_first_session end)
+
+      # Current count should be 1
+      assert with_sessions.current == 1
+    end
   end
 
   describe "dashboard/1" do
