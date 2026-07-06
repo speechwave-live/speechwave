@@ -32,15 +32,14 @@ defmodule Speechwave.Admin.ChartTest do
     refute svg_a == svg_b
   end
 
-  test "renders as an axis-free sparkline at the default compact size" do
+  test "renders real axis tick labels (dates and values) at the default size" do
     history = for i <- 29..0//-1, do: {Date.add(Date.utc_today(), -i), 30 - i}
 
     html = Chart.render_svg(history) |> Safe.to_iodata() |> IO.iodata_to_binary()
 
-    # At the default 240x60 size, Contex's axis tick labels (reserved ~70px
-    # margin each) would overflow and overlap the plot area entirely — see
-    # the design note above `render_svg/2`. Axes must stay off so the chart
-    # renders as a plain sparkline instead of a garbled overlap of tick text.
-    refute html =~ "exc-tick"
+    # The default size is deliberately generous (see @default_width/@default_height)
+    # so Contex's ~70px-per-axis tick-label margin has room to render real,
+    # non-overlapping date and value labels rather than a bare sparkline.
+    assert html =~ "exc-tick"
   end
 end
