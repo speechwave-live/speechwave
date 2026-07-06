@@ -1,5 +1,11 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
   <h1 class="text-2xl font-bold text-ink mb-6">Admin Stats</h1>
   <div id="admin-stats-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <.admin_stat_card
+      :for={{key, stat} <- @stats}
+      id={dom_id(key)}
+      title={title_for(key)}
+      current={stat.current}
+    />
   </div>
 </Layouts.app>

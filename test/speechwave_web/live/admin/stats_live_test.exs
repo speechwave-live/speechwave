@@ -18,11 +18,24 @@ defmodule SpeechwaveWeb.Admin.StatsLiveTest do
     assert path == ~p"/"
   end
 
-  test "admin users can view the page", %{conn: conn} do
+  test "admin users see all 11 stat cards with correct current values", %{conn: conn} do
     admin = admin_user_fixture()
-    conn = log_in_user(conn, admin)
 
-    {:ok, _view, html} = live(conn, ~p"/admin/stats")
-    assert html =~ "Admin Stats"
+    talk = Speechwave.TalksFixtures.talk_fixture(admin)
+    Speechwave.TalksFixtures.session_fixture(talk)
+
+    conn = log_in_user(conn, admin)
+    {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+    for id <- ~w(
+          stat-total-users stat-confirmed stat-unconfirmed stat-onboarding
+          stat-suspicious stat-pro-signups stat-enterprise-signups
+          stat-total-signups stat-talks stat-talks-with-sessions stat-sessions
+        ) do
+      assert has_element?(view, "##{id}"), "expected ##{id} to be rendered"
+    end
+
+    assert has_element?(view, "#stat-talks", "1")
+    assert has_element?(view, "#stat-confirmed", "1")
   end
 end
