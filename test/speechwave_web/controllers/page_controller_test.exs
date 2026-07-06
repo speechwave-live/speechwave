@@ -26,20 +26,36 @@ defmodule SpeechwaveWeb.PageControllerTest do
     assert html =~ ~s(<meta property="og:type" content="website">)
     assert html =~ ~s(<meta property="og:title" content="Speechwave">)
     assert html =~ ~s(<meta property="og:url" content="http://localhost:4000/">)
-    assert html =~ ~s(<meta property="og:image" content="http://localhost:4000/images/og-hero.png">)
+
+    assert html =~
+             ~s(<meta property="og:image" content="http://localhost:4000/images/og-hero.png">)
+
     assert html =~ ~s(<meta property="og:image:width" content="1200">)
     assert html =~ ~s(<meta property="og:image:height" content="630">)
     assert html =~ ~s(<meta name="twitter:card" content="summary_large_image">)
-    assert html =~ ~s(<meta name="twitter:image" content="http://localhost:4000/images/og-hero.png">)
+
+    assert html =~
+             ~s(<meta name="twitter:image" content="http://localhost:4000/images/og-hero.png">)
   end
 
-  test "GET /terms returns 200", %{conn: conn} do
-    conn = get(conn, ~p"/terms")
-    assert html_response(conn, 200) =~ "Terms"
+  test "GET /terms returns 200 with SEO meta tags", %{conn: conn} do
+    html = get(conn, ~p"/terms") |> html_response(200)
+
+    assert html =~ "Terms"
+    assert html =~ ~r/<title[^>]*>\s*Terms of Service · Speechwave\s*<\/title>/
+    assert html =~ ~s(<meta name="description" content="Speechwave&#39;s terms of service.">)
+    assert html =~ ~s(<meta property="og:title" content="Terms of Service · Speechwave">)
   end
 
-  test "GET /privacy returns 200", %{conn: conn} do
-    conn = get(conn, ~p"/privacy")
-    assert html_response(conn, 200) =~ "Privacy"
+  test "GET /privacy returns 200 with SEO meta tags", %{conn: conn} do
+    html = get(conn, ~p"/privacy") |> html_response(200)
+
+    assert html =~ "Privacy"
+    assert html =~ ~r/<title[^>]*>\s*Privacy Policy · Speechwave\s*<\/title>/
+
+    assert html =~
+             ~s(<meta name="description" content="How Speechwave collects, uses, and protects your data.">)
+
+    assert html =~ ~s(<meta property="og:title" content="Privacy Policy · Speechwave">)
   end
 end

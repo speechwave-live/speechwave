@@ -7,8 +7,23 @@ defmodule SpeechwaveWeb.PageController do
     render(conn, :home)
   end
 
-  def terms(conn, _params), do: render(conn, :terms, free_limits())
-  def privacy(conn, _params), do: render(conn, :privacy)
+  def terms(conn, _params) do
+    render(
+      conn,
+      :terms,
+      Keyword.merge(free_limits(),
+        page_title: "Terms of Service · Speechwave",
+        page_description: "Speechwave's terms of service."
+      )
+    )
+  end
+
+  def privacy(conn, _params) do
+    render(conn, :privacy,
+      page_title: "Privacy Policy · Speechwave",
+      page_description: "How Speechwave collects, uses, and protects your data."
+    )
+  end
 
   defp free_limits do
     [
