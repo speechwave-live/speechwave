@@ -20,6 +20,7 @@ defmodule Speechwave.Admin.Stats do
 
   alias Speechwave.Repo
   alias Speechwave.Accounts.{User, UserToken, UserIdentity, UserConsent}
+  alias Speechwave.Talks.{Talk, TalkSession}
 
   @history_days 30
   @onboarding_threshold_days 3
@@ -39,16 +40,22 @@ defmodule Speechwave.Admin.Stats do
     total_current = Repo.aggregate(User, :count)
     confirmed_current = Repo.aggregate(confirmed_users_query(), :count)
 
-    recent_signups = Repo.all(from(u in User, where: u.inserted_at >= ^cutoff, select: u.inserted_at))
+    recent_signups =
+      Repo.all(from(u in User, where: u.inserted_at >= ^cutoff, select: u.inserted_at))
+
     recent_confirmations = recent_confirmation_timestamps(cutoff)
     recent_confirmers = recent_confirmers(recent_confirmations)
     unconfirmed_now = Repo.all(from(u in unconfirmed_users_query(), select: u.inserted_at))
 
     total_history = history_from_baseline(total_current, recent_signups, days)
-    confirmed_history = history_from_baseline(confirmed_current, Map.values(recent_confirmations), days)
+
+    confirmed_history =
+      history_from_baseline(confirmed_current, Map.values(recent_confirmations), days)
 
     unconfirmed_history =
-      Enum.zip_with(total_history, confirmed_history, fn {date, t}, {_date, c} -> {date, t - c} end)
+      Enum.zip_with(total_history, confirmed_history, fn {date, t}, {_date, c} ->
+        {date, t - c}
+      end)
 
     {onboarding_history, suspicious_history} =
       age_split_history(unconfirmed_now, recent_confirmers, days)
@@ -139,6 +146,76 @@ defmodule Speechwave.Admin.Stats do
   defp consent_active_as_of?(granted_at, revoked_at, day_cutoff) do
     not is_nil(granted_at) and DateTime.compare(granted_at, day_cutoff) != :gt and
       (is_nil(revoked_at) or DateTime.compare(revoked_at, day_cutoff) == :gt)
+  end
+
+  @doc "Talk, talk-with-sessions, and session counts, current and 30-day history."
+  def talk_activity(now \\ DateTime.utc_now()) do
+    now = DateTime.truncate(now, :second)
+    cutoff = DateTime.add(now, -@history_days, :day)
+    days = last_n_days(now, @history_days)
+
+    talks_current = Repo.aggregate(Talk, :count)
+    sessions_current = Repo.aggregate(TalkSession, :count)
+
+    talks_with_sessions_current =
+      Repo.aggregate(
+        from(t in Talk,
+          as: :talk,
+          where:
+            exists(from(s in TalkSession, where: s.talk_id == parent_as(:talk).id, select: 1))
+        ),
+        :count
+      )
+
+    recent_talks =
+      Repo.all(from(t in Talk, where: t.inserted_at >= ^cutoff, select: t.inserted_at))
+
+    recent_sessions =
+      Repo.all(from(s in TalkSession, where: s.inserted_at >= ^cutoff, select: s.inserted_at))
+
+    recent_first_sessions =
+      Repo.all(
+        from s in TalkSession,
+          group_by: s.talk_id,
+          having: min(s.inserted_at) >= ^cutoff,
+          select: min(s.inserted_at)
+      )
+
+    talks_history = history_from_baseline(talks_current, recent_talks, days)
+    sessions_history = history_from_baseline(sessions_current, recent_sessions, days)
+
+    talks_with_sessions_history =
+      history_from_baseline(talks_with_sessions_current, recent_first_sessions, days)
+
+    %{
+      talks: metric(talks_history),
+      talks_with_sessions: metric(talks_with_sessions_history),
+      sessions: metric(sessions_history)
+    }
+  end
+
+  @metric_order [
+    :total_users,
+    :confirmed,
+    :unconfirmed,
+    :onboarding,
+    :suspicious,
+    :pro_signups,
+    :enterprise_signups,
+    :total_signups,
+    :talks,
+    :talks_with_sessions,
+    :sessions
+  ]
+
+  @doc "All 11 dashboard metrics, in display order, as `[{key, metric}, ...]`."
+  def dashboard(now \\ DateTime.utc_now()) do
+    metrics =
+      user_categories(now)
+      |> Map.merge(notification_signups(now))
+      |> Map.merge(talk_activity(now))
+
+    Enum.map(@metric_order, fn key -> {key, Map.fetch!(metrics, key)} end)
   end
 
   defp confirmed_users_query do
@@ -287,7 +364,10 @@ defmodule Speechwave.Admin.Stats do
   defp history_from_baseline(current_total, recent_event_timestamps, days) do
     Enum.map(days, fn day ->
       day_cutoff = day_end(day)
-      count_after = Enum.count(recent_event_timestamps, &(DateTime.compare(&1, day_cutoff) == :gt))
+
+      count_after =
+        Enum.count(recent_event_timestamps, &(DateTime.compare(&1, day_cutoff) == :gt))
+
       {day, current_total - count_after}
     end)
   end

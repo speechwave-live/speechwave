@@ -2,6 +2,7 @@ defmodule Speechwave.Admin.StatsTest do
   use Speechwave.DataCase
 
   import Speechwave.AccountsFixtures
+  import Speechwave.TalksFixtures
 
   alias Speechwave.Admin.Stats
 
@@ -44,8 +45,12 @@ defmodule Speechwave.Admin.StatsTest do
       # recent_signup (signed up 5d ago) and recently_confirmed (signed up 20d ago,
       # confirmed 2d ago) both already existed by 10 days ago.
       ten_days_ago = Date.add(DateTime.to_date(now), -10)
-      {^ten_days_ago, total_10d_ago} = Enum.find(total.history, fn {d, _} -> d == ten_days_ago end)
-      {^ten_days_ago, confirmed_10d_ago} = Enum.find(confirmed.history, fn {d, _} -> d == ten_days_ago end)
+
+      {^ten_days_ago, total_10d_ago} =
+        Enum.find(total.history, fn {d, _} -> d == ten_days_ago end)
+
+      {^ten_days_ago, confirmed_10d_ago} =
+        Enum.find(confirmed.history, fn {d, _} -> d == ten_days_ago end)
 
       assert total_10d_ago == 2
       # recently_confirmed hadn't confirmed yet 10 days ago (confirmed only 2 days ago)
@@ -72,7 +77,10 @@ defmodule Speechwave.Admin.StatsTest do
       # should already count them as confirmed. If the bug were present,
       # they'd incorrectly show as unconfirmed until 10 days ago.
       fifteen_days_ago = Date.add(DateTime.to_date(now), -15)
-      assert {^fifteen_days_ago, count} = Enum.find(confirmed.history, fn {d, _} -> d == fifteen_days_ago end)
+
+      assert {^fifteen_days_ago, count} =
+               Enum.find(confirmed.history, fn {d, _} -> d == fifteen_days_ago end)
+
       assert count == 1
       assert confirmed.current == 1
     end
@@ -121,12 +129,16 @@ defmodule Speechwave.Admin.StatsTest do
   describe "notification_signups/1" do
     test "counts current pro, enterprise, and total signups" do
       pro_user = user_fixture()
-      {:ok, _} = Speechwave.Accounts.grant_consent(pro_user, "marketing_email", source: "pricing_pro")
+
+      {:ok, _} =
+        Speechwave.Accounts.grant_consent(pro_user, "marketing_email", source: "pricing_pro")
 
       enterprise_user = user_fixture()
 
       {:ok, _} =
-        Speechwave.Accounts.grant_consent(enterprise_user, "marketing_email", source: "pricing_enterprise")
+        Speechwave.Accounts.grant_consent(enterprise_user, "marketing_email",
+          source: "pricing_enterprise"
+        )
 
       _login_only_user = consented_user_fixture(%{source: "login"})
 
@@ -151,7 +163,10 @@ defmodule Speechwave.Admin.StatsTest do
       fifteen_days_ago = Date.add(DateTime.to_date(now), -15)
 
       assert {^five_days_ago, 1} = Enum.find(pro.history, fn {d, _} -> d == five_days_ago end)
-      assert {^fifteen_days_ago, 0} = Enum.find(pro.history, fn {d, _} -> d == fifteen_days_ago end)
+
+      assert {^fifteen_days_ago, 0} =
+               Enum.find(pro.history, fn {d, _} -> d == fifteen_days_ago end)
+
       assert pro.current == 1
     end
 
@@ -175,6 +190,48 @@ defmodule Speechwave.Admin.StatsTest do
       assert {^active_day, 1} = Enum.find(pro.history, fn {d, _} -> d == active_day end)
       assert {^inactive_day, 0} = Enum.find(pro.history, fn {d, _} -> d == inactive_day end)
       assert pro.current == 0
+    end
+  end
+
+  describe "talk_activity/1" do
+    test "counts talks, talks with sessions, and sessions" do
+      user = user_fixture()
+      talk_with_session = talk_fixture(user)
+      session_fixture(talk_with_session)
+      _talk_without_session = talk_fixture(user)
+
+      %{talks: talks, talks_with_sessions: with_sessions, sessions: sessions} =
+        Stats.talk_activity()
+
+      assert talks.current == 2
+      assert with_sessions.current == 1
+      assert sessions.current == 1
+    end
+  end
+
+  describe "dashboard/1" do
+    test "returns all 11 metrics in a fixed order" do
+      user = user_fixture()
+      talk = talk_fixture(user)
+      session_fixture(talk)
+
+      dashboard = Stats.dashboard()
+
+      assert Enum.map(dashboard, fn {key, _} -> key end) == [
+               :total_users,
+               :confirmed,
+               :unconfirmed,
+               :onboarding,
+               :suspicious,
+               :pro_signups,
+               :enterprise_signups,
+               :total_signups,
+               :talks,
+               :talks_with_sessions,
+               :sessions
+             ]
+
+      assert {_, %{current: _, history: _}} = List.keyfind(dashboard, :talks, 0)
     end
   end
 end

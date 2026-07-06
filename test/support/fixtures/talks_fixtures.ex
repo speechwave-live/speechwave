@@ -4,6 +4,9 @@ defmodule Speechwave.TalksFixtures do
   # and return the structs, following the convention from phx.gen.auth's
   # AccountsFixtures. Import in test files with:
   #   import Speechwave.TalksFixtures
+
+  import Ecto.Query
+
   alias Speechwave.Accounts.Scope
 
   def talk_fixture(user, attrs \\ %{}) do
@@ -27,5 +30,23 @@ defmodule Speechwave.TalksFixtures do
       started_at: Map.get(attrs, :started_at, now),
       ended_at: Map.get(attrs, :ended_at, nil)
     })
+  end
+
+  def backdate_talk(talk, inserted_at) do
+    Speechwave.Repo.update_all(
+      from(t in Speechwave.Talks.Talk, where: t.id == ^talk.id),
+      set: [inserted_at: inserted_at]
+    )
+
+    %{talk | inserted_at: inserted_at}
+  end
+
+  def backdate_session(session, inserted_at) do
+    Speechwave.Repo.update_all(
+      from(s in Speechwave.Talks.TalkSession, where: s.id == ^session.id),
+      set: [inserted_at: inserted_at]
+    )
+
+    %{session | inserted_at: inserted_at}
   end
 end
