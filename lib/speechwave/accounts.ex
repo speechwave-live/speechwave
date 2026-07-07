@@ -320,6 +320,14 @@ defmodule Speechwave.Accounts do
   def generate_user_session_token(user) do
     {token, user_token} = UserToken.build_session_token(user)
     Repo.insert!(user_token)
+
+    if is_nil(user.confirmed_at) do
+      Repo.update_all(
+        from(u in User, where: u.id == ^user.id and is_nil(u.confirmed_at)),
+        set: [confirmed_at: DateTime.utc_now(:second)]
+      )
+    end
+
     token
   end
 

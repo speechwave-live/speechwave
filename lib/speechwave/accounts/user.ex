@@ -8,6 +8,7 @@ defmodule Speechwave.Accounts.User do
     field :api_key, :string
     field :plan, Ecto.Enum, values: [:free, :pro, :org], default: :free
     field :is_admin, :boolean, default: false
+    field :confirmed_at, :utc_datetime
 
     has_many :identities, Speechwave.Accounts.UserIdentity
 

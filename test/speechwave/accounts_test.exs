@@ -188,6 +188,18 @@ defmodule Speechwave.AccountsTest do
       assert user_token.authenticated_at == user.authenticated_at
       assert DateTime.compare(user_token.inserted_at, user.authenticated_at) == :gt
     end
+
+    test "sets confirmed_at on first login and leaves it unchanged on the next", %{user: user} do
+      refute user.confirmed_at
+
+      Accounts.generate_user_session_token(user)
+      first_login = Repo.get!(User, user.id)
+      assert %DateTime{} = first_login.confirmed_at
+
+      Accounts.generate_user_session_token(first_login)
+      second_login = Repo.get!(User, user.id)
+      assert second_login.confirmed_at == first_login.confirmed_at
+    end
   end
 
   describe "get_user_by_session_token/1" do

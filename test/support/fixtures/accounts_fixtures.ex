@@ -116,10 +116,14 @@ defmodule Speechwave.AccountsFixtures do
   def session_token_fixture(user, inserted_at \\ nil) do
     {token, user_token} = Accounts.UserToken.build_session_token(user)
     user_token = Speechwave.Repo.insert!(user_token)
+    confirmed_at = inserted_at || DateTime.utc_now() |> DateTime.truncate(:second)
 
-    if inserted_at do
-      backdate_token(user_token.id, inserted_at)
-    end
+    Speechwave.Repo.update_all(
+      from(u in Accounts.User, where: u.id == ^user.id and is_nil(u.confirmed_at)),
+      set: [confirmed_at: confirmed_at]
+    )
+
+    if inserted_at, do: backdate_token(user_token.id, inserted_at)
 
     {token, user_token}
   end
