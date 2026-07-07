@@ -53,17 +53,11 @@ recently-changed rows in memory when rebuilding history.
 **Trade-offs / known limitations (accepted, not bugs — see code comments in
 `lib/speechwave/admin/stats.ex` for the exact mechanics of each):**
 
-- **"Confirmed" is not strictly monotonic.** A user counts as confirmed if
-  they currently have a session-context token or a linked OAuth identity.
-  Logging out deletes the session token (`Accounts.delete_user_session_token/1`),
-  so a magic-link-only user (no linked identity) who logs out of their only
-  session drops out of the confirmed count — it can decrease, and a returning
-  user's reconstructed confirmation date can drift forward to their next
-  login. The history-reconstruction technique above assumes monotonic or
-  single-event state transitions; this is the one metric where that
-  assumption doesn't fully hold. Accepted because this dashboard is a
-  traction gauge, not an audit trail, and the effect is small at current
-  scale.
+- **"Confirmed" is now monotonic.** Originally inferred from session-token/
+  identity existence (volatile — logout deleted the evidence), this was
+  fixed on 2026-07-06 by adding a dedicated `users.confirmed_at` column, set
+  once on first login and never cleared. See
+  `docs/specs/2026-07-06-confirmed-at-column-design.md`.
 - **Notification-consent source reattribution.** `Accounts.grant_consent/3`
   updates only the `source` field (not `granted_at`) when an already-granted
   user re-triggers consent via a different source (e.g. clicks "Notify me"

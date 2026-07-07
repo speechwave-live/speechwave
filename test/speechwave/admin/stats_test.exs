@@ -16,6 +16,7 @@ defmodule Speechwave.Admin.StatsTest do
       {_token, _user_token} = session_token_fixture(confirmed_via_token)
 
       confirmed_via_identity = user_fixture()
+      session_token_fixture(confirmed_via_identity)
       identity_fixture(confirmed_via_identity)
 
       %{total_users: total, confirmed: confirmed, unconfirmed: unconfirmed} =
@@ -30,14 +31,14 @@ defmodule Speechwave.Admin.StatsTest do
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 
       old_confirmed = user_fixture() |> backdate_user(DateTime.add(now, -40, :day))
-      {_token, user_token} = session_token_fixture(old_confirmed)
-      backdate_token(user_token.id, DateTime.add(now, -40, :day))
+      {_token, _user_token} = session_token_fixture(old_confirmed, DateTime.add(now, -40, :day))
 
       _recent_signup = user_fixture() |> backdate_user(DateTime.add(now, -5, :day))
 
       recently_confirmed = user_fixture() |> backdate_user(DateTime.add(now, -20, :day))
-      {_token, user_token2} = session_token_fixture(recently_confirmed)
-      backdate_token(user_token2.id, DateTime.add(now, -2, :day))
+
+      {_token, _user_token2} =
+        session_token_fixture(recently_confirmed, DateTime.add(now, -2, :day))
 
       %{total_users: total, confirmed: confirmed} = Stats.user_categories(now)
 
@@ -58,31 +59,6 @@ defmodule Speechwave.Admin.StatsTest do
 
       assert total.current == 3
       assert confirmed.current == 2
-    end
-
-    test "a user confirmed via an old token isn't misreported as recently confirmed via a newer identity" do
-      now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-      user = user_fixture() |> backdate_user(DateTime.add(now, -70, :day))
-      {_token, user_token} = session_token_fixture(user)
-      backdate_token(user_token.id, DateTime.add(now, -60, :day))
-
-      identity = identity_fixture(user)
-      backdate_identity(identity.id, DateTime.add(now, -10, :day))
-
-      %{confirmed: confirmed} = Stats.user_categories(now)
-
-      # This user was confirmed 60 days ago (via token) — well before the
-      # 30-day history window even starts — so every day in the window
-      # should already count them as confirmed. If the bug were present,
-      # they'd incorrectly show as unconfirmed until 10 days ago.
-      fifteen_days_ago = Date.add(DateTime.to_date(now), -15)
-
-      assert {^fifteen_days_ago, count} =
-               Enum.find(confirmed.history, fn {d, _} -> d == fifteen_days_ago end)
-
-      assert count == 1
-      assert confirmed.current == 1
     end
 
     test "splits unconfirmed users into onboarding and suspicious by account age" do
@@ -111,8 +87,7 @@ defmodule Speechwave.Admin.StatsTest do
       confirmed_recently =
         user_fixture() |> backdate_user(DateTime.add(now, -15, :day))
 
-      {_token, user_token} = session_token_fixture(confirmed_recently)
-      backdate_token(user_token.id, DateTime.add(now, -2, :day))
+      session_token_fixture(confirmed_recently, DateTime.add(now, -2, :day))
 
       %{onboarding: onboarding, suspicious: suspicious, unconfirmed: unconfirmed} =
         Stats.user_categories(now)

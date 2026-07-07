@@ -21,15 +21,12 @@ defmodule Speechwave.Admin.Stats do
   Most state transitions tracked here (signup, talk/session creation,
   consent grant/revoke) are monotonic or single-event within the window,
   which is what makes the subtraction-from-current-total reconstruction
-  valid. "Confirmed" is the one exception: it is not strictly monotonic for
-  magic-link-only users, since logging out deletes the session token that
-  counts as their confirmation (see `confirmed_users_query/0`). This and
-  other accepted reporting limitations are recorded in docs/decisions.md.
+  valid. Accepted reporting limitations are recorded in docs/decisions.md.
   """
 
   import Ecto.Query
 
-  alias Speechwave.Accounts.{User, UserConsent, UserIdentity, UserToken}
+  alias Speechwave.Accounts.{User, UserConsent}
   alias Speechwave.Repo
   alias Speechwave.Talks.{Talk, TalkSession}
 
@@ -228,105 +225,16 @@ defmodule Speechwave.Admin.Stats do
     Enum.map(@metric_order, fn key -> {key, Map.fetch!(metrics, key)} end)
   end
 
-  # "Confirmed" is not strictly monotonic: a magic-link-only user (no linked
-  # identity) who logs out of their only session has their session token
-  # deleted (Accounts.delete_user_session_token/1), which is their only
-  # evidence of confirmation. Such a user can drop out of this count and
-  # later reappear, and their reconstructed confirmed_at can drift forward
-  # to their next login. Accepted limitation — see docs/decisions.md.
   defp confirmed_users_query do
-    from u in User,
-      as: :user,
-      where:
-        exists(
-          from t in UserToken,
-            where: t.user_id == parent_as(:user).id and t.context == "session",
-            select: 1
-        ) or
-          exists(
-            from i in UserIdentity,
-              where: i.user_id == parent_as(:user).id,
-              select: 1
-          )
+    from u in User, where: not is_nil(u.confirmed_at)
   end
 
   defp unconfirmed_users_query do
-    from u in User,
-      as: :user,
-      where:
-        not exists(
-          from t in UserToken,
-            where: t.user_id == parent_as(:user).id and t.context == "session",
-            select: 1
-        ),
-      where:
-        not exists(
-          from i in UserIdentity,
-            where: i.user_id == parent_as(:user).id,
-            select: 1
-        )
+    from u in User, where: is_nil(u.confirmed_at)
   end
 
-  # Returns %{user_id => confirmed_at} for users whose earliest confirmation
-  # (first session token OR first identity, whichever is earlier) falls
-  # within the last `@history_days` days. Users confirmed earlier than that
-  # don't need to appear here — they were already confirmed at the start of
-  # the history window and are fully accounted for by `confirmed_current`.
-  #
-  # Two-phase because a user with e.g. an old session token (outside the
-  # window) and a newer identity (inside the window) must NOT be reported
-  # using just the newer timestamp — their true confirmed_at is the older
-  # one, which means they don't belong in this map at all. Phase 1 finds
-  # candidates where *either* channel shows recent activity (bounded: only
-  # users with something confirmation-related in the last 30 days). Phase 2
-  # recomputes each candidate's TRUE earliest timestamp across ALL their
-  # tokens/identities (still bounded — scoped to the small candidate set)
-  # before applying the recency cutoff for real.
   defp recent_confirmation_timestamps(cutoff) do
-    candidate_ids =
-      (Repo.all(
-         from t in UserToken,
-           where: t.context == "session",
-           group_by: t.user_id,
-           having: min(t.inserted_at) >= ^cutoff,
-           select: t.user_id
-       ) ++
-         Repo.all(
-           from i in UserIdentity,
-             group_by: i.user_id,
-             having: min(i.inserted_at) >= ^cutoff,
-             select: i.user_id
-         ))
-      |> Enum.uniq()
-
-    token_mins =
-      Repo.all(
-        from t in UserToken,
-          where: t.context == "session" and t.user_id in ^candidate_ids,
-          group_by: t.user_id,
-          select: {t.user_id, min(t.inserted_at)}
-      )
-      |> Map.new()
-
-    identity_mins =
-      Repo.all(
-        from i in UserIdentity,
-          where: i.user_id in ^candidate_ids,
-          group_by: i.user_id,
-          select: {i.user_id, min(i.inserted_at)}
-      )
-      |> Map.new()
-
-    candidate_ids
-    |> Map.new(fn user_id ->
-      true_min =
-        [Map.get(token_mins, user_id), Map.get(identity_mins, user_id)]
-        |> Enum.reject(&is_nil/1)
-        |> Enum.min(DateTime)
-
-      {user_id, true_min}
-    end)
-    |> Enum.filter(fn {_user_id, ts} -> DateTime.compare(ts, cutoff) != :lt end)
+    Repo.all(from u in User, where: u.confirmed_at >= ^cutoff, select: {u.id, u.confirmed_at})
     |> Map.new()
   end
 
