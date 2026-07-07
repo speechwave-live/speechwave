@@ -12,10 +12,19 @@ defmodule Speechwave.Release do
     load_app()
 
     for repo <- repos() do
-      {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
+      # `with_repo/2` starts the repo only for the duration of the callback and
+      # stops it again once the callback returns. Anything that needs the repo
+      # -- including this backfill verification -- must run inside the
+      # callback, not after the `for` loop, or it will raise because the repo
+      # has already been stopped (this bit us in production: `bin/migrate`
+      # loads but doesn't start the app, so `with_repo` is the only thing
+      # keeping the repo alive).
+      {:ok, _, _} =
+        Ecto.Migrator.with_repo(repo, fn r ->
+          Ecto.Migrator.run(r, :up, all: true)
+          verify_confirmed_at_backfill(r)
+        end)
     end
-
-    verify_confirmed_at_backfill()
   end
 
   def unconfirmed_with_evidence_count(repo \\ Speechwave.Repo) do
@@ -34,8 +43,8 @@ defmodule Speechwave.Release do
     count
   end
 
-  defp verify_confirmed_at_backfill do
-    count = unconfirmed_with_evidence_count()
+  defp verify_confirmed_at_backfill(repo) do
+    count = unconfirmed_with_evidence_count(repo)
 
     if count != 0 do
       raise "confirmed_at backfill left #{count} users unconfirmed despite having a session token or identity"
