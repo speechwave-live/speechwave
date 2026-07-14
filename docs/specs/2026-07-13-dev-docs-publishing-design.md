@@ -111,8 +111,10 @@ New pages/assets in the `speechwave-live/docs` repo:
 /dev/explainer/chrome-extension.md
 /dev/explainer/analytics.md        — one file per chapter (parent:
                                       Codebase explainer, grand_parent: For
-                                      developers), same 10 chapters as the
-                                      old index.html.
+                                      developers). At least these 10
+                                      chapters; reconciliation (below) may
+                                      add more if content doesn't fit
+                                      cleanly (e.g. Dashboard flow).
 /dev/course.md                     — course landing page (parent: For
                                       developers): lists lessons and
                                       reference cheatsheets with short
@@ -144,12 +146,21 @@ chapter re-embedding it.
 Converting the explainer is more than a copy-and-tweak, since it involves
 reconciling two diverged sources into one:
 
-1. **Reconciliation** — for each of the 10 chapters, compare
-   `docs/explainer.md` (current) against the matching section of
-   `docs/explainer/index.html` (stale but better-formatted) and write one
-   accurate chapter reflecting the current architecture, using
-   `explainer.md`'s facts and `index.html`'s presentation (diagrams,
-   tables, callouts) where applicable.
+1. **Reconciliation** — `explainer.md`'s section headings don't map 1:1
+   onto `index.html`'s 10 chapters: it has no dedicated Authentication
+   section (login/OAuth sits under "Routing"), no Plans & limits or DB
+   backup sections at all, and newer sections with no chapter counterpart
+   (Dashboard flow, LiveView mount and subscription, Talk sessions, Slide
+   tracking). For each target chapter, compare `docs/explainer.md`
+   (current) against the matching section(s) of `docs/explainer/index.html`
+   (stale but better-formatted) and write one accurate chapter reflecting
+   the current architecture, using `explainer.md`'s facts and
+   `index.html`'s presentation (diagrams, tables, callouts) where
+   applicable. Where a topic doesn't fit cleanly into one of the original
+   10 chapters, add a new chapter file rather than forcing the fit. Where
+   neither source covers a topic reliably (Plans & limits, DB backup),
+   verify current behavior directly against the `lib/` code rather than
+   trusting either doc.
 2. **Splitting** — each reconciled chapter becomes its own markdown file
    per the site structure above, with `parent`/`grand_parent`/`nav_order`
    front matter.
