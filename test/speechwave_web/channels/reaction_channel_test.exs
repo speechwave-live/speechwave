@@ -130,10 +130,12 @@ defmodule SpeechwaveWeb.ReactionChannelTest do
       assert_receive %Phoenix.Socket.Broadcast{event: "slide_changed", payload: %{slide: 5}}, 500
     end
 
-    test "does not broadcast for slide 0", %{joined: joined} do
+    test "broadcasts slide 0 so attendees reset to the general pool when presenting stops", %{
+      joined: joined
+    } do
       ref = push(joined, "slide_changed", %{"slide" => 0})
       assert_reply ref, :ok
-      refute_receive %Phoenix.Socket.Broadcast{event: "slide_changed"}, 200
+      assert_receive %Phoenix.Socket.Broadcast{event: "slide_changed", payload: %{slide: 0}}, 500
     end
   end
 end

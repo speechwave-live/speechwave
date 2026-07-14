@@ -101,6 +101,30 @@ defmodule SpeechwaveWeb.TalkLiveTest do
       assert reaction.slide_number == 7
     end
 
+    test "stamps reaction with slide 0 when the presenter leaves presentation mode after a slide was set",
+         %{conn: conn, talk: talk} do
+      {:ok, session} = Speechwave.Talks.start_session(talk)
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+
+      # Presenting starts on slide 7
+      SpeechwaveWeb.Endpoint.broadcast!("slides:#{talk.slug}", "slide_changed", %{slide: 7})
+      _ = :sys.get_state(view.pid)
+
+      # Presenter exits Slideshow mode (e.g. back to the editor); extension reports slide 0
+      SpeechwaveWeb.Endpoint.broadcast!("slides:#{talk.slug}", "slide_changed", %{slide: 0})
+      _ = :sys.get_state(view.pid)
+
+      render_click(view, "react", %{"emoji" => "❤️"})
+
+      reaction =
+        Speechwave.Repo.one(
+          from r in Speechwave.Reactions.Reaction,
+            where: r.talk_session_id == ^session.id
+        )
+
+      assert reaction.slide_number == 0
+    end
+
     test "stamps reaction with slide 0 when no slide has been set", %{conn: conn, talk: talk} do
       {:ok, session} = Speechwave.Talks.start_session(talk)
       {:ok, view, _html} = live(conn, "/t/#{talk.slug}")

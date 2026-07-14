@@ -89,7 +89,7 @@ defmodule SpeechwaveWeb.ReactionChannel do
   end
 
   def handle_in("slide_changed", %{"slide" => slide}, socket)
-      when is_integer(slide) and slide > 0 do
+      when is_integer(slide) and slide >= 0 do
     SpeechwaveWeb.Endpoint.broadcast!(
       "slides:#{socket.assigns.talk.slug}",
       "slide_changed",
