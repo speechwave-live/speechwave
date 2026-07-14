@@ -13,7 +13,7 @@ presentation via a Chrome extension.
 5. Speaker starts a session from the extension (or via the channel) — reactions are persisted with a slide number
 6. After the talk, the analytics view shows per-slide reaction breakdowns; sessions from the same talk can be compared side-by-side
 
-For a full explainer on the technical implementation see [this explainer](docs/explainer.md).
+For a full explainer on the technical implementation see [this explainer](https://docs.speechwave.live/dev/explainer/index.html).
 For the story of writing the project (the whys and the bugs), see [this blog post](https://tracyatteberry.com/posts/speechwave/).
 
 ---
