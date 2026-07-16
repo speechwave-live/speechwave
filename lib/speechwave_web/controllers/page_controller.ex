@@ -7,6 +7,11 @@ defmodule SpeechwaveWeb.PageController do
     render(conn, :home)
   end
 
+  @doc "Liveness probe for Fly.io's http_service health check — no DB access, just confirms Bandit is serving requests."
+  def health(conn, _params) do
+    text(conn, "ok")
+  end
+
   def terms(conn, _params) do
     render(
       conn,

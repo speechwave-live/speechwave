@@ -25,6 +25,7 @@ defmodule SpeechwaveWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/health", PageController, :health
     get "/terms", PageController, :terms
     get "/privacy", PageController, :privacy
     live "/t/:slug", TalkLive

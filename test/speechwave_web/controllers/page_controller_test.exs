@@ -6,6 +6,11 @@ defmodule SpeechwaveWeb.PageControllerTest do
     assert html_response(conn, 200) =~ "Speechwave"
   end
 
+  test "GET /health returns 200", %{conn: conn} do
+    conn = get(conn, ~p"/health")
+    assert text_response(conn, 200) == "ok"
+  end
+
   test "GET / includes a Help link to the docs site", %{conn: conn} do
     html = get(conn, ~p"/") |> html_response(200)
 
