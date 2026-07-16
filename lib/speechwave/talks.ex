@@ -57,17 +57,11 @@ defmodule Speechwave.Talks do
   def start_session(%Talk{} = talk) do
     case get_active_session(talk.id) do
       nil ->
-        n = count_sessions(talk.id)
-
-        %TalkSession{talk_id: talk.id}
-        |> TalkSession.changeset(%{
-          label: "Session #{n + 1}",
-          started_at: DateTime.utc_now() |> DateTime.truncate(:second)
-        })
-        |> Repo.insert()
+        insert_session(talk)
 
       existing ->
-        {:ok, existing}
+        {:ok, _} = stop_session(existing)
+        insert_session(talk)
     end
   end
 
@@ -148,5 +142,16 @@ defmodule Speechwave.Talks do
 
   defp count_sessions(talk_id) do
     Repo.aggregate(from(s in TalkSession, where: s.talk_id == ^talk_id), :count)
+  end
+
+  defp insert_session(talk) do
+    n = count_sessions(talk.id)
+
+    %TalkSession{talk_id: talk.id}
+    |> TalkSession.changeset(%{
+      label: "Session #{n + 1}",
+      started_at: DateTime.utc_now() |> DateTime.truncate(:second)
+    })
+    |> Repo.insert()
   end
 end

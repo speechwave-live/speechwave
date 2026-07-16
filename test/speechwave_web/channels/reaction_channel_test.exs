@@ -67,12 +67,15 @@ defmodule SpeechwaveWeb.ReactionChannelTest do
       assert Speechwave.Talks.get_session(session_id) != nil
     end
 
-    test "start_session is idempotent when a session is already active", %{joined: joined} do
+    test "start_session always creates a fresh session, closing any prior active one", %{
+      joined: joined
+    } do
       ref1 = push(joined, "start_session", %{})
       assert_reply ref1, :ok, %{session_id: id1}
       ref2 = push(joined, "start_session", %{})
       assert_reply ref2, :ok, %{session_id: id2}
-      assert id1 == id2
+      refute id1 == id2
+      assert Speechwave.Talks.get_session(id1).ended_at != nil
     end
 
     test "stop_session ends the active session", %{joined: joined} do

@@ -191,4 +191,28 @@ defmodule Speechwave.TalksTest do
       assert Talks.count_full_sessions_this_month(scope(user_b)) == 0
     end
   end
+
+  describe "start_session/1" do
+    test "creates a new session when none is active" do
+      user = user_fixture()
+      {:ok, talk} = Talks.create_talk(scope(user), %{title: "Test", slug: "start-fresh"})
+
+      assert {:ok, session} = Talks.start_session(talk)
+      assert session.label == "Session 1"
+      assert session.ended_at == nil
+    end
+
+    test "closes an existing active session, even a recent one, and starts a new one" do
+      user = user_fixture()
+      {:ok, talk} = Talks.create_talk(scope(user), %{title: "Test", slug: "start-replace"})
+
+      {:ok, first} = Talks.start_session(talk)
+      {:ok, second} = Talks.start_session(talk)
+
+      refute first.id == second.id
+      assert Talks.get_session(first.id).ended_at != nil
+      assert second.label == "Session 2"
+      assert second.ended_at == nil
+    end
+  end
 end
