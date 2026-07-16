@@ -15,7 +15,7 @@ config :speechwave, SpeechwaveWeb.Endpoint,
   force_ssl: [
     rewrite_on: [:x_forwarded_proto],
     exclude: [
-      # paths: ["/health"],
+      paths: ["/health"],
       hosts: ["localhost", "127.0.0.1"]
     ]
   ]
