@@ -17,6 +17,7 @@ defmodule Speechwave.Application do
         {Phoenix.PubSub, name: Speechwave.PubSub},
         Speechwave.RateLimiter,
         Speechwave.AuthThrottle,
+        Speechwave.Talks.SessionReaper,
         SpeechwaveWeb.Endpoint,
         SpeechwaveWeb.Presence
       ] ++ backup_children()
