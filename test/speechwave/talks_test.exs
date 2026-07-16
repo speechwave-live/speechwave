@@ -6,6 +6,7 @@ defmodule Speechwave.TalksTest do
   alias Speechwave.Talks.Talk
 
   import Speechwave.AccountsFixtures
+  import Speechwave.TalksFixtures
 
   defp scope(user), do: %Scope{user: user}
 
@@ -213,6 +214,52 @@ defmodule Speechwave.TalksTest do
       assert Talks.get_session(first.id).ended_at != nil
       assert second.label == "Session 2"
       assert second.ended_at == nil
+    end
+  end
+
+  describe "close_stale_sessions/0" do
+    test "closes a session older than the configured timeout" do
+      user = user_fixture()
+      {:ok, talk} = Talks.create_talk(scope(user), %{title: "Test", slug: "stale-old"})
+
+      timeout_hours = Application.get_env(:speechwave, :session_timeout_hours, 4)
+
+      old_start =
+        DateTime.utc_now()
+        |> DateTime.add(-(timeout_hours + 1) * 3600, :second)
+        |> DateTime.truncate(:second)
+
+      session = session_fixture(talk, %{started_at: old_start})
+
+      Talks.close_stale_sessions()
+
+      closed = Talks.get_session(session.id)
+      assert closed.ended_at != nil
+      assert DateTime.diff(closed.ended_at, old_start, :second) == timeout_hours * 3600
+    end
+
+    test "leaves a session within the timeout untouched" do
+      user = user_fixture()
+      {:ok, talk} = Talks.create_talk(scope(user), %{title: "Test", slug: "stale-fresh"})
+
+      session = session_fixture(talk, %{started_at: DateTime.utc_now() |> DateTime.truncate(:second)})
+
+      Talks.close_stale_sessions()
+
+      assert Talks.get_session(session.id).ended_at == nil
+    end
+
+    test "leaves an already-ended session untouched" do
+      user = user_fixture()
+      {:ok, talk} = Talks.create_talk(scope(user), %{title: "Test", slug: "stale-ended"})
+
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+      old_start = DateTime.add(now, -10 * 3600, :second)
+      session = session_fixture(talk, %{started_at: old_start, ended_at: now})
+
+      Talks.close_stale_sessions()
+
+      assert Talks.get_session(session.id).ended_at == now
     end
   end
 end

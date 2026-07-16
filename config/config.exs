@@ -48,6 +48,10 @@ config :speechwave, Speechwave.Mailer, adapter: Swoosh.Adapters.Local
 # See docs/specs/2026-06-11-magic-link-auth-throttle-design.md.
 config :speechwave, :auth_throttle_enabled, true
 
+# Sessions left open (never explicitly stopped) are closed automatically
+# after this many hours. See docs/plans/2026-07-15-session-timeout.md.
+config :speechwave, :session_timeout_hours, 4
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

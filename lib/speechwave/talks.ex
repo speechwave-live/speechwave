@@ -106,6 +106,30 @@ defmodule Speechwave.Talks do
   def delete_session(%TalkSession{} = session), do: Repo.delete(session)
 
   @doc """
+  Closes any session left open past `:session_timeout_hours` (config,
+  default 4). `ended_at` is set to the moment the session actually timed
+  out (`started_at` plus the timeout), not to the time this sweep ran, so
+  recorded duration reflects the timeout window rather than sweep-cycle lag.
+  Called periodically by `Speechwave.Talks.SessionReaper`.
+  """
+  def close_stale_sessions do
+    timeout_hours = Application.get_env(:speechwave, :session_timeout_hours, 4)
+    cutoff = DateTime.add(DateTime.utc_now(), -timeout_hours * 3600, :second)
+
+    from(s in TalkSession, where: is_nil(s.ended_at) and s.started_at < ^cutoff)
+    |> Repo.all()
+    |> Enum.each(fn session ->
+      expired_at = DateTime.add(session.started_at, timeout_hours * 3600, :second)
+
+      session
+      |> TalkSession.changeset(%{ended_at: expired_at})
+      |> Repo.update()
+    end)
+
+    :ok
+  end
+
+  @doc """
   Counts completed sessions longer than 10 minutes (600 seconds) in the current
   calendar month for the scoped user across all their talks.
   Used to enforce the free tier `full_sessions_per_month` limit.
