@@ -242,7 +242,8 @@ defmodule Speechwave.TalksTest do
       user = user_fixture()
       {:ok, talk} = Talks.create_talk(scope(user), %{title: "Test", slug: "stale-fresh"})
 
-      session = session_fixture(talk, %{started_at: DateTime.utc_now() |> DateTime.truncate(:second)})
+      session =
+        session_fixture(talk, %{started_at: DateTime.utc_now() |> DateTime.truncate(:second)})
 
       Talks.close_stale_sessions()
 

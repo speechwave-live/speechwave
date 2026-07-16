@@ -51,10 +51,12 @@ defmodule Speechwave.SessionsTest do
       assert s2.label == "Session 2"
     end
 
-    test "returns the existing session when one is already active", %{talk: talk} do
+    test "closes an existing active session and starts a fresh one", %{talk: talk} do
       {:ok, s1} = Talks.start_session(talk)
       assert {:ok, s2} = Talks.start_session(talk)
-      assert s1.id == s2.id
+      refute s1.id == s2.id
+      assert Talks.get_session(s1.id).ended_at != nil
+      assert s2.ended_at == nil
     end
   end
 
