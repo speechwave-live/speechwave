@@ -263,4 +263,26 @@ defmodule Speechwave.TalksTest do
       assert Talks.get_session(session.id).ended_at == now
     end
   end
+
+  describe "close_stale_sessions/0 and count_full_sessions_this_month/1" do
+    test "a swept stale session counts toward the monthly limit" do
+      user = user_fixture()
+      {:ok, talk} = Talks.create_talk(scope(user), %{title: "Test", slug: "stale-counts"})
+
+      timeout_hours = Application.get_env(:speechwave, :session_timeout_hours, 4)
+
+      old_start =
+        DateTime.utc_now()
+        |> DateTime.add(-(timeout_hours + 1) * 3600, :second)
+        |> DateTime.truncate(:second)
+
+      session_fixture(talk, %{started_at: old_start})
+
+      assert Talks.count_full_sessions_this_month(scope(user)) == 0
+
+      Talks.close_stale_sessions()
+
+      assert Talks.count_full_sessions_this_month(scope(user)) == 1
+    end
+  end
 end
