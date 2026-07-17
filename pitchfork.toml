@@ -1,0 +1,19 @@
+#:schema https://pitchfork.jdx.dev/schema.json
+
+namespace = "speechwave"
+
+[daemons.web]
+run = "exec mix phx.server"
+port = { expect = [4000], bump = false }
+ready_http = { url = "http://localhost:4000/health", status = [200] }
+mise = true
+
+# Docs site (../docs, separate Jekyll repo). Port 4001 is pinned in its
+# _config.yml to avoid colliding with mix phx.server's 4000. Note: the app's
+# in-app "Help" links point to the production https://docs.speechwave.live,
+# not this local server — this is only for previewing docs changes locally.
+[daemons.docs]
+run = "exec bundle exec jekyll serve"
+dir = "../docs"
+port = { expect = [4001], bump = false }
+ready_http = { url = "http://localhost:4001/", status = [200] }
