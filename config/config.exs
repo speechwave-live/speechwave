@@ -52,6 +52,10 @@ config :speechwave, :auth_throttle_enabled, true
 # after this many hours. See docs/plans/2026-07-15-session-timeout.md.
 config :speechwave, :session_timeout_hours, 4
 
+# Where the "Help" nav link points. Overridden in dev.exs to point at the
+# local Jekyll preview server instead of the production docs site.
+config :speechwave, :docs_url, "https://docs.speechwave.live"
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

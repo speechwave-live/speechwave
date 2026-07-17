@@ -15,6 +15,8 @@ defmodule SpeechwaveWeb.Layouts do
     "Speechwave lets your audience react with emoji in real time during your talk, then gives you per-slide analytics to see what landed."
   end
 
+  defp docs_url, do: Application.get_env(:speechwave, :docs_url)
+
   @doc """
   Renders your app layout.
 
@@ -65,7 +67,7 @@ defmodule SpeechwaveWeb.Layouts do
             </a>
             <a
               id="help-nav-link"
-              href="https://docs.speechwave.live"
+              href={docs_url()}
               target="_blank"
               rel="noopener noreferrer"
               class="text-steel hover:text-ink transition-colors"
@@ -133,7 +135,7 @@ defmodule SpeechwaveWeb.Layouts do
             </a>
             <a
               id="help-nav-link"
-              href="https://docs.speechwave.live"
+              href={docs_url()}
               target="_blank"
               rel="noopener noreferrer"
               class="px-3 py-2 text-sm text-steel hover:text-ink transition-colors"
@@ -153,7 +155,7 @@ defmodule SpeechwaveWeb.Layouts do
           <% else %>
             <a
               id="help-nav-link"
-              href="https://docs.speechwave.live"
+              href={docs_url()}
               target="_blank"
               rel="noopener noreferrer"
               class="px-3 py-2 text-sm text-steel hover:text-ink transition-colors"

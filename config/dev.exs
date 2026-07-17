@@ -67,6 +67,10 @@ config :speechwave, SpeechwaveWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :speechwave, dev_routes: true
 
+# Point "Help" at the local Jekyll preview server (see pitchfork.toml)
+# instead of the production docs site.
+config :speechwave, docs_url: "http://localhost:4001"
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 
