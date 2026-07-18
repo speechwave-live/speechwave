@@ -1,0 +1,11 @@
+[tasks.build]
+description = "Compile and build frontend assets"
+run = "mix assets.build"
+
+[tasks.test]
+description = "Run the ExUnit test suite"
+run = "mix test"
+
+[tasks.lint]
+description = "Credo strict static analysis"
+run = "mix credo --strict --all"
