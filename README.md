@@ -1,86 +1,29 @@
 # Speechwave
 
-Live emoji reactions for conference talks. Attendees send reactions from their
-phones; emojis float on their screens and overlay the speaker's Google Slides
-presentation via a Chrome extension.
+Live emoji reactions for conference talks.
 
-## How it works
+## Overview
 
-1. Speaker creates a talk in the dashboard → gets a QR code
-2. Attendees scan the QR code → land on `/t/<slug>` → tap emojis
+Speechwave gives conference speakers live emoji reactions from their audience. Attendees scan a QR code, land on a page for the talk, and tap emojis from their phones. A Chrome extension connected to the same talk overlays the incoming reactions as floating emojis on the speaker's Google Slides presentation.
+
+### How it works
+
+1. Speaker creates a talk in the dashboard, which generates a QR code
+2. Attendees scan the QR code, land on `/t/<slug>`, and tap emojis
 3. Reactions broadcast in real time via Phoenix PubSub
-4. Chrome extension connected to the same talk slug shows floating emoji overlay on Google Slides — when enough attendees send the same emoji at once, a fireworks burst animation plays
-5. Speaker starts a session from the extension (or via the channel) — reactions are persisted with a slide number
-6. After the talk, the analytics view shows per-slide reaction breakdowns; sessions from the same talk can be compared side-by-side
+4. The Chrome extension, connected to the same talk slug, shows a floating emoji overlay on Google Slides. When enough attendees send the same emoji at once, a fireworks burst animation plays
+5. The speaker starts a session from the extension (or via the channel), and reactions are persisted with a slide number
+6. After the talk, the analytics view shows per-slide reaction breakdowns; sessions from the same talk can be compared side by side
 
-For a full explainer on the technical implementation see [this explainer](https://docs.speechwave.live/dev/explainer/index.html).
-For the story of writing the project (the whys and the bugs), see [this blog post](https://tracyatteberry.com/posts/speechwave/).
-
----
+For a full explainer on the technical implementation, see [this explainer](https://docs.speechwave.live/dev/explainer/index.html). For the story of writing the project (the whys and the bugs), see [this blog post](https://tracyatteberry.com/posts/speechwave/).
 
 ![Architecture](docs/architecture.png)
 
----
-
 ![Chrome extension](docs/chrome_extension.png)
 
----
+The Chrome extension lives in its own repo: [speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension). See that repo's README for install instructions, local dev setup, and troubleshooting.
 
-## Running locally
-
-### Prerequisites
-
-- Elixir 1.14+ / Erlang 26+
-- Node.js (for asset building, handled by Mix)
-
-No separate database server needed — Speechwave uses SQLite (file-based, via `ecto_sqlite3`).
-
-### Setup
-
-```bash
-mix setup        # installs deps, creates & migrates DB, builds assets
-mix phx.server   # starts the server at http://localhost:4000
-```
-
-Log in at `http://localhost:4000/users/log-in` via magic link (email sent to
-`/dev/mailbox`) or use the dev backdoor at `http://localhost:4000/dev/login`
-to authenticate instantly without email. The main dashboard is at
-`http://localhost:4000/dashboard`.
-
-### Running tests
-
-```bash
-mix test                        # run all Elixir tests
-mix test test/path/to/file.exs  # run a single test file
-mix test --failed               # re-run only previously failing tests
-```
-
-The Chrome extension lives in a separate repo ([speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension)) and has its own Jest test suite — see that repo's README for instructions.
-
-### End-to-end test flow
-
-1. Start the server: `mix phx.server`
-2. Go to `http://localhost:4000/dev/login` and log in (or create a new user by entering any email)
-3. Go to `http://localhost:4000/dashboard` and create a new talk
-4. Enter a title (slug auto-generates from title), click **Create Talk**
-5. A QR code appears — note the slug (e.g. `my-talk`)
-6. Open `http://localhost:4000/t/my-talk` in another tab
-7. Tap an emoji — it should float up on the attendee page
-8. (Optional) Load the Chrome extension pointed at `my-talk` and open a Google Slides presentation. Connect the extension, then start the slideshow (click **Slideshow** or press F5 — it stays on the same tab and goes fullscreen). Open the extension popup — it shows the current slide number ("Slide 3") updating in real time, confirming the adapter is reading the DOM correctly. The slide number only appears once the slideshow is running; it shows "Slide —" in the editor view.
-9. (Optional) In the extension popup, click **Start Session** — reactions are now persisted with slide numbers
-10. After tapping some emojis, go to `http://localhost:4000/dashboard` → select the talk → click **Analytics** next to the session to see the per-slide breakdown
-
----
-
-## Chrome extension
-
-The Chrome extension lives in its own repo: [speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension).
-
-See that repo's README for install instructions, local dev setup, and troubleshooting.
-
----
-
-## Changing the emoji set
+### Customizing the emoji set
 
 Edit the `@emojis` module attribute in `lib/speechwave_web/live/talk_live.ex`:
 
@@ -88,13 +31,66 @@ Edit the `@emojis` module attribute in `lib/speechwave_web/live/talk_live.ex`:
 @emojis ["❤️", "😂", "🔥", "👏", "🤯"]
 ```
 
-Add, remove, or reorder emojis here. No other changes needed — the template loops over this list.
+Add, remove, or reorder emojis here. No other changes needed: the template loops over this list.
 
----
+### Project structure
 
-## Deploying to Fly.io
+| Path                                                                                    | What it does                                                   |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `lib/speechwave/talks.ex`                                                               | Context: talks + session lifecycle (start, stop, rename, etc.) |
+| `lib/speechwave/talks/talk.ex`                                                          | Ecto schema + changeset validation                             |
+| `lib/speechwave/talks/talk_session.ex`                                                  | TalkSession schema (label, started_at, ended_at)               |
+| `lib/speechwave/reactions.ex`                                                           | Context: create reactions, per-slide totals query              |
+| `lib/speechwave/reactions/reaction.ex`                                                  | Reaction schema (emoji, slide_number, talk_session_id)         |
+| `lib/speechwave/accounts.ex`                                                            | Context: users, magic link tokens, OAuth identity upsert       |
+| `lib/speechwave/accounts/user.ex`                                                       | User schema (email, api_key, plan, is_admin)                   |
+| `lib/speechwave/accounts/user_identity.ex`                                              | OAuth identity link (provider + uid to user)                   |
+| `lib/speechwave/rate_limiter.ex`                                                        | ETS-backed GenServer: 1 reaction per session per 5s            |
+| `lib/speechwave/qr_code.ex`                                                             | Wraps `eqrcode` to produce a base64 PNG data URI               |
+| `lib/speechwave_web/live/dashboard_live.ex`                                             | Speaker dashboard: create talks, QR codes, sessions panel      |
+| `lib/speechwave_web/live/session_analytics_live.ex`                                     | Per-session analytics: slide breakdown + comparison mode       |
+| `lib/speechwave_web/live/talk_live.ex`                                                  | Attendee page: emoji buttons, stamps reactions with slide      |
+| `lib/speechwave_web/live/user_live/login.ex`                                            | Magic link + OAuth login/signup page                           |
+| `lib/speechwave_web/live/user_live/settings.ex`                                         | User settings: connected OAuth accounts                        |
+| `lib/speechwave_web/channels/reaction_channel.ex`                                       | Channel: reactions, session start/stop, slide_changed          |
+| `lib/speechwave_web/controllers/user_session_controller.ex`                             | Magic link verification, OAuth initiation + callback           |
+| `lib/speechwave_web/controllers/dev_login_controller.ex`                                | Dev-only login bypass (never compiled in prod)                 |
+| `lib/speechwave_web/plugs/admin_auth.ex`                                                | HTTP Basic Auth plug for admin routes                          |
+| `assets/js/hooks/emoji_buttons.js`                                                      | Client-side 5s cooldown UI                                     |
+| `assets/js/hooks/emoji_stream.js`                                                       | Floating emoji animation on `new_reaction` event               |
+| [speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension) | Chrome Manifest V3 extension (separate repo)                   |
+
+## Stack
+
+- Elixir + Phoenix, with Phoenix LiveView for the dashboard, attendee page, and analytics views
+- Phoenix PubSub for broadcasting reactions in real time, and Phoenix Channels for the Chrome extension's live connection (session control, slide tracking)
+- SQLite (file-based, via `ecto_sqlite3`), no separate database server needed
+- Node.js, for asset building (handled by Mix)
+- `assent`, for OAuth sign-in (Google, GitHub, Microsoft)
+- `eqrcode`, for generating the QR codes speakers share with their audience
+- Chrome extension (Manifest V3), in its own repo, overlays reactions on Google Slides
+
+## Setup
+
+### Prerequisites
+
+- Elixir 1.14+ / Erlang 26+
+- Node.js (for asset building, handled by Mix)
+- [mise](https://mise.jdx.dev), for the `build`, `test`, and `lint` tasks
+- [pitchfork](https://pitchfork.jdx.dev), for running the dev servers
 
 ### First-time setup
+
+```bash
+mix setup       # installs deps, creates & migrates DB, builds assets
+mix phx.server  # starts the server at http://localhost:4000
+```
+
+Log in at `http://localhost:4000/users/log-in` via magic link (email sent to `/dev/mailbox`) or use the dev backdoor at `http://localhost:4000/dev/login` to authenticate instantly without email. The main dashboard is at `http://localhost:4000/dashboard`.
+
+### Deploying
+
+#### First-time setup
 
 ```bash
 fly auth login
@@ -105,11 +101,9 @@ fly secrets set RESEND_API_KEY=re_...
 fly deploy
 ```
 
-### OAuth providers (optional)
+#### OAuth providers (optional)
 
-To enable Google, GitHub, and/or Microsoft sign-in, set the corresponding
-secrets before deploying. Any provider whose `CLIENT_ID` is absent is silently
-omitted from the login page.
+To enable Google, GitHub, and/or Microsoft sign-in, set the corresponding secrets before deploying. Any provider whose `CLIENT_ID` is absent is silently omitted from the login page.
 
 ```bash
 # Google
@@ -124,23 +118,22 @@ fly secrets set MICROSOFT_CLIENT_ID=... MICROSOFT_CLIENT_SECRET=...
 fly secrets set MICROSOFT_TENANT_ID=...
 ```
 
-### Subsequent deploys
+#### Subsequent deploys
 
 ```bash
 fly deploy
 ```
 
-Migrations run automatically on each deploy (configured in `fly.toml` via `[deploy] release_command`).
+Migrations run automatically on each deploy (configured in `fly.toml` via `[deploy] release_command`). See [`docs/administration.md`](docs/administration.md) for how to run migrations manually.
 
-### Setting / resetting the admin password
+#### Setting or resetting the admin password
 
 ```bash
 fly secrets set ADMIN_PASSWORD=new-strong-password
 fly deploy   # restart the app to pick up the new secret
 ```
 
-The password takes effect after the next deploy (Fly restarts the app when
-secrets change, but the config is read at boot via `Application.get_env`).
+The password takes effect after the next deploy (Fly restarts the app when secrets change, but the config is read at boot via `Application.get_env`).
 
 To verify the current secret is set (without revealing it):
 
@@ -148,31 +141,75 @@ To verify the current secret is set (without revealing it):
 fly secrets list
 ```
 
----
+## Tasks
 
-## Project structure
+### Run the dev servers
 
-| Path                                              | What it does                                                   |
-| ------------------------------------------------- | -------------------------------------------------------------- |
-| `lib/speechwave/talks.ex`                            | Context: talks + session lifecycle (start, stop, rename, etc.) |
-| `lib/speechwave/talks/talk.ex`                       | Ecto schema + changeset validation                             |
-| `lib/speechwave/talks/talk_session.ex`               | TalkSession schema (label, started_at, ended_at)               |
-| `lib/speechwave/reactions.ex`                        | Context: create reactions, per-slide totals query              |
-| `lib/speechwave/reactions/reaction.ex`               | Reaction schema (emoji, slide_number, talk_session_id)         |
-| `lib/speechwave/accounts.ex`                         | Context: users, magic link tokens, OAuth identity upsert       |
-| `lib/speechwave/accounts/user.ex`                    | User schema (email, api_key, plan, is_admin)                   |
-| `lib/speechwave/accounts/user_identity.ex`           | OAuth identity link (provider + uid → user)                    |
-| `lib/speechwave/rate_limiter.ex`                     | ETS-backed GenServer: 1 reaction per session per 5s            |
-| `lib/speechwave/qr_code.ex`                          | Wraps `eqrcode` → base64 PNG data URI                          |
-| `lib/speechwave_web/live/dashboard_live.ex`          | Speaker dashboard: create talks, QR codes, sessions panel      |
-| `lib/speechwave_web/live/session_analytics_live.ex`  | Per-session analytics: slide breakdown + comparison mode       |
-| `lib/speechwave_web/live/talk_live.ex`               | Attendee page: emoji buttons, stamps reactions with slide      |
-| `lib/speechwave_web/live/user_live/login.ex`         | Magic link + OAuth login/signup page                           |
-| `lib/speechwave_web/live/user_live/settings.ex`      | User settings: connected OAuth accounts                        |
-| `lib/speechwave_web/channels/reaction_channel.ex`    | Channel: reactions, session start/stop, slide_changed          |
-| `lib/speechwave_web/controllers/user_session_controller.ex` | Magic link verification, OAuth initiation + callback    |
-| `lib/speechwave_web/controllers/dev_login_controller.ex`    | Dev-only login bypass (never compiled in prod)          |
-| `lib/speechwave_web/plugs/admin_auth.ex`             | HTTP Basic Auth plug for admin routes                          |
-| `assets/js/hooks/emoji_buttons.js`                | Client-side 5s cooldown UI                                     |
-| `assets/js/hooks/emoji_stream.js`                 | Floating emoji animation on `new_reaction` event               |
-| [speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension) | Chrome Manifest V3 extension (separate repo) |
+```bash
+pitchfork start
+```
+
+Starts both daemons defined in `pitchfork.toml`: `web` (Phoenix at `:4000`) and `docs` (the Jekyll docs site, served from the sibling `speechwave-live/docs` repo, at `:4001`, for previewing docs changes locally). The app's in-app Help links point to the production docs site (docs.speechwave.live), not this local preview.
+
+To run just the Phoenix server:
+
+```bash
+mix phx.server
+```
+
+### Build
+
+```bash
+mise run build
+```
+
+Compiles and builds frontend assets (`mix assets.build`).
+
+### Test
+
+```bash
+mise run test
+```
+
+Runs the ExUnit suite (`mix test`). A couple of variants for narrower runs:
+
+```bash
+mix test test/path/to/file.exs  # run a single test file
+mix test --failed               # re-run only previously failing tests
+```
+
+The Chrome extension lives in a separate repo ([speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension)) and has its own Jest test suite. See that repo's README for instructions.
+
+#### End-to-end test flow
+
+1. Start the server: `mix phx.server`
+2. Go to `http://localhost:4000/dev/login` and log in (or create a new user by entering any email)
+3. Go to `http://localhost:4000/dashboard` and create a new talk
+4. Enter a title (slug auto-generates from title), click **Create Talk**
+5. A QR code appears. Note the slug (e.g. `my-talk`)
+6. Open `http://localhost:4000/t/my-talk` in another tab
+7. Tap an emoji. It should float up on the attendee page
+8. (Optional) Load the Chrome extension pointed at `my-talk` and open a Google Slides presentation. Connect the extension, then start the slideshow (click **Slideshow** or press F5, which keeps it on the same tab and goes fullscreen). Open the extension popup. It shows the current slide number ("Slide 3") updating in real time, confirming the adapter is reading the DOM correctly. The slide number only appears once the slideshow is running; it shows "Slide —" in the editor view
+9. (Optional) In the extension popup, click **Start Session**, and reactions are now persisted with slide numbers
+10. After tapping some emojis, go to `http://localhost:4000/dashboard`, select the talk, and click **Analytics** next to the session to see the per-slide breakdown
+
+### Lint
+
+```bash
+mise run lint
+```
+
+Credo strict static analysis (`mix credo --strict --all`).
+
+## Documentation
+
+- [`docs/administration.md`](docs/administration.md): running migrations, sending a user a fresh login link, manual database backups, and downloading a backup for analysis
+- [`docs/decisions.md`](docs/decisions.md): architectural decision record
+- [`docs/manual_tests.md`](docs/manual_tests.md): index of manual and live-environment checks that `mix test` can't cover
+- [`docs/roadmap.md`](docs/roadmap.md): deferred work not yet in scope
+- [`docs/fly_db_migrate.md`](docs/fly_db_migrate.md): historical notes on the Fly.io app rename and database migration from the project's Postgres era
+- [`docs/specs/`](docs/specs/) and [`docs/plans/`](docs/plans/): dated design specs and implementation plans for past features
+
+## License
+
+Speechwave is licensed under the [PolyForm Shield License 1.0.0](LICENSE.txt), a source-available license that lets you read, study, and fork the code, run it locally, and self-host it for non-commercial use. Building a product or service on top of it is fine too, as long as it doesn't compete with Speechwave. See [LICENSE_FAQ.md](LICENSE_FAQ.md) for a plain-language breakdown of what's allowed. The Chrome extension, in its separate [speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension) repo, is licensed under MIT.
