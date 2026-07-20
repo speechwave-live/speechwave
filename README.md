@@ -9,10 +9,10 @@ Speechwave gives conference speakers live emoji reactions from their audience. A
 ### How it works
 
 1. Speaker creates a talk in the dashboard, which generates a QR code
-2. Attendees scan the QR code, land on `/t/<slug>`, and tap emojis
-3. Reactions broadcast in real time via Phoenix PubSub
-4. The Chrome extension, connected to the same talk slug, shows a floating emoji overlay on Google Slides. When enough attendees send the same emoji at once, a fireworks burst animation plays
-5. The speaker starts a session from the extension (or via the channel), and reactions are persisted with a slide number
+2. The speaker starts a session from the extension (or via the channel), and reactions are persisted with a slide number
+3. Attendees scan the QR code, land on `/t/<slug>`, and tap emojis
+4. Reactions broadcast in real time via Phoenix PubSub
+5. The Chrome extension, connected to the same talk slug, shows a floating emoji overlay on Google Slides. When enough attendees send the same emoji at once, a fireworks burst animation plays
 6. After the talk, the analytics view shows per-slide reaction breakdowns; sessions from the same talk can be compared side by side
 
 For a full explainer on the technical implementation, see [this explainer](https://docs.speechwave.live/dev/explainer/index.html). For the story of writing the project (the whys and the bugs), see [this blog post](https://tracyatteberry.com/posts/speechwave/).
@@ -154,7 +154,7 @@ Starts both daemons defined in `pitchfork.toml`: `web` (Phoenix at `:4000`) and 
 To run just the Phoenix server:
 
 ```bash
-mix phx.server
+pitchfork start web
 ```
 
 ### Build
@@ -174,8 +174,8 @@ mise run test
 Runs the ExUnit suite (`mix test`). A couple of variants for narrower runs:
 
 ```bash
-mix test test/path/to/file.exs  # run a single test file
-mix test --failed               # re-run only previously failing tests
+mise run test test/path/to/file.exs  # run a single test file
+mise run test --failed               # re-run only previously failing tests
 ```
 
 The Chrome extension lives in a separate repo ([speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension)) and has its own Jest test suite. See that repo's README for instructions.
@@ -212,4 +212,11 @@ Credo strict static analysis (`mix credo --strict --all`).
 
 ## License
 
-Speechwave is licensed under the [PolyForm Shield License 1.0.0](LICENSE.txt), a source-available license that lets you read, study, and fork the code, run it locally, and self-host it for non-commercial use. Building a product or service on top of it is fine too, as long as it doesn't compete with Speechwave. See [LICENSE_FAQ.md](LICENSE_FAQ.md) for a plain-language breakdown of what's allowed. The Chrome extension, in its separate [speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension) repo, is licensed under MIT.
+Speechwave is licensed under the [PolyForm Shield License 1.0.0](LICENSE.txt),
+a source-available license that lets you read, study, and fork the code, run it
+locally, and self-host it for non-commercial use. Building a product or service
+on top of it is fine too, as long as it doesn't compete with Speechwave. See
+[LICENSE_FAQ.md](LICENSE_FAQ.md) for a plain-language breakdown of what's
+allowed. The Chrome extension, in its separate
+[speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension)
+repo, is licensed under MIT.
