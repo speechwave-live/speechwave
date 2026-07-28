@@ -9,6 +9,8 @@ defmodule Speechwave.Accounts.User do
     field :plan, Ecto.Enum, values: [:free, :pro, :org], default: :free
     field :is_admin, :boolean, default: false
     field :confirmed_at, :utc_datetime
+    field :overlay_size_percent, :integer
+    field :fireworks_enabled, :boolean, default: true
 
     has_many :identities, Speechwave.Accounts.UserIdentity
 
@@ -72,5 +74,19 @@ defmodule Speechwave.Accounts.User do
     |> cast(attrs, [:plan])
     |> validate_required([:plan])
     |> validate_inclusion(:plan, [:free, :pro, :org])
+  end
+
+  @doc """
+  Updates a user's Chrome-extension overlay settings. `overlay_size_percent`
+  may be nil (meaning "use the tuning module's default"); when present it
+  must be between the tuning module's minimum and 100.
+  """
+  def extension_settings_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:overlay_size_percent, :fireworks_enabled])
+    |> validate_number(:overlay_size_percent,
+      greater_than_or_equal_to: Speechwave.ExtensionTuning.current().min_overlay_size_percent,
+      less_than_or_equal_to: 100
+    )
   end
 end

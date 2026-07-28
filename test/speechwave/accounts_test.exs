@@ -2,6 +2,7 @@ defmodule Speechwave.AccountsTest do
   use Speechwave.DataCase
 
   alias Speechwave.Accounts
+  alias Speechwave.ExtensionTuning
 
   import Speechwave.AccountsFixtures
   alias Speechwave.Accounts.{User, UserConsent, UserToken}
@@ -586,6 +587,55 @@ defmodule Speechwave.AccountsTest do
       assert %Speechwave.Accounts.UserConsent{} = consent
       assert consent.consent_type == "marketing_email"
       assert consent.granted
+    end
+  end
+
+  describe "update_extension_settings/2" do
+    test "updates overlay_size_percent and fireworks_enabled" do
+      user = user_fixture()
+
+      assert {:ok, updated} =
+               Accounts.update_extension_settings(user, %{
+                 "overlay_size_percent" => 40,
+                 "fireworks_enabled" => false
+               })
+
+      assert updated.overlay_size_percent == 40
+      assert updated.fireworks_enabled == false
+    end
+
+    test "allows overlay_size_percent to be nil" do
+      user = user_fixture()
+
+      assert {:ok, updated} =
+               Accounts.update_extension_settings(user, %{"overlay_size_percent" => nil})
+
+      assert updated.overlay_size_percent == nil
+    end
+
+    test "rejects overlay_size_percent below the tuning minimum" do
+      user = user_fixture()
+      min = ExtensionTuning.current().min_overlay_size_percent
+
+      assert {:error, changeset} =
+               Accounts.update_extension_settings(user, %{"overlay_size_percent" => min - 1})
+
+      assert "must be greater than or equal to #{min}" in errors_on(changeset).overlay_size_percent
+    end
+
+    test "rejects overlay_size_percent above 100" do
+      user = user_fixture()
+
+      assert {:error, changeset} =
+               Accounts.update_extension_settings(user, %{"overlay_size_percent" => 101})
+
+      assert "must be less than or equal to 100" in errors_on(changeset).overlay_size_percent
+    end
+
+    test "new users default to fireworks_enabled: true and overlay_size_percent: nil" do
+      user = user_fixture()
+      assert user.fireworks_enabled == true
+      assert user.overlay_size_percent == nil
     end
   end
 end

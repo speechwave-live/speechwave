@@ -402,4 +402,16 @@ defmodule Speechwave.Accounts do
     |> User.plan_changeset(%{plan: plan})
     |> Repo.update()
   end
+
+  @doc "Returns a changeset for a user's extension settings, for form rendering."
+  def change_extension_settings(%User{} = user, attrs \\ %{}) do
+    User.extension_settings_changeset(user, attrs)
+  end
+
+  @doc "Updates a user's extension settings (overlay size percent, fireworks toggle)."
+  def update_extension_settings(%User{} = user, attrs) do
+    user
+    |> User.extension_settings_changeset(attrs)
+    |> Repo.update()
+  end
 end
