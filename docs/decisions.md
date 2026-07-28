@@ -231,3 +231,45 @@ new letterbox-math or a new selector.
   `document.elementFromPoint()` at the overlay's own coordinates, which
   named the covering element directly instead of requiring further
   inference.
+
+## 2026-07-28 — Accept cross-repo duplication of extension tuning defaults
+
+**Decision:** Accept that `Speechwave.ExtensionTuning.current/0` (this repo)
+and the Chrome extension's local default config duplicate the same ~10
+tuning constants (font-size ratios, spread ratios, etc.), rather than
+building any generation/sync tooling between the two repos.
+
+**Why:** The design spec for the remote-config feature
+(`docs/specs/2026-07-27-overlay-size-and-remote-config-design.md`)
+considered and rejected a DB-backed config table for `ExtensionTuning` in
+favor of a plain hardcoded module — that decision implies these values
+change rarely enough that hand-syncing a second copy is also acceptable.
+The two copies are different languages (Elixir vs. JS) in different repos
+with different deploy cadences, so no cheap shared-generation mechanism
+exists. The extension's copy is a fallback/pre-connect value only — it's
+used for the brief window before the extension joins the reactions channel
+and receives the real payload, or if that payload is ever missing/legacy;
+`ExtensionTuning.current/0` remains the actual live source of truth from
+then on. Drift risk is low in practice (these are one-time-tuned animation
+constants, not frequently-changed business config), and the failure mode of
+drift is cosmetic — the extension renders with stale visual proportions for
+a few seconds until the real config arrives — not a correctness or
+data-integrity issue.
+
+**What changed / what to know:**
+- A *separate*, within-extension duplication of these same defaults
+  (`content.js` vs. `background.js`, both in the `chrome-extension` repo)
+  was collapsed into a single shared
+  `chrome-extension/lib/default_remote_config.js` file as part of the same
+  follow-up work. That fix is unrelated to this decision: it removed a
+  same-repo, same-language copy with no reason to exist, whereas the
+  cross-repo copy addressed here is accepted, not fixed.
+- Of the three copies that originally existed, two remain:
+  `Speechwave.ExtensionTuning.current/0` (this repo, the source of truth)
+  and `chrome-extension/lib/default_remote_config.js` (the extension's one
+  remaining local copy, used only as a fallback).
+- Anyone changing the canonical values in `ExtensionTuning.current/0` should
+  manually update `chrome-extension/lib/default_remote_config.js` to match,
+  if they want the extension's pre-connect/fallback values to stay visually
+  consistent with the new defaults. This won't happen automatically, and
+  nothing currently detects drift between the two.
