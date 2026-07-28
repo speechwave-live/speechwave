@@ -25,6 +25,30 @@ defmodule SpeechwaveWeb.ReactionChannelTest do
     assert {:ok, _, _} = channel_join(socket, talk.slug, user.api_key)
   end
 
+  test "join reply includes settings and tuning", %{socket: socket, talk: talk, user: user} do
+    assert {:ok, payload, _joined} = channel_join(socket, talk.slug, user.api_key)
+
+    tuning = Speechwave.ExtensionTuning.current()
+
+    assert payload.settings == %{
+             overlay_size_percent: tuning.default_overlay_size_percent,
+             fireworks_enabled: true
+           }
+
+    assert payload.tuning == tuning
+  end
+
+  test "join reply uses the user's explicit overlay_size_percent when set", %{
+    socket: socket,
+    talk: talk,
+    user: user
+  } do
+    {:ok, user} = Speechwave.Accounts.update_extension_settings(user, %{"overlay_size_percent" => 55})
+
+    assert {:ok, payload, _joined} = channel_join(socket, talk.slug, user.api_key)
+    assert payload.settings.overlay_size_percent == 55
+  end
+
   test "rejects join for unknown slug", %{socket: socket, user: user} do
     assert {:error, %{reason: "not_found"}} = channel_join(socket, "nonexistent", user.api_key)
   end

@@ -24,7 +24,7 @@ defmodule SpeechwaveWeb.ReactionChannel do
             )} do
       Phoenix.PubSub.subscribe(Speechwave.PubSub, "user:#{user.id}:disconnect")
       send(self(), :after_join)
-      {:ok, assign(socket, talk: talk, user: user)}
+      {:ok, join_payload(user), assign(socket, talk: talk, user: user)}
     else
       {:talk, nil} -> {:error, %{reason: "not_found"}}
       {:user, nil} -> {:error, %{reason: "unauthorized"}}
@@ -35,6 +35,18 @@ defmodule SpeechwaveWeb.ReactionChannel do
 
   def join("reactions:" <> _slug, _params, _socket) do
     {:error, %{reason: "unauthorized"}}
+  end
+
+  defp join_payload(user) do
+    tuning = Speechwave.ExtensionTuning.current()
+
+    %{
+      settings: %{
+        overlay_size_percent: user.overlay_size_percent || tuning.default_overlay_size_percent,
+        fireworks_enabled: user.fireworks_enabled
+      },
+      tuning: tuning
+    }
   end
 
   def handle_info(:after_join, socket) do
