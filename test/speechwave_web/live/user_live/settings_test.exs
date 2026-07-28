@@ -209,9 +209,20 @@ defmodule SpeechwaveWeb.UserLive.SettingsTest do
     test "updates overlay size and fireworks toggle", %{conn: conn, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/users/settings")
 
+      # The slider starts disabled for a user who has never customized it, so
+      # check the "customize" box first (re-rendering with the slider
+      # enabled) before the test helper can locate a non-disabled range input.
+      lv
+      |> form("#extension_settings_form", %{"user" => %{"customize_overlay_size" => "true"}})
+      |> render_change()
+
       lv
       |> form("#extension_settings_form", %{
-        "user" => %{"overlay_size_percent" => "45", "fireworks_enabled" => "false"}
+        "user" => %{
+          "overlay_size_percent" => "45",
+          "fireworks_enabled" => "false",
+          "customize_overlay_size" => "true"
+        }
       })
       |> render_submit()
 
@@ -220,14 +231,65 @@ defmodule SpeechwaveWeb.UserLive.SettingsTest do
       assert updated.fireworks_enabled == false
     end
 
+    test "renders the customize overlay size checkbox", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/settings")
+      assert html =~ "Customize overlay size"
+    end
+
+    test "first-time visitor (never customized) sees the checkbox unchecked", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+      refute has_element?(lv, "#user_customize_overlay_size[checked]")
+    end
+
+    test "submitting with the toggle unchecked clears overlay_size_percent even if the slider moved",
+         %{conn: conn, user: user} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      # Enable the slider first so the test helper can locate and move it,
+      # then submit with the toggle switched back off. The handler must
+      # still clear overlay_size_percent even though the slider's own
+      # submitted value is 45.
+      lv
+      |> form("#extension_settings_form", %{"user" => %{"customize_overlay_size" => "true"}})
+      |> render_change()
+
+      lv
+      |> form("#extension_settings_form", %{
+        "user" => %{
+          "overlay_size_percent" => "45",
+          "fireworks_enabled" => "true",
+          "customize_overlay_size" => "false"
+        }
+      })
+      |> render_submit()
+
+      updated = Speechwave.Repo.get!(Speechwave.Accounts.User, user.id)
+      assert updated.overlay_size_percent == nil
+    end
+
+    test "renders the range input's styling classes and debounce attribute", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/settings")
+
+      assert html =~ ~s(class="range range-primary w-full")
+      assert html =~ ~s(phx-debounce="100")
+    end
+
     test "rejects an overlay size below the tuning minimum", %{conn: conn} do
       min = Speechwave.ExtensionTuning.current().min_overlay_size_percent
       {:ok, lv, _html} = live(conn, ~p"/users/settings")
 
+      lv
+      |> form("#extension_settings_form", %{"user" => %{"customize_overlay_size" => "true"}})
+      |> render_change()
+
       result =
         lv
         |> form("#extension_settings_form", %{
-          "user" => %{"overlay_size_percent" => to_string(min - 1), "fireworks_enabled" => "true"}
+          "user" => %{
+            "overlay_size_percent" => to_string(min - 1),
+            "fireworks_enabled" => "true",
+            "customize_overlay_size" => "true"
+          }
         })
         |> render_change()
 

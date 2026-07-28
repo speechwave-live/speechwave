@@ -130,6 +130,11 @@ defmodule SpeechwaveWeb.UserLive.Settings do
           phx-change="validate_extension_settings"
         >
           <.input
+            field={@extension_settings_form[:customize_overlay_size]}
+            type="checkbox"
+            label="Customize overlay size"
+          />
+          <.input
             field={@extension_settings_form[:overlay_size_percent]}
             type="range"
             min={@tuning.min_overlay_size_percent}
@@ -138,6 +143,12 @@ defmodule SpeechwaveWeb.UserLive.Settings do
             class="range range-primary w-full"
             error_class="range-error"
             phx-debounce="100"
+            disabled={
+              !Phoenix.HTML.Form.normalize_value(
+                "checkbox",
+                @extension_settings_form[:customize_overlay_size].value
+              )
+            }
           />
           <.input
             field={@extension_settings_form[:fireworks_enabled]}
@@ -208,9 +219,13 @@ defmodule SpeechwaveWeb.UserLive.Settings do
     marketing_consent = Accounts.get_consent(user, "marketing_email")
     tuning = Speechwave.ExtensionTuning.current()
     resolved_percent = user.overlay_size_percent || tuning.default_overlay_size_percent
+    customizing? = user.overlay_size_percent != nil
 
     extension_settings_changeset =
-      Accounts.change_extension_settings(user, %{overlay_size_percent: resolved_percent})
+      Accounts.change_extension_settings(user, %{
+        overlay_size_percent: resolved_percent,
+        customize_overlay_size: customizing?
+      })
 
     socket =
       socket

@@ -637,5 +637,42 @@ defmodule Speechwave.AccountsTest do
       assert user.fireworks_enabled == true
       assert user.overlay_size_percent == nil
     end
+
+    test "customize_overlay_size defaults to true, preserving overlay_size_percent when omitted" do
+      user = user_fixture()
+
+      assert {:ok, updated} =
+               Accounts.update_extension_settings(user, %{
+                 "overlay_size_percent" => 40,
+                 "fireworks_enabled" => false
+               })
+
+      assert updated.overlay_size_percent == 40
+      assert updated.fireworks_enabled == false
+    end
+
+    test "customize_overlay_size: false forces overlay_size_percent to nil regardless of the submitted slider value" do
+      user = user_fixture()
+
+      assert {:ok, updated} =
+               Accounts.update_extension_settings(user, %{
+                 "overlay_size_percent" => 40,
+                 "customize_overlay_size" => "false"
+               })
+
+      assert updated.overlay_size_percent == nil
+    end
+
+    test "customize_overlay_size: true persists the submitted slider value as before" do
+      user = user_fixture()
+
+      assert {:ok, updated} =
+               Accounts.update_extension_settings(user, %{
+                 "overlay_size_percent" => 40,
+                 "customize_overlay_size" => "true"
+               })
+
+      assert updated.overlay_size_percent == 40
+    end
   end
 end

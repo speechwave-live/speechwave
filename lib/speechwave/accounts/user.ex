@@ -11,6 +11,7 @@ defmodule Speechwave.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :overlay_size_percent, :integer
     field :fireworks_enabled, :boolean, default: true
+    field :customize_overlay_size, :boolean, virtual: true, default: true
 
     has_many :identities, Speechwave.Accounts.UserIdentity
 
@@ -80,13 +81,28 @@ defmodule Speechwave.Accounts.User do
   Updates a user's Chrome-extension overlay settings. `overlay_size_percent`
   may be nil (meaning "use the tuning module's default"); when present it
   must be between the tuning module's minimum and 100.
+
+  `customize_overlay_size` is a virtual toggle (defaulting to `true` so
+  callers that don't know about it see unchanged behavior): when explicitly
+  set to a falsy value, `overlay_size_percent` is forced back to `nil`
+  regardless of what was submitted for it, restoring "inherit the tuning
+  default" semantics.
   """
   def extension_settings_changeset(user, attrs) do
     user
-    |> cast(attrs, [:overlay_size_percent, :fireworks_enabled])
+    |> cast(attrs, [:overlay_size_percent, :fireworks_enabled, :customize_overlay_size])
+    |> maybe_clear_overlay_size_percent()
     |> validate_number(:overlay_size_percent,
       greater_than_or_equal_to: Speechwave.ExtensionTuning.current().min_overlay_size_percent,
       less_than_or_equal_to: 100
     )
+  end
+
+  defp maybe_clear_overlay_size_percent(changeset) do
+    if Ecto.Changeset.get_field(changeset, :customize_overlay_size) do
+      changeset
+    else
+      Ecto.Changeset.put_change(changeset, :overlay_size_percent, nil)
+    end
   end
 end
