@@ -133,6 +133,9 @@ defmodule SpeechwaveWeb.UserLive.Settings do
             min={@tuning.min_overlay_size_percent}
             max="100"
             label={"Overlay size (#{@extension_settings_form[:overlay_size_percent].value}%)"}
+            class="range range-primary w-full"
+            error_class="range-error"
+            phx-debounce="100"
           />
           <.input
             field={@extension_settings_form[:fireworks_enabled]}
