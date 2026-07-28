@@ -24,7 +24,9 @@ defmodule SpeechwaveWeb.UserLive.Settings do
           spellcheck="false"
           required
         />
-        <.button variant="primary" phx-disable-with="Changing...">Change Email</.button>
+        <.button id="change-email-btn" variant="primary" phx-disable-with="Changing...">
+          Change Email
+        </.button>
       </.form>
 
       <div class="divider" />
@@ -142,7 +144,9 @@ defmodule SpeechwaveWeb.UserLive.Settings do
             type="checkbox"
             label="Fireworks animations"
           />
-          <.button variant="primary" phx-disable-with="Saving...">Save</.button>
+          <.button id="save-extension-settings-btn" variant="primary" phx-disable-with="Saving...">
+            Save
+          </.button>
         </.form>
       </div>
 
