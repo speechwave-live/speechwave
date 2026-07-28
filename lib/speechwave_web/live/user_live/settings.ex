@@ -114,6 +114,37 @@ defmodule SpeechwaveWeb.UserLive.Settings do
 
       <div class="divider" />
 
+      <%!-- Extension overlay settings --%>
+      <div class="space-y-2">
+        <h3 class="font-semibold text-base-content">Presentation overlay</h3>
+        <p class="text-sm text-base-content/70">
+          Controls the emoji-reaction overlay in the Speechwave browser extension.
+          Applies the next time you connect during a talk.
+        </p>
+        <.form
+          for={@extension_settings_form}
+          id="extension_settings_form"
+          phx-submit="update_extension_settings"
+          phx-change="validate_extension_settings"
+        >
+          <.input
+            field={@extension_settings_form[:overlay_size_percent]}
+            type="range"
+            min={@tuning.min_overlay_size_percent}
+            max="100"
+            label={"Overlay size (#{@extension_settings_form[:overlay_size_percent].value}%)"}
+          />
+          <.input
+            field={@extension_settings_form[:fireworks_enabled]}
+            type="checkbox"
+            label="Fireworks animations"
+          />
+          <.button variant="primary" phx-disable-with="Saving...">Save</.button>
+        </.form>
+      </div>
+
+      <div class="divider" />
+
       <%!-- Email preferences section --%>
       <div
         id="email-prefs-section"
@@ -168,6 +199,11 @@ defmodule SpeechwaveWeb.UserLive.Settings do
     user = socket.assigns.current_scope.user
     email_changeset = Accounts.change_user_email(user, %{}, validate_unique: false)
     marketing_consent = Accounts.get_consent(user, "marketing_email")
+    tuning = Speechwave.ExtensionTuning.current()
+    resolved_percent = user.overlay_size_percent || tuning.default_overlay_size_percent
+
+    extension_settings_changeset =
+      Accounts.change_extension_settings(user, %{overlay_size_percent: resolved_percent})
 
     socket =
       socket
@@ -176,6 +212,8 @@ defmodule SpeechwaveWeb.UserLive.Settings do
       |> assign(:api_key, user.api_key)
       |> assign(:identities, Accounts.list_user_identities(user))
       |> assign(:marketing_consent, marketing_consent)
+      |> assign(:tuning, tuning)
+      |> assign(:extension_settings_form, to_form(extension_settings_changeset))
 
     {:ok, socket}
   end
@@ -249,5 +287,27 @@ defmodule SpeechwaveWeb.UserLive.Settings do
     SpeechwaveWeb.Endpoint.broadcast!("user:#{user.id}:disconnect", "disconnect", %{})
 
     {:noreply, assign(socket, :api_key, updated_user.api_key)}
+  end
+
+  def handle_event("validate_extension_settings", %{"user" => params}, socket) do
+    form =
+      socket.assigns.current_scope.user
+      |> Accounts.change_extension_settings(params)
+      |> Map.put(:action, :validate)
+      |> to_form()
+
+    {:noreply, assign(socket, :extension_settings_form, form)}
+  end
+
+  def handle_event("update_extension_settings", %{"user" => params}, socket) do
+    user = socket.assigns.current_scope.user
+
+    case Accounts.update_extension_settings(user, params) do
+      {:ok, _updated} ->
+        {:noreply, put_flash(socket, :info, "Overlay settings saved.")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :extension_settings_form, to_form(changeset))}
+    end
   end
 end

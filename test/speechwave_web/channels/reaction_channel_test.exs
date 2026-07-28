@@ -43,7 +43,8 @@ defmodule SpeechwaveWeb.ReactionChannelTest do
     talk: talk,
     user: user
   } do
-    {:ok, user} = Speechwave.Accounts.update_extension_settings(user, %{"overlay_size_percent" => 55})
+    {:ok, user} =
+      Speechwave.Accounts.update_extension_settings(user, %{"overlay_size_percent" => 55})
 
     assert {:ok, payload, _joined} = channel_join(socket, talk.slug, user.api_key)
     assert payload.settings.overlay_size_percent == 55

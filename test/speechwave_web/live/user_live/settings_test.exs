@@ -193,4 +193,45 @@ defmodule SpeechwaveWeb.UserLive.SettingsTest do
       assert message == "You must log in to access this page."
     end
   end
+
+  describe "extension settings form" do
+    setup %{conn: conn} do
+      user = user_fixture()
+      %{conn: log_in_user(conn, user), user: user}
+    end
+
+    test "renders the tuning module's default percent when unset", %{conn: conn} do
+      default = Speechwave.ExtensionTuning.current().default_overlay_size_percent
+      {:ok, _lv, html} = live(conn, ~p"/users/settings")
+      assert html =~ "Overlay size (#{default}%)"
+    end
+
+    test "updates overlay size and fireworks toggle", %{conn: conn, user: user} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      lv
+      |> form("#extension_settings_form", %{
+        "user" => %{"overlay_size_percent" => "45", "fireworks_enabled" => "false"}
+      })
+      |> render_submit()
+
+      updated = Speechwave.Repo.get!(Speechwave.Accounts.User, user.id)
+      assert updated.overlay_size_percent == 45
+      assert updated.fireworks_enabled == false
+    end
+
+    test "rejects an overlay size below the tuning minimum", %{conn: conn} do
+      min = Speechwave.ExtensionTuning.current().min_overlay_size_percent
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      result =
+        lv
+        |> form("#extension_settings_form", %{
+          "user" => %{"overlay_size_percent" => to_string(min - 1), "fireworks_enabled" => "true"}
+        })
+        |> render_change()
+
+      assert result =~ "must be greater than or equal to #{min}"
+    end
+  end
 end
