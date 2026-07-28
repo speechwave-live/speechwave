@@ -294,6 +294,7 @@ defmodule SpeechwaveWeb.UserLive.SettingsTest do
         |> render_change()
 
       assert result =~ "must be greater than or equal to #{min}"
+      assert result =~ "range-error"
     end
   end
 end
