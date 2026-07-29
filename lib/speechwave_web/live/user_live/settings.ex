@@ -134,21 +134,35 @@ defmodule SpeechwaveWeb.UserLive.Settings do
             type="checkbox"
             label="Customize overlay size"
           />
+          <%!--
+            Deliberately not `disabled={...}`: a disabled range input is
+            excluded from native form serialization, so the very phx-change
+            event that flips "customize" on would submit no
+            overlay_size_percent at all, leaving the field's value nil and
+            the label showing "Overlay size (%)" with no number. Visually
+            and interactively disable it instead (CSS + tabindex, plus
+            aria-disabled so assistive tech gets the same signal a native
+            disabled attribute would have given) so the browser always
+            includes its current value; the changeset's
+            maybe_clear_overlay_size_percent/1 is what actually decides
+            whether that value gets persisted.
+          --%>
+          <% customizing? =
+            Phoenix.HTML.Form.normalize_value(
+              "checkbox",
+              @extension_settings_form[:customize_overlay_size].value
+            ) %>
           <.input
             field={@extension_settings_form[:overlay_size_percent]}
             type="range"
             min={@tuning.min_overlay_size_percent}
             max="100"
             label={"Overlay size (#{@extension_settings_form[:overlay_size_percent].value}%)"}
-            class="range range-primary w-full"
+            class={["range range-primary w-full", !customizing? && "opacity-50 pointer-events-none"]}
             error_class="range-error"
             phx-debounce="100"
-            disabled={
-              !Phoenix.HTML.Form.normalize_value(
-                "checkbox",
-                @extension_settings_form[:customize_overlay_size].value
-              )
-            }
+            tabindex={if !customizing?, do: "-1"}
+            aria-disabled={to_string(!customizing?)}
           />
           <.input
             field={@extension_settings_form[:fireworks_enabled]}

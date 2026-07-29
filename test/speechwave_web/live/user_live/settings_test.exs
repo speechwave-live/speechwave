@@ -209,9 +209,11 @@ defmodule SpeechwaveWeb.UserLive.SettingsTest do
     test "updates overlay size and fireworks toggle", %{conn: conn, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/users/settings")
 
-      # The slider starts disabled for a user who has never customized it, so
-      # check the "customize" box first (re-rendering with the slider
-      # enabled) before the test helper can locate a non-disabled range input.
+      # The slider is only visually/interactively disabled for a user who has
+      # never customized it; the underlying overlay_size_percent submitted
+      # while unchecked is discarded by maybe_clear_overlay_size_percent/1
+      # regardless. Check "customize" first so the submitted percent is
+      # actually the one that gets persisted.
       lv
       |> form("#extension_settings_form", %{"user" => %{"customize_overlay_size" => "true"}})
       |> render_change()
@@ -270,8 +272,50 @@ defmodule SpeechwaveWeb.UserLive.SettingsTest do
     test "renders the range input's styling classes and debounce attribute", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/users/settings")
 
-      assert html =~ ~s(class="range range-primary w-full")
+      # Substring, not an exact `class="..."` match: the non-customizing
+      # default state also appends "opacity-50 pointer-events-none" (see
+      # "visually disables the slider..." below), so this only pins that
+      # range/range-primary/w-full survive, not the full attribute value.
+      assert html =~ ~s(class="range range-primary w-full)
       assert html =~ ~s(phx-debounce="100")
+    end
+
+    test "visually disables the slider (but still submits its value) when not customizing", %{
+      conn: conn
+    } do
+      {:ok, _lv, html} = live(conn, ~p"/users/settings")
+
+      assert html =~ "opacity-50 pointer-events-none"
+      assert html =~ ~s(tabindex="-1")
+      assert html =~ ~s(aria-disabled="true")
+    end
+
+    test "does not visually disable the slider once customizing is checked", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      html =
+        lv
+        |> form("#extension_settings_form", %{"user" => %{"customize_overlay_size" => "true"}})
+        |> render_change()
+
+      refute html =~ "opacity-50 pointer-events-none"
+      refute html =~ ~s(tabindex="-1")
+      refute html =~ ~s(aria-disabled="true")
+    end
+
+    test "checking customize overlay size does not blank out the overlay size value", %{
+      conn: conn
+    } do
+      default = Speechwave.ExtensionTuning.current().default_overlay_size_percent
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      html =
+        lv
+        |> form("#extension_settings_form", %{"user" => %{"customize_overlay_size" => "true"}})
+        |> render_change()
+
+      assert html =~ "Overlay size (#{default}%)"
+      refute html =~ "Overlay size (%)"
     end
 
     test "rejects an overlay size below the tuning minimum", %{conn: conn} do
