@@ -3,7 +3,7 @@
 <div class="pt-28 pb-24 px-6 bg-canvas min-h-screen">
   <div class="max-w-2xl mx-auto">
     <h1 class="text-3xl font-semibold text-ink tracking-tight mb-2">Privacy Policy</h1>
-    <p class="text-xs text-muted mb-10">Last updated: April 2026</p>
+    <p class="text-xs text-muted mb-10">Last updated: August 2026</p>
 
     <div class="[&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-ink [&_h2]:mt-10 [&_h2]:mb-3 [&_p]:text-sm [&_p]:text-steel [&_p]:leading-relaxed [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ul]:text-sm [&_ul]:text-steel [&_ul]:mb-3 [&_a]:text-mint [&_a]:hover:underline [&_strong]:font-semibold [&_strong]:text-ink">
       <h2>1. What We Collect</h2>
@@ -13,6 +13,10 @@
         <li>
           <strong>Usage data</strong>
           — number of sessions, participants, and reactions, used to provide analytics, enforce plan limits, and improve the service.
+        </li>
+        <li>
+          <strong>Chrome extension data</strong>
+          — if you use the Speechwave Chrome extension, your Speechwave API key is stored locally in your browser, not on our servers. While a session is active, the extension also sends the current Google Slides slide number to our server so reactions can be attributed to the right slide.
         </li>
       </ul>
       <p>
@@ -31,7 +35,9 @@
       <h2>3. Data Storage</h2>
       <p>
         Your data is stored on infrastructure provided by <a href="https://fly.io" target="_blank">Fly.io</a>,
-        located in the United States.
+        located in the United States. Your Speechwave API key, when used with
+        the Chrome extension, is cached locally in your browser's storage
+        instead, so you stay connected between sessions.
       </p>
 
       <h2>4. Data Sharing</h2>
