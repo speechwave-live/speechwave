@@ -4,7 +4,7 @@ defmodule Speechwave.MixProject do
   def project do
     [
       app: :speechwave,
-      version: "0.1.2",
+      version: "0.2.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,

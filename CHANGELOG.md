@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-09-18
+
+### Added
+
+- Account Settings page: you can now set the Chrome extension's emoji overlay size as a percentage of slide coverage, and toggle the fireworks burst animation, instead of being stuck with whatever's hardcoded into the extension.
+
+### Changed
+
+- The Chrome extension's animation-tuning constants (overlay sizing, fireworks thresholds, and similar) are now delivered from the backend via the reactions channel's join reply, so they can be adjusted with a backend deploy instead of a new Chrome Web Store submission.
+- Updated the privacy policy to disclose that the Chrome extension stores your API key locally in the browser and sends the current Google Slides slide number to the server while a session is active, so reactions can be attributed to the right slide.
+
 ## [0.1.2] - 2026-07-16
 
 ### Fixed
