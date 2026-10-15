@@ -119,15 +119,19 @@ defmodule Speechwave.Admin.ConsentExport do
   end
 
   @doc """
-  Turns string-keyed form params (`"source"`, `"from"`, `"to"`) into the
+  Turns string-keyed form params (`"source"`, `"from"`, `"to"`, `"any_time"`) into the
   filters map `list/1` expects. Blank or unparseable values become nil, so a
   hand-edited URL can never crash the download.
   """
   def parse_filters(params) when is_map(params) do
+    # "any_time" is the form's "ignore the date range" checkbox. Enforced
+    # here, not just by disabling the date inputs in the browser.
+    any_time? = params["any_time"] == "true"
+
     %{
       source: parse_source(params["source"]),
-      from: parse_date(params["from"]),
-      to: parse_date(params["to"])
+      from: if(any_time?, do: nil, else: parse_date(params["from"])),
+      to: if(any_time?, do: nil, else: parse_date(params["to"]))
     }
   end
 

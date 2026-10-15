@@ -87,4 +87,36 @@ defmodule SpeechwaveWeb.Admin.StatsLiveTest do
     assert has_element?(view, ~s(#export-source option[value="pricing_pro"]))
     assert has_element?(view, "#export-source-hint")
   end
+
+  describe "export date range" do
+    test "defaults to one month ago through today", %{conn: conn} do
+      today = Date.utc_today()
+      month_ago = Date.shift(today, month: -1)
+
+      conn = log_in_user(conn, admin_user_fixture())
+      {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+      assert has_element?(view, ~s(#export-from[value="#{month_ago}"]))
+      assert has_element?(view, ~s(#export-to[value="#{today}"]))
+      assert has_element?(view, "#export-any-time")
+      refute has_element?(view, "#export-any-time[checked]")
+      refute has_element?(view, "#export-from[disabled]")
+    end
+
+    test "checking any time disables the dates and unchecking restores them", %{conn: conn} do
+      conn = log_in_user(conn, admin_user_fixture())
+      {:ok, view, _html} = live(conn, ~p"/admin/stats")
+      from = Date.shift(Date.utc_today(), month: -1)
+
+      view |> form("#consent-export-form", export: %{any_time: "true"}) |> render_change()
+      assert has_element?(view, "#export-any-time[checked]")
+      assert has_element?(view, "#export-from[disabled]")
+      assert has_element?(view, "#export-to[disabled]")
+
+      # Unchecking submits no any_time key (and no dates, as they were disabled).
+      render_change(view, "export_changed", %{"export" => %{"source" => ""}})
+      refute has_element?(view, "#export-from[disabled]")
+      assert has_element?(view, ~s(#export-from[value="#{from}"]))
+    end
+  end
 end

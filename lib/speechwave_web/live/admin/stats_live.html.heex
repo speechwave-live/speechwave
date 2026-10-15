@@ -29,6 +29,7 @@
           id="consent-export-form"
           action={~p"/admin/consent-export"}
           method="get"
+          phx-change="export_changed"
           class="space-y-2"
         >
           <%!--
@@ -57,6 +58,19 @@
               Only sources that currently have consenting users are listed.
             </p>
           </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="export-any-time"
+              name="export[any_time]"
+              value="true"
+              checked={@any_time}
+              class="size-4 rounded border-hairline accent-ink"
+            />
+            <label for="export-any-time" class="text-sm font-medium text-ink">
+              Consented at any time (ignore the dates below)
+            </label>
+          </div>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label for="export-from" class="mb-1 block text-sm font-medium text-ink">
@@ -66,14 +80,21 @@
                 field={@export_form[:from]}
                 id="export-from"
                 type="date"
-                class={@field_class}
+                class={[@field_class, @any_time && "opacity-50"]}
+                disabled={@any_time}
               />
             </div>
             <div>
               <label for="export-to" class="mb-1 block text-sm font-medium text-ink">
                 Consented to
               </label>
-              <.input field={@export_form[:to]} id="export-to" type="date" class={@field_class} />
+              <.input
+                field={@export_form[:to]}
+                id="export-to"
+                type="date"
+                class={[@field_class, @any_time && "opacity-50"]}
+                disabled={@any_time}
+              />
             </div>
           </div>
           <.button id="consent-export-submit" type="submit" variant="primary">

@@ -1,6 +1,7 @@
 defmodule SpeechwaveWeb.Admin.ConsentExportControllerTest do
   use SpeechwaveWeb.ConnCase
 
+  import Ecto.Query
   import Speechwave.AccountsFixtures
 
   # A user with granted marketing consent who has confirmed their email.
@@ -71,5 +72,22 @@ defmodule SpeechwaveWeb.Admin.ConsentExportControllerTest do
 
     assert conn |> get("/admin/consent-export?export=string") |> response(200)
     assert conn |> get("/admin/consent-export?export[]=1") |> response(200)
+  end
+
+  test "any_time ignores the date range" do
+    old = confirmed_consented("login")
+
+    Speechwave.Repo.update_all(
+      from(c in Speechwave.Accounts.UserConsent, where: c.user_id == ^old.id),
+      set: [granted_at: ~U[2020-01-01 00:00:00Z]]
+    )
+
+    conn = build_conn() |> log_in_user(admin_user_fixture())
+
+    narrow = %{"from" => "2026-01-01", "to" => "2026-01-02"}
+    refute (conn |> get(~p"/admin/consent-export", %{"export" => narrow})).resp_body =~ old.email
+
+    all = Map.put(narrow, "any_time", "true")
+    assert (conn |> get(~p"/admin/consent-export", %{"export" => all})).resp_body =~ old.email
   end
 end

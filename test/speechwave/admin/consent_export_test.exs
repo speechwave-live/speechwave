@@ -153,6 +153,15 @@ defmodule Speechwave.Admin.ConsentExportTest do
       assert ConsentExport.parse_filters(%{}) == %{source: nil, from: nil, to: nil}
     end
 
+    test "any_time ignores the date range" do
+      assert ConsentExport.parse_filters(%{
+               "source" => "login",
+               "from" => "2026-10-01",
+               "to" => "2026-10-10",
+               "any_time" => "true"
+             }) == %{source: "login", from: nil, to: nil}
+    end
+
     test "parses valid values" do
       assert ConsentExport.parse_filters(%{
                "source" => "login",

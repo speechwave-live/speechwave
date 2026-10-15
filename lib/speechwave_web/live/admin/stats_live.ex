@@ -34,14 +34,40 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
 
     # The export form submits as a plain GET to ConsentExportController (no
     # phx-submit), so the browser downloads the CSV. Fields nest under "export".
-    export_form = to_form(%{"source" => "", "from" => "", "to" => ""}, as: :export)
+    # Default range is the last month; "Any time" ignores it. Dates are UTC to
+    # match how consent timestamps are stored.
+    today = Date.utc_today()
+
+    export_form =
+      to_form(
+        %{
+          "source" => "",
+          "from" => Date.to_iso8601(Date.shift(today, month: -1)),
+          "to" => Date.to_iso8601(today)
+        },
+        as: :export
+      )
 
     {:ok,
      assign(socket,
        stats: stats,
        export_form: export_form,
        source_options: ConsentExport.sources(),
-       field_class: @export_field_class
+       field_class: @export_field_class,
+       any_time: false
+     )}
+  end
+
+  # Keeps the any-time checkbox in step so the date fields can be disabled.
+  # Disabled inputs aren't submitted, so merge into the existing params to keep
+  # the dates when the box is unchecked again.
+  def handle_event("export_changed", %{"export" => params}, socket) do
+    merged = Map.merge(socket.assigns.export_form.params, params)
+
+    {:noreply,
+     assign(socket,
+       export_form: to_form(merged, as: :export),
+       any_time: params["any_time"] == "true"
      )}
   end
 
