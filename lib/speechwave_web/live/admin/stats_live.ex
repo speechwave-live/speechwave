@@ -26,7 +26,11 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
         {key, Map.put(stat, :chart_svg, Chart.render_svg(stat.history))}
       end)
 
-    {:ok, assign(socket, stats: stats)}
+    # The export form submits as a plain GET to ConsentExportController (no
+    # phx-submit), so the browser downloads the CSV. Fields nest under "export".
+    export_form = to_form(%{"source" => "", "from" => "", "to" => ""}, as: :export)
+
+    {:ok, assign(socket, stats: stats, export_form: export_form)}
   end
 
   defp title_for(key), do: Map.fetch!(@titles, key)

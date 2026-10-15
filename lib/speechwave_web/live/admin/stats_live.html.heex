@@ -11,6 +11,41 @@
           chart_svg={stat.chart_svg}
         />
       </div>
+
+      <section
+        id="consent-export"
+        class="rounded-2xl border border-hairline bg-surface p-5 space-y-4"
+      >
+        <div>
+          <h2 class="text-lg font-semibold text-ink">Email consent export</h2>
+          <p class="text-sm text-ink/70">
+            Downloads a CSV of confirmed users who currently consent to marketing email.
+            All filters are optional.
+          </p>
+        </div>
+
+        <.form
+          for={@export_form}
+          id="consent-export-form"
+          action={~p"/admin/consent-export"}
+          method="get"
+          class="space-y-2"
+        >
+          <.input field={@export_form[:source]} id="export-source" type="text" label="Source" />
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <.input
+              field={@export_form[:from]}
+              id="export-from"
+              type="date"
+              label="Consented from"
+            />
+            <.input field={@export_form[:to]} id="export-to" type="date" label="Consented to" />
+          </div>
+          <.button id="consent-export-submit" type="submit" variant="primary">
+            Download CSV
+          </.button>
+        </.form>
+      </section>
     </div>
   </div>
 </Layouts.app>

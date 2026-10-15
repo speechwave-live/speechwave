@@ -15,23 +15,6 @@ Done.
 
 ### Nice-to-haves
 
-#### Super-admin panel: email consent export
-
-The user-stats half of the super-admin panel is done — see
-`docs/specs/2026-07-06-super-admin-stats-design.md` and
-`docs/decisions.md` (2026-07-06 entry) for the design and its accepted
-reporting limitations. Remaining: an email consent export view.
-
-This allows Tracy to export a list of users who have consented to marketing
-emails, so he can send them updates and promotions.
-
-- CSV download
-— filter consented users by `source` / date range,
-
-This directly unblocks the "Super admin email export UI" item in the Email &
-Marketing section below. May be able to share the `/admin/stats` page rather
-than needing its own route, given its small UI footprint.
-
 #### Super-admin stats dashboard follow-ups
 
 Deferred from the 2026-07-06 stats dashboard work (see
@@ -76,14 +59,6 @@ Brevo, Buttondown, etc.) and sync consented users via their API.
 Features that depend on the platform choice and are out of scope until then:
 double opt-in confirmation emails, unsubscribe links in outbound emails, and
 granular per-topic subscription preferences.
-
-### Super admin email export UI
-
-A LiveView form (filter by `source` / date range + CSV download) in the
-planned super admin section, behind the `is_admin` guard. Blocked on the
-super admin section existing. Until then, engineers can query consented users
-directly via IEx in the production console:
-`Speechwave.Repo.all(Speechwave.Accounts.UserConsent, consent_type: "marketing_email", granted: true)`
 
 ## Auth & Accounts
 

@@ -57,4 +57,21 @@ defmodule SpeechwaveWeb.Admin.StatsLiveTest do
     {:ok, view, _html} = live(conn, ~p"/admin/stats")
     assert has_element?(view, "#admin-nav-link")
   end
+
+  test "admin sees the consent export form", %{conn: conn} do
+    conn = log_in_user(conn, admin_user_fixture())
+    {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+    assert has_element?(view, "#consent-export")
+
+    assert has_element?(
+             view,
+             ~s(#consent-export-form[action="/admin/consent-export"][method="get"])
+           )
+
+    assert has_element?(view, "#export-source")
+    assert has_element?(view, "#export-from")
+    assert has_element?(view, "#export-to")
+    assert has_element?(view, "#consent-export-submit")
+  end
 end
