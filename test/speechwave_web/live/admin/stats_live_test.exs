@@ -74,4 +74,17 @@ defmodule SpeechwaveWeb.Admin.StatsLiveTest do
     assert has_element?(view, "#export-to")
     assert has_element?(view, "#consent-export-submit")
   end
+
+  test "export source dropdown lists existing sources", %{conn: conn} do
+    user = consented_user_fixture(%{source: "pricing_pro"})
+    session_token_fixture(user)
+
+    conn = log_in_user(conn, admin_user_fixture())
+    {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+    assert has_element?(view, "select#export-source")
+    assert has_element?(view, ~s(#export-source option[value=""]))
+    assert has_element?(view, ~s(#export-source option[value="pricing_pro"]))
+    assert has_element?(view, "#export-source-hint")
+  end
 end

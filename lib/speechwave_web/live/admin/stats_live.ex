@@ -4,6 +4,7 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
   import SpeechwaveWeb.AdminComponents
 
   alias Speechwave.Admin.Chart
+  alias Speechwave.Admin.ConsentExport
   alias Speechwave.Admin.Stats
 
   @titles %{
@@ -20,6 +21,11 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
     sessions: "Sessions"
   }
 
+  # Passing `class` to <.input> replaces its defaults entirely, so this is the
+  # complete styling for the export fields. color-scheme:light keeps the native
+  # date picker light too.
+  @export_field_class "w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink [color-scheme:light] focus:border-ink focus:outline-none"
+
   def mount(_params, _session, socket) do
     stats =
       Enum.map(Stats.dashboard(), fn {key, stat} ->
@@ -30,7 +36,13 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
     # phx-submit), so the browser downloads the CSV. Fields nest under "export".
     export_form = to_form(%{"source" => "", "from" => "", "to" => ""}, as: :export)
 
-    {:ok, assign(socket, stats: stats, export_form: export_form)}
+    {:ok,
+     assign(socket,
+       stats: stats,
+       export_form: export_form,
+       source_options: ConsentExport.sources(),
+       field_class: @export_field_class
+     )}
   end
 
   defp title_for(key), do: Map.fetch!(@titles, key)

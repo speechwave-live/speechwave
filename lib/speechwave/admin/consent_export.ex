@@ -82,6 +82,25 @@ defmodule Speechwave.Admin.ConsentExport do
     |> Repo.all()
   end
 
+  @doc """
+  Distinct `source` values among the consents `list/1` would include, sorted.
+  Feeds the source dropdown so the admin picks a real value instead of
+  guessing at the exact strings.
+  """
+  def sources do
+    Repo.all(
+      from c in UserConsent,
+        join: u in User,
+        on: u.id == c.user_id,
+        where:
+          c.consent_type == "marketing_email" and c.granted == true and is_nil(c.revoked_at) and
+            not is_nil(u.confirmed_at),
+        distinct: true,
+        order_by: c.source,
+        select: c.source
+    )
+  end
+
   defp filter_source(query, nil), do: query
   defp filter_source(query, source), do: where(query, [c], c.source == ^source)
 

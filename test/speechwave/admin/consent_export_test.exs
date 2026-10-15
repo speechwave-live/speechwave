@@ -129,6 +129,22 @@ defmodule Speechwave.Admin.ConsentExportTest do
     end
   end
 
+  describe "sources/0" do
+    test "lists distinct sources of currently granted consents, sorted" do
+      confirmed_consented("pricing_pro")
+      confirmed_consented("login")
+      confirmed_consented("login")
+      revoked = confirmed_consented("pricing_enterprise")
+      {:ok, _} = Accounts.revoke_consent(revoked, "marketing_email")
+
+      assert ConsentExport.sources() == ["login", "pricing_pro"]
+    end
+
+    test "is empty when nobody has consented" do
+      assert ConsentExport.sources() == []
+    end
+  end
+
   describe "parse_filters/1" do
     test "ignores blank and unparseable values" do
       assert ConsentExport.parse_filters(%{"source" => "", "from" => "nope", "to" => ""}) ==
