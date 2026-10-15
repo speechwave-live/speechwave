@@ -1,7 +1,7 @@
 <Layouts.app flash={@flash} current_scope={@current_scope} full_width>
-  <div class="min-h-screen bg-base-100 text-base-content px-4 py-8 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-canvas px-4 py-8 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-3xl space-y-4">
-      <h1 class="text-2xl font-bold text-base-content mb-2">Admin Stats</h1>
+      <h1 class="text-2xl font-bold text-ink mb-2">Admin Stats</h1>
       <div id="admin-stats-grid" class="grid grid-cols-1 gap-4">
         <.admin_stat_card
           :for={{key, stat} <- @stats}
@@ -14,11 +14,11 @@
 
       <section
         id="consent-export"
-        class="rounded-2xl border border-base-300 bg-base-200 p-5 space-y-4"
+        class="rounded-2xl border border-hairline bg-surface p-5 space-y-4"
       >
         <div>
-          <h2 class="text-lg font-semibold text-base-content">Email consent export</h2>
-          <p class="text-sm text-base-content/70">
+          <h2 class="text-lg font-semibold text-ink">Email consent export</h2>
+          <p class="text-sm text-ink/70">
             Downloads a CSV of confirmed users who currently consent to marketing email.
             All filters are optional.
           </p>
@@ -41,7 +41,7 @@
               prompt="All sources"
               options={@source_options}
             />
-            <p id="export-source-hint" class="text-xs text-base-content/70">
+            <p id="export-source-hint" class="text-xs text-steel">
               Where the user agreed to marketing email. <code>login</code>
               means at sign-in; <code>pricing_pro</code>
               and <code>pricing_enterprise</code>

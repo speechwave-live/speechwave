@@ -45,36 +45,6 @@ Deferred from the 2026-07-06 stats dashboard work (see
 
 See the Manual/Live-Environment Testing section below.
 
-#### Inconsistent site theming
-
-The app has two color systems that disagree. The custom pages (home, pricing,
-privacy, terms, error pages, the shared header, the dashboard) use fixed light
-tokens (`ink`, `canvas`, `surface`, `hairline`) with no dark variants. The
-stock Phoenix form components and the admin stats page use the daisyUI theme
-colors (`base-100`, `base-content`), which follow light, dark or system mode.
-In a dark OS or browser setting, some pages go dark while the white header and
-the marketing pages stay light.
-
-The admin stats page was moved to the daisyUI colors in the 2026-10 consent
-export work. The shared header was left alone because changing it affects
-every logged-in page.
-
-Open questions:
-
-- Should every page adapt to light, dark and system modes, or should the
-  custom pages stay light-only and the stock components be forced light to
-  match?
-- Should the theme be a user setting? `Layouts.theme_toggle/1` (light, dark,
-  system, saved in localStorage by `root.html.heex`) already exists but is not
-  rendered anywhere.
-
-Whichever way this goes, pick one color system. Note that
-`@custom-variant dark` in `app.css` only matches `[data-theme=dark]`, so
-`dark:` utilities do not fire in "system" mode with no attribute set. The
-daisyUI theme colors do work in system mode. The Contex charts hard-code
-black axis text, so any new chart needs the same override as
-`SpeechwaveWeb.AdminComponents.admin_stat_card/1`.
-
 ## Email & Marketing
 
 Deferred from `docs/specs/2026-06-16-email-collection-design.md`.

@@ -273,3 +273,34 @@ data-integrity issue.
   if they want the extension's pre-connect/fallback values to stay visually
   consistent with the new defaults. This won't happen automatically, and
   nothing currently detects drift between the two.
+
+## 2026-10-15 — The app is light-only; no dark mode, no theme setting
+
+**Decision:** Every page renders in the light theme regardless of the
+visitor's OS or browser setting. There is no theme toggle and no per-user
+theme option.
+
+**Why:** The app had two color systems that disagreed. The custom pages (home,
+pricing, legal pages, error pages, the shared header, the dashboard) use fixed
+light tokens (`ink`, `canvas`, `surface`, `hairline`) with no dark variants.
+The stock Phoenix form components follow the daisyUI theme, which switched to
+dark under a dark OS setting. In dark mode that produced dark form fields and
+light-on-light labels on otherwise light pages, which surfaced while building
+the admin consent export. A true dark mode would mean redesigning every custom
+page, which isn't worth doing before launch.
+
+**What changed:**
+- `<html>` is pinned with `data-theme="light"` in `root.html.heex`, and the
+  script that switched themes from localStorage or the OS setting is gone.
+- The dark daisyUI theme and `@custom-variant dark` were removed from
+  `app.css`; the unused `Layouts.theme_toggle/1` was removed.
+- `/admin/stats` was briefly moved to the daisyUI theme colors and then put
+  back on the shared light tokens, with the Contex chart color override
+  removed as dead code.
+
+**Trade-offs:** Visitors who prefer dark mode get a light site. Adding dark
+mode later is a project, not a setting: pick one color system first, and note
+that `dark:` utilities would need a variant that also matches the OS setting,
+since the old `@custom-variant dark` only matched `[data-theme=dark]`. Contex
+charts hard-code black axis text and lines, so they would need a color
+override as well.

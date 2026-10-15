@@ -6,6 +6,14 @@ defmodule SpeechwaveWeb.PageControllerTest do
     assert html_response(conn, 200) =~ "Speechwave"
   end
 
+  test "pages are pinned to the light theme", %{conn: conn} do
+    # The app is light-only (docs/decisions.md, 2026-10-15). Without this pin
+    # the stock form components would follow the OS dark setting.
+    document = conn |> get(~p"/") |> html_response(200) |> LazyHTML.from_document()
+
+    assert LazyHTML.filter(document, ~s(html[data-theme="light"])) |> Enum.count() == 1
+  end
+
   test "GET /health returns 200", %{conn: conn} do
     conn = get(conn, ~p"/health")
     assert text_response(conn, 200) == "ok"
