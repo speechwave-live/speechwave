@@ -64,4 +64,11 @@ defmodule SpeechwaveWeb.Admin.ConsentExportControllerTest do
 
     assert response(conn, 200)
   end
+
+  test "non-map export params do not crash" do
+    conn = build_conn() |> log_in_user(admin_user_fixture())
+
+    assert conn |> get("/admin/consent-export?export=string") |> response(200)
+    assert conn |> get("/admin/consent-export?export[]=1") |> response(200)
+  end
 end

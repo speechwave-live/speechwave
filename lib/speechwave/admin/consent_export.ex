@@ -104,13 +104,16 @@ defmodule Speechwave.Admin.ConsentExport do
   filters map `list/1` expects. Blank or unparseable values become nil, so a
   hand-edited URL can never crash the download.
   """
-  def parse_filters(params) do
+  def parse_filters(params) when is_map(params) do
     %{
       source: parse_source(params["source"]),
       from: parse_date(params["from"]),
       to: parse_date(params["to"])
     }
   end
+
+  # Query strings like `?export=x` or `?export[]=1` yield a non-map.
+  def parse_filters(_), do: %{source: nil, from: nil, to: nil}
 
   defp parse_source(source) when is_binary(source) do
     case String.trim(source) do
