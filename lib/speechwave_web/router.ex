@@ -64,6 +64,14 @@ defmodule SpeechwaveWeb.Router do
     end
   end
 
+  # Plain controller routes can't use the live_session's on_mount hooks, so
+  # they get the equivalent plugs. Order matters: admin check needs the user.
+  scope "/admin", SpeechwaveWeb.Admin do
+    pipe_through [:browser, :require_authenticated_user, :require_admin_user]
+
+    get "/consent-export", ConsentExportController, :show
+  end
+
   # ---------------------------------------------------------------------------
   # Auth routes (login — no auth required)
   # ---------------------------------------------------------------------------

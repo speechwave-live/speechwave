@@ -308,6 +308,23 @@ defmodule SpeechwaveWeb.UserAuth do
     end
   end
 
+  @doc """
+  Plug for controller routes that require an admin user.
+
+  Must run after `require_authenticated_user/2`. Non-admins are sent home,
+  matching what the `:require_admin` `on_mount` does for LiveViews.
+  """
+  def require_admin_user(conn, _opts) do
+    if conn.assigns.current_scope.user.is_admin do
+      conn
+    else
+      conn
+      |> put_flash(:error, "You must be an admin to access this page.")
+      |> redirect(to: ~p"/")
+      |> halt()
+    end
+  end
+
   defp maybe_store_return_to(%{method: "GET"} = conn) do
     put_session(conn, :user_return_to, current_path(conn))
   end
