@@ -38,7 +38,8 @@ defmodule SpeechwaveWeb.Admin.ConsentExportControllerTest do
     assert [disposition] = get_resp_header(conn, "content-disposition")
     assert disposition =~ ~r/attachment; filename="marketing-consent-\d{4}-\d{2}-\d{2}\.csv"/
 
-    [header | _] = String.split(conn.resp_body, "\r\n")
+    assert <<0xEF, 0xBB, 0xBF, body::binary>> = conn.resp_body
+    [header | _] = String.split(body, "\r\n")
     assert String.starts_with?(header, "email,source,consented_at")
     assert conn.resp_body =~ subscriber.email
   end

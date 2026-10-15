@@ -10,15 +10,25 @@ defmodule Speechwave.Admin.CSV do
   so Excel, Numbers and Sheets show it as text instead of evaluating it.
   This matters because values like a consent `source` or an email address
   originate from user input.
+
+  Output starts with a UTF-8 byte order mark by default. Excel assumes a
+  legacy code page for BOM-less CSVs and garbles non-ASCII text such as
+  emoji; the BOM makes it open as UTF-8. Pass `bom: false` for output meant
+  for a machine that would read the BOM as part of the first header.
   """
+
+  @bom <<0xEF, 0xBB, 0xBF>>
 
   @formula_prefixes ["=", "+", "-", "@", "\t", "\r"]
 
-  @spec encode([String.t()], [[term()]]) :: iodata()
-  def encode(headers, rows) do
-    Enum.map([headers | rows], fn row ->
-      [Enum.intersperse(Enum.map(row, &cell/1), ","), "\r\n"]
-    end)
+  @spec encode([String.t()], [[term()]], keyword()) :: iodata()
+  def encode(headers, rows, opts \\ []) do
+    lines =
+      Enum.map([headers | rows], fn row ->
+        [Enum.intersperse(Enum.map(row, &cell/1), ","), "\r\n"]
+      end)
+
+    if Keyword.get(opts, :bom, true), do: [@bom | lines], else: lines
   end
 
   defp cell(nil), do: ""

@@ -3,7 +3,9 @@ defmodule Speechwave.Admin.CSVTest do
 
   alias Speechwave.Admin.CSV
 
-  defp encode(headers, rows), do: headers |> CSV.encode(rows) |> IO.iodata_to_binary()
+  # Format tests opt out of the BOM so they compare the exact cells and lines.
+  defp encode(headers, rows),
+    do: headers |> CSV.encode(rows, bom: false) |> IO.iodata_to_binary()
 
   test "header row then rows joined with CRLF" do
     assert encode(["a", "b"], [["x", 1]]) == "a,b\r\nx,1\r\n"
@@ -32,5 +34,17 @@ defmodule Speechwave.Admin.CSVTest do
 
   test "does not prefix a plain negative integer" do
     assert encode(["a"], [[-5]]) == "a\r\n-5\r\n"
+  end
+
+  describe "UTF-8 BOM" do
+    test "is prepended by default so Excel detects UTF-8" do
+      out = ["a"] |> CSV.encode([["😀"]]) |> IO.iodata_to_binary()
+      assert out == <<0xEF, 0xBB, 0xBF>> <> "a\r\n😀\r\n"
+    end
+
+    test "bom: false omits it" do
+      out = ["a"] |> CSV.encode([["x"]], bom: false) |> IO.iodata_to_binary()
+      assert out == "a\r\nx\r\n"
+    end
   end
 end

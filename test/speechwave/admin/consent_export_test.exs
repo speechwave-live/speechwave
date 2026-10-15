@@ -151,6 +151,7 @@ defmodule Speechwave.Admin.ConsentExportTest do
       confirmed_consented()
       csv = ConsentExport.list(%{}) |> ConsentExport.to_csv() |> IO.iodata_to_binary()
 
+      assert <<0xEF, 0xBB, 0xBF, csv::binary>> = csv
       assert [header, _row, ""] = String.split(csv, "\r\n")
 
       assert header ==
