@@ -21,11 +21,6 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
     sessions: "Sessions"
   }
 
-  # Passing `class` to <.input> replaces its defaults entirely, so this is the
-  # complete styling for the export fields. color-scheme:light keeps the native
-  # date picker light too.
-  @export_field_class "w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink [color-scheme:light] focus:border-ink focus:outline-none"
-
   def mount(_params, _session, socket) do
     stats =
       Enum.map(Stats.dashboard(), fn {key, stat} ->
@@ -53,7 +48,6 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
        stats: stats,
        export_form: export_form,
        source_options: ConsentExport.sources(),
-       field_class: @export_field_class,
        any_time: false
      )}
   end
