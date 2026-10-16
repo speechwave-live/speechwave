@@ -129,14 +129,23 @@ git commit -m "feat: add delete_account and reapply_recorded_deletions"
 
 - [ ] **Step 1: Scrub at start.** In `Application.start/2`, before building children, call `Speechwave.DeletionLog.scrub()` and log a warning on `{:error, reason}` instead of crashing boot. No new test: it is a one-line call covered by Task 1's scrub tests (ruling: the app boots in the test run, which exercises it).
 
-- [ ] **Step 2: Back up both files.** Refactor `DbBackup.run_backup/0` to back up two targets independently: `speechwave.db` via the existing `VACUUM INTO` to `/tmp/speechwave_backup.db` uploaded at `backup/speechwave.db`, and `deletions.db` via `DeletionLog.snapshot_to("/tmp/deletions_backup.db")` uploaded at `backup/deletions.db`. A failure in one must still let the other run, each logging its own error, each temp file removed afterwards. `upload/1` takes the object key as a second argument. No new test (ruling: `DbBackup` has no existing test harness and its upload needs real storage credentials; `snapshot_to/1` is tested in Task 1).
+- [ ] **Step 2: Write failing tests** in `test/speechwave/db_backup_test.exs` (a test harness for `DbBackup`, which had none; `async: false`). Stub HTTP with `Req.Test` (ships with Req): the harness passes `plug: {Req.Test, Speechwave.DbBackup}` to the upload call when `Application.get_env(:speechwave, :db_backup_req_options)` supplies it; tests set that and `:db_backup_storage` (url, bucket, key id, secret) with `Application.put_env` and restore both in `on_exit`. Tests, each calling `Speechwave.DbBackup.backup_once/0`:
+  - `"uploads both databases under their own keys"`: the stub records request paths; expect `.../backup/speechwave.db` and `.../backup/deletions.db`
+  - `"the deletions upload is a SQLite file containing the logged ids"`: `DeletionLog.record(99)` first; write the captured body to a temp file, open it with `Exqlite.Sqlite3`, find 99
+  - `"a failing upload of one file does not stop the other"`: stub responds 500 for the speechwave.db key (use `Req.Test.transport_error` or a raise, whichever `Req.put!` surfaces); the deletions.db upload still happens
+  - `"removes its temp files"`: with `:db_backup_tmp_dir` set to a fresh test-owned directory, it is empty afterwards
+  - Known risk: `VACUUM INTO` cannot run inside a transaction and the test repo uses the Ecto sandbox. Try `Ecto.Adapters.SQL.Sandbox.unboxed_run/2` or a separate temporary database for the speechwave.db half. If that proves impractical, test only the deletions.db half through the harness, drop the speechwave.db assertions, and record a `Ruling:` explaining why.
 
-- [ ] **Step 3: Run** `mix test` — expect green.
+- [ ] **Step 3: Run** `mix test test/speechwave/db_backup_test.exs` — expect FAIL.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Back up both files.** Add public `Speechwave.DbBackup.backup_once/0` (the timer calls it; `run_now/0` delegates to it). It backs up two targets independently: `speechwave.db` via the existing `VACUUM INTO` to `<tmp_dir>/speechwave_backup.db` uploaded at `backup/speechwave.db`, and `deletions.db` via `DeletionLog.snapshot_to("<tmp_dir>/deletions_backup.db")` uploaded at `backup/deletions.db`. A failure in one must still let the other run, each logging its own error, each temp file removed afterwards. `upload/2` takes the object key as its second argument. Storage settings come from `:db_backup_storage` application config when set, else from the existing `STORAGE_*` env vars (production behavior unchanged); the temp dir defaults to `/tmp` and is overridable by `:db_backup_tmp_dir`.
+
+- [ ] **Step 5: Run** `mix test test/speechwave/db_backup_test.exs`, then `mix test` — expect green.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add lib/speechwave/application.ex lib/speechwave/db_backup.ex
+git add lib/speechwave/application.ex lib/speechwave/db_backup.ex test/speechwave/db_backup_test.exs
 git commit -m "feat: scrub the deletion log on start and back it up hourly"
 ```
 
