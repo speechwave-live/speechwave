@@ -40,6 +40,23 @@ Deferred from the 2026-07-06 stats dashboard work (see
 
 #### Account deletion and consent revocation features for GDPR compliance
 
+Design: `docs/specs/2026-10-15-account-deletion-design.md`. Consent
+revocation already exists (the Unsubscribe button in Settings), so what remains
+is self-service account deletion.
+
+#### GDPR: download my data (access and portability)
+
+Split out of the account deletion work. GDPR also gives people a right to get
+a copy of the personal data held about them (Articles 15 and 20), in a
+structured, commonly used, machine-readable format. Today that would be a manual
+request to admin@speechwave.live.
+
+A "Download my data" button in Settings could return one file (JSON, or a zip
+of CSVs) containing the account row (email, plan, signup date, settings),
+talks, sessions, reaction counts per session, consent records and linked
+sign-in providers. It must never include secrets (session tokens, the API key)
+and should be rate limited. Decide whether the
+privacy policy should promise this self-service export once it exists.
 
 #### SSH/eval magic link helper for production test scripts
 
