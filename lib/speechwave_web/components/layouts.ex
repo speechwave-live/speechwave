@@ -106,8 +106,13 @@ defmodule SpeechwaveWeb.Layouts do
 
   attr :current_scope, :map, default: nil
 
+  attr :flash, :map,
+    default: nil,
+    doc: "pass @flash on the public pages (home, terms, privacy) so they show flash messages"
+
   def public_nav(assigns) do
     ~H"""
+    <.flash_group :if={@flash} id="public-flash-group" flash={@flash} />
     <header class="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-hairline">
       <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <a

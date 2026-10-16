@@ -14,6 +14,20 @@ defmodule SpeechwaveWeb.PageControllerTest do
     assert LazyHTML.filter(document, ~s(html[data-theme="light"])) |> Enum.count() == 1
   end
 
+  test "public pages show flash messages, e.g. after account deletion", %{conn: conn} do
+    for path <- [~p"/", ~p"/terms", ~p"/privacy"] do
+      document =
+        conn
+        |> Phoenix.ConnTest.init_test_session(%{})
+        |> Plug.Conn.put_session("phoenix_flash", %{"info" => "Your account has been deleted."})
+        |> get(path)
+        |> html_response(200)
+        |> LazyHTML.from_document()
+
+      assert LazyHTML.query(document, "#public-flash-group #flash-info") |> Enum.count() == 1
+    end
+  end
+
   test "GET /health returns 200", %{conn: conn} do
     conn = get(conn, ~p"/health")
     assert text_response(conn, 200) == "ok"
