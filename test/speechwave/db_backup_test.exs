@@ -1,0 +1,109 @@
+defmodule Speechwave.DbBackupTest do
+  # Not async: touches the shared deletion log file and application env.
+  use ExUnit.Case, async: false
+
+  import ExUnit.CaptureLog
+
+  alias Ecto.Adapters.SQL.Sandbox
+  alias Speechwave.{DbBackup, DeletionLog, Repo}
+
+  setup do
+    File.rm(DeletionLog.path())
+
+    tmp_dir = Path.join(System.tmp_dir!(), "db_backup_test_#{System.unique_integer([:positive])}")
+    File.mkdir_p!(tmp_dir)
+
+    originals =
+      for key <- [:db_backup_storage, :db_backup_req_options, :db_backup_tmp_dir],
+          do: {key, Application.get_env(:speechwave, key)}
+
+    Application.put_env(:speechwave, :db_backup_storage,
+      url: "http://storage.test",
+      bucket: "bucket",
+      access_key_id: "key",
+      secret_access_key: "secret"
+    )
+
+    Application.put_env(:speechwave, :db_backup_req_options,
+      plug: {Req.Test, DbBackup},
+      retry: false
+    )
+
+    Application.put_env(:speechwave, :db_backup_tmp_dir, tmp_dir)
+
+    on_exit(fn ->
+      for {key, value} <- originals do
+        if value,
+          do: Application.put_env(:speechwave, key, value),
+          else: Application.delete_env(:speechwave, key)
+      end
+
+      File.rm_rf(tmp_dir)
+    end)
+
+    test_pid = self()
+
+    Req.Test.stub(DbBackup, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:put, conn.request_path, body})
+      Plug.Conn.send_resp(conn, 200, "")
+    end)
+
+    {:ok, tmp_dir: tmp_dir}
+  end
+
+  # VACUUM INTO cannot run inside a transaction, so run outside the sandbox.
+  defp backup_once, do: Sandbox.unboxed_run(Repo, fn -> DbBackup.backup_once() end)
+
+  defp read_user_ids(sqlite_binary) do
+    path = Path.join(System.tmp_dir!(), "uploaded_#{System.unique_integer([:positive])}.db")
+    File.write!(path, sqlite_binary)
+    {:ok, conn} = Exqlite.Sqlite3.open(path)
+    {:ok, stmt} = Exqlite.Sqlite3.prepare(conn, "SELECT user_id FROM deletions")
+    {:ok, rows} = Exqlite.Sqlite3.fetch_all(conn, stmt)
+    Exqlite.Sqlite3.release(conn, stmt)
+    Exqlite.Sqlite3.close(conn)
+    File.rm(path)
+    List.flatten(rows)
+  end
+
+  test "uploads both databases under their own keys" do
+    backup_once()
+
+    assert_received {:put, "/bucket/backup/speechwave.db", main_body}
+    assert_received {:put, "/bucket/backup/deletions.db", _}
+    assert String.starts_with?(main_body, "SQLite format 3")
+  end
+
+  test "the deletions upload is a SQLite file containing the logged ids" do
+    :ok = DeletionLog.record(99)
+
+    backup_once()
+
+    assert_received {:put, "/bucket/backup/deletions.db", body}
+    assert read_user_ids(body) == [99]
+  end
+
+  test "a failing upload of one file does not stop the other" do
+    test_pid = self()
+
+    Req.Test.stub(DbBackup, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:put, conn.request_path, body})
+
+      if String.ends_with?(conn.request_path, "speechwave.db"),
+        do: Plug.Conn.send_resp(conn, 500, "boom"),
+        else: Plug.Conn.send_resp(conn, 200, "")
+    end)
+
+    log = capture_log(fn -> backup_once() end)
+
+    assert log =~ "Backup of backup/speechwave.db failed"
+    assert_received {:put, "/bucket/backup/deletions.db", _}
+  end
+
+  test "removes its temp files", %{tmp_dir: tmp_dir} do
+    backup_once()
+    assert File.ls!(tmp_dir) == []
+  end
+end
