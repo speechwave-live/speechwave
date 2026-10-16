@@ -195,6 +195,11 @@ defmodule Speechwave.Accounts do
     end
   end
 
+  @doc "The user's login session tokens, used to end their live connections."
+  def list_session_tokens(%User{} = user) do
+    Repo.all(from t in UserToken, where: t.user_id == ^user.id and t.context == "session")
+  end
+
   defp scrub_deletion_log do
     case DeletionLog.scrub() do
       :ok ->
