@@ -7,6 +7,10 @@ config :speechwave, Speechwave.Repo,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true
 
+# Log of deleted account ids; lives in its own file so a restore of the main
+# database does not roll it back. See Speechwave.DeletionLog.
+config :speechwave, :deletions_db_path, Path.expand("../deletions_dev.db", __DIR__)
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
