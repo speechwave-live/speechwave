@@ -30,7 +30,7 @@ defmodule Speechwave.DeletionLog do
   @doc "Records that `user_id` was deleted at `deleted_at`."
   def record(user_id, deleted_at \\ DateTime.utc_now()) when is_integer(user_id) do
     with_conn(fn conn ->
-      run(conn, "INSERT INTO deletions (user_id, deleted_at) VALUES (?1, ?2)", [
+      query(conn, "INSERT INTO deletions (user_id, deleted_at) VALUES (?1, ?2)", [
         user_id,
         timestamp(deleted_at)
       ])
@@ -46,7 +46,7 @@ defmodule Speechwave.DeletionLog do
     cutoff = timestamp(DateTime.add(now, -@scrub_after_days * 24 * 3600, :second))
 
     with_conn(fn conn ->
-      run(
+      query(
         conn,
         "UPDATE deletions SET user_id = NULL WHERE user_id IS NOT NULL AND deleted_at < ?1",
         [cutoff]
@@ -129,10 +129,6 @@ defmodule Speechwave.DeletionLog do
         "CREATE INDEX IF NOT EXISTS deletions_deleted_at_index ON deletions (deleted_at)"
       )
     end
-  end
-
-  defp run(conn, sql, args) do
-    with {:ok, rows} <- query(conn, sql, args), do: {:ok, rows}
   end
 
   defp query(conn, sql, args) do

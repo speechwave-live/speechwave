@@ -53,11 +53,13 @@ defmodule Speechwave.DbBackup do
     File.rm(path)
 
     try do
-      with :ok <- snapshot.(path) do
-        upload(path, key)
-        Logger.info("[DbBackup] Uploaded #{key}")
-      else
-        {:error, reason} -> raise "snapshot failed: #{inspect(reason)}"
+      case snapshot.(path) do
+        :ok ->
+          upload(path, key)
+          Logger.info("[DbBackup] Uploaded #{key}")
+
+        {:error, reason} ->
+          raise "snapshot failed: #{inspect(reason)}"
       end
     rescue
       e -> Logger.error("[DbBackup] Backup of #{key} failed: #{Exception.message(e)}")
