@@ -163,26 +163,44 @@ defmodule Speechwave.Accounts do
   ## Account deletion
 
   @doc """
+  Whether this user may delete their own account. Admins may not, so the only
+  admin cannot lock themselves out.
+  """
+  def can_delete_account?(%User{is_admin: admin?}), do: not admin?
+
+  @doc """
+  Whether `typed_email` is an acceptable confirmation for deleting `user`: the
+  user may delete their account and the text equals their current email
+  (surrounding whitespace is ignored, case matters). The one place this rule
+  lives, for the Settings page and for `delete_account/2`.
+  """
+  def deletion_confirmed?(%User{} = user, typed_email) do
+    can_delete_account?(user) and is_binary(typed_email) and
+      String.trim(typed_email) == user.email
+  end
+
+  @doc """
   Permanently deletes the user's account and everything that belongs to it.
 
-  `typed_email` must equal the user's current email (surrounding whitespace is
-  ignored, case matters). Admins cannot delete themselves, so the only admin
-  cannot lock themselves out. The id is written to the deletion log first, so
-  a failure leaves at worst a logged id for a user who still exists, which
-  errs toward erasure. Talks, sessions, reactions, consents, identities and
-  tokens go with the user through the `on_delete: :delete_all` foreign keys.
+  The id is written to the deletion log first, so a failure leaves at worst a
+  logged id for a user who still exists, which errs toward erasure. Talks,
+  sessions, reactions, consents, identities and tokens go with the user
+  through the `on_delete: :delete_all` foreign keys, so any new table that
+  references `users` must cascade too (a test checks this).
 
   Deleting a user that is already gone is not an error.
 
-  Returns `{:ok, user}` or `{:error, :admin | :confirmation_mismatch | :log_failed}`.
+  Returns `{:ok, %{user: user, session_tokens: tokens}}` or
+  `{:error, :admin | :confirmation_mismatch | :log_failed}`. The tokens are the
+  login session tokens the user had, captured before the delete removed them,
+  so the caller can end their live connections (see
+  `SpeechwaveWeb.UserAuth.disconnect_user/2`).
   """
-  def delete_account(%User{is_admin: true}, _typed_email), do: {:error, :admin}
-
   def delete_account(%User{} = user, typed_email) do
-    if is_binary(typed_email) and String.trim(typed_email) == user.email do
-      erase_user(user)
-    else
-      {:error, :confirmation_mismatch}
+    cond do
+      not can_delete_account?(user) -> {:error, :admin}
+      not deletion_confirmed?(user, typed_email) -> {:error, :confirmation_mismatch}
+      true -> erase_user(user)
     end
   end
 
@@ -191,9 +209,13 @@ defmodule Speechwave.Accounts do
     if Repo.exists?(from u in User, where: u.id == ^user.id) do
       case DeletionLog.record(user.id) do
         :ok ->
-          scrub_deletion_log()
+          DeletionLog.scrub_logging_errors()
+
+          tokens =
+            Repo.all(from t in UserToken, where: t.user_id == ^user.id and t.context == "session")
+
           Repo.delete_all(from u in User, where: u.id == ^user.id)
-          {:ok, user}
+          {:ok, %{user: user, session_tokens: tokens}}
 
         {:error, reason} ->
           Logger.error("[Accounts] Could not write deletion log: #{inspect(reason)}")
@@ -201,22 +223,7 @@ defmodule Speechwave.Accounts do
       end
     else
       # Already deleted (second tab, double submit): nothing to do or log.
-      {:ok, user}
-    end
-  end
-
-  @doc "The user's login session tokens, used to end their live connections."
-  def list_session_tokens(%User{} = user) do
-    Repo.all(from t in UserToken, where: t.user_id == ^user.id and t.context == "session")
-  end
-
-  defp scrub_deletion_log do
-    case DeletionLog.scrub() do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("[Accounts] Could not scrub deletion log: #{inspect(reason)}")
+      {:ok, %{user: user, session_tokens: []}}
     end
   end
 
@@ -232,7 +239,9 @@ defmodule Speechwave.Accounts do
   After restoring a whole Fly volume snapshot, `deletions.db` is rolled back
   too. Download `backup/deletions.db` from object storage first and pass its
   path in `extra_log_paths`: those ids are applied as well and also recorded in
-  the live log. A path that does not exist raises `ArgumentError`.
+  the live log with their original deletion times. A path that does not exist,
+  or is not a deletion log, raises `ArgumentError`; a failed write to the live
+  log raises `RuntimeError`.
 
   It also raises the `users` id sequence to at least the highest id seen.
   A restore rolls the sequence back to its value in the backup, and without
@@ -240,45 +249,38 @@ defmodule Speechwave.Accounts do
   the next re-apply.
   """
   def reapply_recorded_deletions(extra_log_paths \\ []) do
-    live_ids = DeletionLog.logged_ids()
-
     if not File.exists?(DeletionLog.path()) do
       Logger.warning(
         "[Accounts] No deletion log at #{DeletionLog.path()}; re-applying only the ids from extra logs"
       )
     end
 
-    extra_ids =
-      Enum.flat_map(extra_log_paths, fn path ->
-        File.exists?(path) || raise ArgumentError, "extra deletion log not found: #{path}"
-        DeletionLog.logged_ids(path)
-      end)
+    live_ids = DeletionLog.logged_ids()
+    extra = extra_log_paths |> Enum.flat_map(&DeletionLog.entries/1) |> Enum.uniq_by(&elem(&1, 0))
 
-    Enum.each(extra_ids -- live_ids, &DeletionLog.record/1)
+    for {id, deleted_at} <- extra, id not in live_ids do
+      DeletionLog.record(id, deleted_at) == :ok ||
+        raise "Could not write user #{id} to the deletion log at #{DeletionLog.path()}"
+    end
 
-    ids = Enum.sort(Enum.uniq(live_ids ++ extra_ids))
+    ids = Enum.sort(Enum.uniq(live_ids ++ Enum.map(extra, &elem(&1, 0))))
     {count, _} = Repo.delete_all(from u in User, where: u.id in ^ids)
     raise_users_sequence(List.last(ids))
     count
   end
 
+  # sqlite_sequence holds the last id AUTOINCREMENT handed out. A restore rolls
+  # it back, so make sure it is at least `max_id`: first insert a row if the
+  # table has none for users, then raise a lower value.
   defp raise_users_sequence(nil), do: :ok
 
   defp raise_users_sequence(max_id) do
-    %{num_rows: updated} =
-      Repo.query!("UPDATE sqlite_sequence SET seq = ?1 WHERE name = 'users' AND seq < ?1", [
-        max_id
-      ])
+    Repo.query!(
+      "INSERT INTO sqlite_sequence (name, seq) SELECT 'users', ?1 WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'users')",
+      [max_id]
+    )
 
-    if updated == 0 do
-      %{rows: [[present]]} =
-        Repo.query!("SELECT COUNT(*) FROM sqlite_sequence WHERE name = 'users'", [])
-
-      if present == 0 do
-        Repo.query!("INSERT INTO sqlite_sequence (name, seq) VALUES ('users', ?1)", [max_id])
-      end
-    end
-
+    Repo.query!("UPDATE sqlite_sequence SET seq = ?1 WHERE name = 'users' AND seq < ?1", [max_id])
     :ok
   end
 

@@ -26,20 +26,23 @@ defmodule Speechwave.DbBackup do
 
   @impl true
   def handle_info(:backup, state) do
-    backup_once()
+    run_now()
     Process.send_after(self(), :backup, @interval)
     {:noreply, state}
   end
 
-  def run_now, do: backup_once()
-
   @doc """
-  Backs up both databases once: `speechwave.db` to `backup/speechwave.db` and
+  Backs up both databases once, now: `speechwave.db` to `backup/speechwave.db` and
   the deletion log `deletions.db` to `backup/deletions.db`. The two are
   independent, so a failure in one is logged and does not stop the other.
+  Old ids are scrubbed from the deletion log first.
   """
-  def backup_once do
+  def run_now do
     Logger.info("[DbBackup] Starting backup")
+
+    # Hourly scrubbing keeps the 30 day promise even with no deploys or deletions,
+    # and keeps unscrubbed ids out of the uploaded copy.
+    DeletionLog.scrub_logging_errors()
 
     backup_target("backup/speechwave.db", "speechwave_backup.db", &snapshot_main/1)
     backup_target("backup/deletions.db", "deletions_backup.db", &DeletionLog.snapshot_to/1)

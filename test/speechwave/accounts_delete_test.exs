@@ -66,10 +66,23 @@ defmodule Speechwave.AccountsDeleteTest do
 
       assert Enum.all?(count_for(user.id), fn {_, n} -> n >= 1 end)
 
-      assert {:ok, %User{}} = Accounts.delete_account(user, user.email)
+      assert {:ok, %{user: %User{}}} = Accounts.delete_account(user, user.email)
 
       assert Enum.all?(count_for(user.id), fn {_, n} -> n == 0 end)
       assert Enum.all?(count_for(other.id), fn {_, n} -> n >= 1 end)
+    end
+
+    test "returns the session tokens the user had, so the caller can end live sessions" do
+      user = user_fixture()
+      session_token_fixture(user)
+
+      expected =
+        Repo.all(from t in UserToken, where: t.user_id == ^user.id and t.context == "session")
+
+      assert expected != []
+
+      assert {:ok, %{session_tokens: tokens}} = Accounts.delete_account(user, user.email)
+      assert Enum.sort(Enum.map(tokens, & &1.token)) == Enum.sort(Enum.map(expected, & &1.token))
     end
 
     test "records exactly one log row with the user's id" do
@@ -137,6 +150,45 @@ defmodule Speechwave.AccountsDeleteTest do
     end
   end
 
+  describe "deletion_confirmed?/2 and can_delete_account?/1" do
+    test "match the trimmed, case-sensitive email for a non-admin" do
+      user = user_fixture()
+      assert Accounts.can_delete_account?(user)
+      assert Accounts.deletion_confirmed?(user, "  #{user.email} ")
+      refute Accounts.deletion_confirmed?(user, String.upcase(user.email))
+      refute Accounts.deletion_confirmed?(user, nil)
+    end
+
+    test "never confirm an admin" do
+      admin = admin_user_fixture()
+      refute Accounts.can_delete_account?(admin)
+      refute Accounts.deletion_confirmed?(admin, admin.email)
+    end
+  end
+
+  describe "foreign keys to users" do
+    # delete_account relies on the database cascade. A future table that
+    # references users without ON DELETE CASCADE would make deletion fail.
+    test "every one cascades on delete" do
+      %{rows: tables} =
+        Repo.query!(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        )
+
+      offenders =
+        for [table] <- tables,
+            %{rows: fks} =
+              Repo.query!(
+                ~s|SELECT "table", "on_delete" FROM pragma_foreign_key_list('#{table}')|
+              ),
+            ["users", on_delete] <- fks,
+            on_delete != "CASCADE",
+            do: table
+
+      assert offenders == []
+    end
+  end
+
   describe "reapply_recorded_deletions/0" do
     defp restore_user(id, email) do
       Repo.query!(
@@ -181,6 +233,18 @@ defmodule Speechwave.AccountsDeleteTest do
     end
   end
 
+  describe "reapply_recorded_deletions/0 with no log file" do
+    @tag :capture_log
+    test "warns instead of silently returning 0 when the live log file is missing" do
+      log =
+        ExUnit.CaptureLog.capture_log([level: :warning], fn ->
+          Accounts.reapply_recorded_deletions()
+        end)
+
+      assert log =~ "deletion log"
+    end
+  end
+
   describe "reapply_recorded_deletions/1 with extra log files" do
     @describetag :capture_log
     # After restoring a whole Fly volume snapshot, deletions.db is rolled back
@@ -190,7 +254,12 @@ defmodule Speechwave.AccountsDeleteTest do
       live = DeletionLog.path()
       File.rm(path)
       Application.put_env(:speechwave, :deletions_db_path, path)
-      Enum.each(ids, &DeletionLog.record/1)
+
+      Enum.each(ids, fn
+        {id, at} -> DeletionLog.record(id, at)
+        id -> DeletionLog.record(id)
+      end)
+
       Application.put_env(:speechwave, :deletions_db_path, live)
       on_exit(fn -> File.rm(path) end)
       path
@@ -206,6 +275,53 @@ defmodule Speechwave.AccountsDeleteTest do
       assert DeletionLog.logged_ids() == [user.id]
     end
 
+    test "keeps the original deletion time, so the 30 day window is not restarted" do
+      user = user_fixture()
+
+      extra =
+        extra_log_with([{user.id, DateTime.add(DateTime.utc_now(), -31 * 24 * 3600, :second)}])
+
+      assert Accounts.reapply_recorded_deletions([extra]) == 1
+      :ok = DeletionLog.scrub()
+      assert DeletionLog.logged_ids() == []
+    end
+
+    test "records an id that appears twice in the extra log once" do
+      extra = extra_log_with([700, 700])
+      Accounts.reapply_recorded_deletions([extra])
+      assert length(DeletionLog.deleted_ats()) == 1
+    end
+
+    test "raises instead of reporting success when the live log cannot be written" do
+      extra = extra_log_with([701])
+      original = Application.fetch_env!(:speechwave, :deletions_db_path)
+      on_exit(fn -> Application.put_env(:speechwave, :deletions_db_path, original) end)
+      Application.put_env(:speechwave, :deletions_db_path, "/nonexistent_dir_for_test/d.db")
+
+      assert_raise RuntimeError, ~r/deletion log/, fn ->
+        Accounts.reapply_recorded_deletions([extra])
+      end
+    end
+
+    test "raises on a file that is not a deletion log and leaves it untouched" do
+      other = Path.join(System.tmp_dir!(), "not_a_log_#{System.unique_integer([:positive])}.db")
+      {:ok, conn} = Exqlite.Sqlite3.open(other)
+      :ok = Exqlite.Sqlite3.execute(conn, "CREATE TABLE unrelated (x INTEGER)")
+      Exqlite.Sqlite3.close(conn)
+      on_exit(fn -> File.rm(other) end)
+
+      assert_raise ArgumentError, ~r/deletions/, fn ->
+        Accounts.reapply_recorded_deletions([other])
+      end
+
+      {:ok, conn} = Exqlite.Sqlite3.open(other)
+      {:ok, stmt} = Exqlite.Sqlite3.prepare(conn, "SELECT name FROM sqlite_master")
+      {:ok, rows} = Exqlite.Sqlite3.fetch_all(conn, stmt)
+      Exqlite.Sqlite3.release(conn, stmt)
+      Exqlite.Sqlite3.close(conn)
+      assert rows == [["unrelated"]]
+    end
+
     test "raises when an extra log file does not exist" do
       assert_raise ArgumentError, fn ->
         Accounts.reapply_recorded_deletions(["/nonexistent/dir/log.db"])
@@ -216,16 +332,6 @@ defmodule Speechwave.AccountsDeleteTest do
       extra = extra_log_with([800])
       Accounts.reapply_recorded_deletions([extra])
       assert user_fixture().id > 800
-    end
-
-    @tag :capture_log
-    test "warns instead of silently returning 0 when the live log file is missing" do
-      log =
-        ExUnit.CaptureLog.capture_log([level: :warning], fn ->
-          Accounts.reapply_recorded_deletions()
-        end)
-
-      assert log =~ "deletion log"
     end
   end
 end

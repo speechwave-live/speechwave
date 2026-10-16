@@ -220,7 +220,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
           Permanently delete your account and everything in it: your talks, sessions,
           reactions and settings. This cannot be undone.
         </p>
-        <%= if @current_scope.user.is_admin do %>
+        <%= if not @can_delete? do %>
           <p id="danger-zone-admin-note" class="mt-3 text-sm font-medium text-gray-700">
             Admin accounts can't be deleted from here, so the site always keeps an administrator.
           </p>
@@ -236,7 +236,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
         <% end %>
       </div>
 
-      <%= unless @current_scope.user.is_admin do %>
+      <%= if @can_delete? do %>
         <%!--
           Native <dialog>, opened and closed by the .DeleteDialog hook below. The
           form posts to a controller (phx-trigger-action) because only the plug
@@ -255,7 +255,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
             method="delete"
             phx-change="delete_account_change"
             phx-submit="delete_account_submit"
-            phx-trigger-action={@trigger_delete}
+            phx-trigger-action={@submit_delete_form?}
             class="p-6"
           >
             <h2 class="text-lg font-bold text-red-700">Delete your account?</h2>
@@ -357,7 +357,8 @@ defmodule SpeechwaveWeb.UserLive.Settings do
       |> assign(:delete_form, to_form(%{"email" => ""}, as: :account))
       |> assign(:delete_match?, false)
       |> assign(:delete_error, nil)
-      |> assign(:trigger_delete, false)
+      |> assign(:can_delete?, Accounts.can_delete_account?(user))
+      |> assign(:submit_delete_form?, false)
 
     {:ok, socket}
   end
@@ -420,19 +421,21 @@ defmodule SpeechwaveWeb.UserLive.Settings do
     end
   end
 
-  def handle_event("delete_account_change", %{"account" => %{"email" => typed}}, socket) do
+  def handle_event("delete_account_change", params, socket) do
+    typed = typed_email(params)
+
     {:noreply,
      socket
-     |> assign(:delete_form, to_form(%{"email" => typed}, as: :account))
+     |> assign(:delete_form, to_form(%{"email" => typed || ""}, as: :account))
      |> assign(:delete_match?, delete_confirmed?(socket, typed))
      |> assign(:delete_error, nil)}
   end
 
   # Re-checks the typed email on the server, then lets the form post to
   # UserAccountController, which checks again and does the deletion.
-  def handle_event("delete_account_submit", %{"account" => %{"email" => typed}}, socket) do
-    if delete_confirmed?(socket, typed) do
-      {:noreply, assign(socket, :trigger_delete, true)}
+  def handle_event("delete_account_submit", params, socket) do
+    if delete_confirmed?(socket, typed_email(params)) do
+      {:noreply, assign(socket, :submit_delete_form?, true)}
     else
       {:noreply,
        assign(
@@ -451,7 +454,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
     user = socket.assigns.current_scope.user
     {:ok, updated_user} = Accounts.regenerate_api_key(user)
 
-    SpeechwaveWeb.Endpoint.broadcast!("user:#{user.id}:disconnect", "disconnect", %{})
+    SpeechwaveWeb.UserAuth.disconnect_extension(user)
 
     {:noreply, assign(socket, :api_key, updated_user.api_key)}
   end
@@ -478,8 +481,10 @@ defmodule SpeechwaveWeb.UserLive.Settings do
     end
   end
 
-  defp delete_confirmed?(socket, typed) do
-    user = socket.assigns.current_scope.user
-    not user.is_admin and String.trim(typed) == user.email
-  end
+  defp delete_confirmed?(socket, typed),
+    do: Accounts.deletion_confirmed?(socket.assigns.current_scope.user, typed)
+
+  # Tolerates malformed params the same way the controller does.
+  defp typed_email(%{"account" => %{"email" => email}}), do: email
+  defp typed_email(_params), do: nil
 end

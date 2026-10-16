@@ -9,7 +9,8 @@ defmodule Speechwave.Application do
   @impl true
   def start(_type, _args) do
     migrate_on_start()
-    scrub_deletion_log()
+    # Clear ids older than 30 days from the deletion log (see Speechwave.DeletionLog).
+    Speechwave.DeletionLog.scrub_logging_errors()
 
     children =
       [
@@ -34,15 +35,6 @@ defmodule Speechwave.Application do
   defp migrate_on_start do
     if Application.get_env(:speechwave, :run_migrations_on_start) do
       Speechwave.Release.migrate()
-    end
-  end
-
-  # Clear ids older than 30 days from the deletion log (see Speechwave.DeletionLog).
-  # A problem here must not stop the app from booting.
-  defp scrub_deletion_log do
-    case Speechwave.DeletionLog.scrub() do
-      :ok -> :ok
-      {:error, reason} -> Logger.warning("Could not scrub deletion log: #{inspect(reason)}")
     end
   end
 

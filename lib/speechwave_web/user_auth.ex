@@ -176,6 +176,26 @@ defmodule SpeechwaveWeb.UserAuth do
   end
 
   @doc """
+  PubSub topic the extension's `ReactionChannel` listens on to be told its
+  user's connection must end (API key regenerated, account deleted).
+  """
+  def extension_disconnect_topic(user_id), do: "user:#{user_id}:disconnect"
+
+  @doc "Ends the user's live extension connections."
+  def disconnect_extension(%{id: user_id}) do
+    SpeechwaveWeb.Endpoint.broadcast!(extension_disconnect_topic(user_id), "disconnect", %{})
+  end
+
+  @doc """
+  Ends everything live for a deleted user: extension connections and the
+  LiveView sockets of the given session tokens.
+  """
+  def disconnect_user(user, session_tokens) do
+    disconnect_extension(user)
+    disconnect_sessions(session_tokens)
+  end
+
+  @doc """
   Disconnects existing sockets for the given tokens.
   """
   def disconnect_sessions(tokens) do

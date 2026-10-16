@@ -21,12 +21,9 @@ defmodule SpeechwaveWeb.UserAccountController do
         _ -> nil
       end
 
-    tokens = Accounts.list_session_tokens(user)
-
     case Accounts.delete_account(user, typed_email) do
-      {:ok, _user} ->
-        SpeechwaveWeb.Endpoint.broadcast!("user:#{user.id}:disconnect", "disconnect", %{})
-        UserAuth.disconnect_sessions(tokens)
+      {:ok, %{session_tokens: tokens}} ->
+        UserAuth.disconnect_user(user, tokens)
 
         conn
         |> put_flash(:info, "Your account and its data have been deleted.")

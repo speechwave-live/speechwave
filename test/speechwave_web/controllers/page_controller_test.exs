@@ -19,6 +19,9 @@ defmodule SpeechwaveWeb.PageControllerTest do
       document =
         conn
         |> Phoenix.ConnTest.init_test_session(%{})
+        # What a redirect leaves behind for the next request. "phoenix_flash" is
+        # Phoenix's own session key; the redirect flow is covered in the
+        # UserAccountController test.
         |> Plug.Conn.put_session("phoenix_flash", %{"info" => "Your account has been deleted."})
         |> get(path)
         |> html_response(200)

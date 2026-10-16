@@ -78,7 +78,7 @@ Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in your environment from the
 
 ## Deleted accounts and restoring from a backup
 
-Users delete their own accounts from Settings. The user row goes (talks, sessions, reactions, consents, identities and tokens go with it through the foreign keys) and the user's id is written to a separate SQLite file, `deletions.db`, next to `speechwave.db` on the volume (`DELETIONS_DATABASE_PATH` overrides the location; by default it sits beside `DATABASE_PATH`). The file holds only an id and a deletion time. Ids older than 30 days are set to NULL at each deploy and at each deletion, leaving only the time. It is created automatically if it is missing.
+Users delete their own accounts from Settings. The user row goes (talks, sessions, reactions, consents, identities and tokens go with it through the foreign keys) and the user's id is written to a separate SQLite file, `deletions.db`, next to `speechwave.db` on the volume (`DELETIONS_DATABASE_PATH` overrides the location; by default it sits beside `DATABASE_PATH`). The file holds only an id and a deletion time. Ids older than 30 days are set to NULL at each deploy, at each deletion and before each hourly backup, leaving only the time. The file is created by the first recorded deletion.
 
 The log is separate because a restore of `speechwave.db` would otherwise roll the log back with it. A normal restore does not touch `deletions.db`.
 

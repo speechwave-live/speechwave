@@ -118,14 +118,56 @@ defmodule Speechwave.DeletionLogTest do
     assert DeletionLog.logged_ids() == [5]
   end
 
-  test "logged_ids can read another log file by path" do
+  test "entries can read another log file by path" do
     :ok = DeletionLog.record(11)
     copy = Path.join(System.tmp_dir!(), "other_log_#{System.unique_integer([:positive])}.db")
     on_exit(fn -> File.rm(copy) end)
     :ok = DeletionLog.snapshot_to(copy)
     File.rm(DeletionLog.path())
 
-    assert DeletionLog.logged_ids(copy) == [11]
+    assert [{11, %DateTime{}}] = DeletionLog.entries(copy)
     assert DeletionLog.logged_ids() == []
+  end
+
+  describe "entries/1" do
+    test "returns unscrubbed {id, deleted_at} pairs from the given file" do
+      at = DateTime.utc_now() |> DateTime.truncate(:second)
+      :ok = DeletionLog.record(1, at)
+      :ok = DeletionLog.record(2, days_ago(40))
+      :ok = DeletionLog.scrub()
+
+      assert DeletionLog.entries(DeletionLog.path()) == [{1, at}]
+    end
+
+    test "raises for a SQLite file without a deletions table and does not modify it" do
+      other = Path.join(System.tmp_dir!(), "other_#{System.unique_integer([:positive])}.db")
+      {:ok, conn} = Exqlite.Sqlite3.open(other)
+      :ok = Exqlite.Sqlite3.execute(conn, "CREATE TABLE unrelated (x INTEGER)")
+      Exqlite.Sqlite3.close(conn)
+      on_exit(fn -> File.rm(other) end)
+      before = File.read!(other)
+
+      assert_raise ArgumentError, ~r/deletions/, fn -> DeletionLog.entries(other) end
+      assert File.read!(other) == before
+    end
+  end
+
+  describe "scrub_logging_errors/0" do
+    @tag :capture_log
+    test "returns :ok and logs a warning when the scrub fails" do
+      original = Application.fetch_env!(:speechwave, :deletions_db_path)
+      on_exit(fn -> Application.put_env(:speechwave, :deletions_db_path, original) end)
+      File.rm(original)
+      File.touch!(original)
+      File.chmod!(original, 0o000)
+      on_exit(fn -> File.chmod(original, 0o644) end)
+
+      log =
+        ExUnit.CaptureLog.capture_log([level: :warning], fn ->
+          assert :ok = DeletionLog.scrub_logging_errors()
+        end)
+
+      assert log =~ "scrub deletion log"
+    end
   end
 end

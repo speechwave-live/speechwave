@@ -53,7 +53,7 @@ defmodule Speechwave.DbBackupTest do
   end
 
   # VACUUM INTO cannot run inside a transaction, so run outside the sandbox.
-  defp backup_once, do: Sandbox.unboxed_run(Repo, fn -> DbBackup.backup_once() end)
+  defp run_now, do: Sandbox.unboxed_run(Repo, fn -> DbBackup.run_now() end)
 
   defp read_user_ids(sqlite_binary) do
     path = Path.join(System.tmp_dir!(), "uploaded_#{System.unique_integer([:positive])}.db")
@@ -69,7 +69,7 @@ defmodule Speechwave.DbBackupTest do
 
   test "uploads both databases under their own keys" do
     :ok = DeletionLog.record(1)
-    backup_once()
+    run_now()
 
     assert_received {:put, "/bucket/backup/speechwave.db", main_body}
     assert_received {:put, "/bucket/backup/deletions.db", _}
@@ -79,7 +79,7 @@ defmodule Speechwave.DbBackupTest do
   test "the deletions upload is a SQLite file containing the logged ids" do
     :ok = DeletionLog.record(99)
 
-    backup_once()
+    run_now()
 
     assert_received {:put, "/bucket/backup/deletions.db", body}
     assert read_user_ids(body) == [99]
@@ -98,19 +98,29 @@ defmodule Speechwave.DbBackupTest do
         else: Plug.Conn.send_resp(conn, 200, "")
     end)
 
-    log = capture_log(fn -> backup_once() end)
+    log = capture_log(fn -> run_now() end)
 
     assert log =~ "Backup of backup/speechwave.db failed"
     assert_received {:put, "/bucket/backup/deletions.db", _}
   end
 
+  test "scrubs ids older than 30 days before uploading the log" do
+    :ok = DeletionLog.record(5, DateTime.add(DateTime.utc_now(), -31 * 24 * 3600, :second))
+    :ok = DeletionLog.record(6)
+
+    run_now()
+
+    assert_received {:put, "/bucket/backup/deletions.db", body}
+    assert read_user_ids(body) |> Enum.sort() == [6, nil]
+  end
+
   test "removes its temp files", %{tmp_dir: tmp_dir} do
-    backup_once()
+    run_now()
     assert File.ls!(tmp_dir) == []
   end
 
   test "does not upload deletions.db when there is no log yet" do
-    backup_once()
+    run_now()
 
     assert_received {:put, "/bucket/backup/speechwave.db", _}
     refute_received {:put, "/bucket/backup/deletions.db", _}

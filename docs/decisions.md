@@ -310,7 +310,7 @@ override as well.
 **Decision:** Users delete their own accounts from a Danger zone in Settings,
 after typing their email. Deletion is immediate and permanent. The deleted
 user's id goes into `deletions.db`, a separate SQLite file on the volume, so
-`Accounts.reapply_recorded_deletions/0` can delete them again after a restore.
+`Accounts.reapply_recorded_deletions/1` can delete them again after a restore.
 After 30 days the id is set to NULL and the row (just a timestamp) is kept for
 reporting. Admins cannot delete themselves from Settings.
 

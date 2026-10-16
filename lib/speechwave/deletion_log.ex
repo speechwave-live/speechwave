@@ -3,7 +3,7 @@ defmodule Speechwave.DeletionLog do
   A log of deleted user ids, kept in its own SQLite file (`deletions.db`).
 
   Its job is to stop deleted accounts from coming back when `speechwave.db`
-  is restored from a backup: after a restore, `Accounts.reapply_recorded_deletions/0`
+  is restored from a backup: after a restore, `Accounts.reapply_recorded_deletions/1`
   deletes every user whose id is in this log. If the log lived inside
   `speechwave.db`, a restore would roll it back along with everything else and
   it could not do that job. A separate file on the same volume is left alone
@@ -24,6 +24,8 @@ defmodule Speechwave.DeletionLog do
   creates the table if it is missing (no migration, nothing to set up at
   deploy time), does its work and closes the connection.
   """
+
+  require Logger
 
   alias Exqlite.Sqlite3
 
@@ -69,25 +71,51 @@ defmodule Speechwave.DeletionLog do
   end
 
   @doc """
-  Ids still present in the log (rows not yet scrubbed), ascending. Reads the
-  live log by default, or the log file at `log_path`. A missing file reads as
-  empty and is not created.
+  Like `scrub/1`, but a failure is logged as a warning instead of returned.
+  For callers that must carry on regardless (app boot, the hourly backup, a
+  deletion that has already been recorded).
   """
-  def logged_ids(log_path \\ path()) do
-    read_column(
-      log_path,
-      "SELECT user_id FROM deletions WHERE user_id IS NOT NULL ORDER BY user_id"
-    )
+  def scrub_logging_errors do
+    case scrub() do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("[DeletionLog] Could not scrub deletion log: #{inspect(reason)}")
+    end
   end
 
-  @doc "Every row's deletion time, ascending."
+  @doc """
+  Ids still present in the live log (rows not yet scrubbed), ascending. A
+  missing file reads as empty and is not created.
+  """
+  def logged_ids do
+    if File.exists?(path()), do: path() |> entries() |> Enum.map(&elem(&1, 0)), else: []
+  end
+
+  @doc """
+  The unscrubbed `{user_id, deleted_at}` rows of the log file at `log_path`,
+  ascending by id. The file is opened read-only, so reading never creates or
+  changes anything. Raises `ArgumentError` if the file is missing or is not a
+  deletion log (for example a `speechwave.db` passed by mistake).
+  """
+  def entries(log_path) when is_binary(log_path) do
+    File.exists?(log_path) || raise ArgumentError, "deletion log not found: #{log_path}"
+
+    "SELECT user_id, deleted_at FROM deletions WHERE user_id IS NOT NULL ORDER BY user_id"
+    |> read_only(log_path)
+    |> Enum.map(fn [id, iso] -> {id, parse_timestamp(iso)} end)
+  end
+
+  @doc "Every row's deletion time (scrubbed or not), ascending. For reporting."
   def deleted_ats do
-    path()
-    |> read_column("SELECT deleted_at FROM deletions ORDER BY deleted_at")
-    |> Enum.map(fn iso ->
-      {:ok, dt, _} = DateTime.from_iso8601(iso)
-      dt
-    end)
+    if File.exists?(path()) do
+      "SELECT deleted_at FROM deletions ORDER BY deleted_at"
+      |> read_only(path())
+      |> Enum.map(fn [iso] -> parse_timestamp(iso) end)
+    else
+      []
+    end
   end
 
   @doc """
@@ -106,13 +134,26 @@ defmodule Speechwave.DeletionLog do
     end
   end
 
-  defp read_column(log_path, sql) do
-    if File.exists?(log_path) do
-      {:ok, rows} = with_conn(log_path, fn conn -> query(conn, sql, []) end)
-      List.flatten(rows)
-    else
-      []
+  defp read_only(sql, log_path) do
+    {:ok, conn} = Sqlite3.open(log_path, mode: :readonly)
+
+    try do
+      case query(conn, sql, []) do
+        {:ok, rows} ->
+          rows
+
+        {:error, reason} ->
+          raise ArgumentError,
+                "#{log_path} is not a deletion log (expected a `deletions` table): #{inspect(reason)}"
+      end
+    after
+      Sqlite3.close(conn)
     end
+  end
+
+  defp parse_timestamp(iso) do
+    {:ok, dt, _} = DateTime.from_iso8601(iso)
+    dt
   end
 
   # Second precision, always UTC, so plain string comparison orders correctly.
