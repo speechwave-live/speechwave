@@ -50,7 +50,7 @@ The `DbBackup` GenServer runs automatically every hour. To trigger an immediate 
 Speechwave.DbBackup.run_now()
 ```
 
-This uses `VACUUM INTO` to produce a consistent snapshot of the live database, then uploads it to Tigris at `backup/speechwave.db` in the configured bucket. Check the application logs to confirm it succeeded:
+This uses `VACUUM INTO` to produce a consistent snapshot of the live database, then uploads it to Tigris at `backup/speechwave.db` in the configured bucket. The deletion log (`deletions.db`, see below) is backed up the same way, to `backup/deletions.db`. Check the application logs to confirm it succeeded:
 
 ```sh
 fly logs --app speechwave | grep DbBackup
@@ -74,3 +74,29 @@ aws s3 cp s3://$STORAGE_BUCKET/backup/speechwave.db ./speechwave.db \
 
 Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in your environment from the fly secrets values before running. The resulting `speechwave.db` is a standard SQLite file you can open with any SQLite client (e.g. `sqlite3 speechwave.db` or [DB Browser for SQLite](https://sqlitebrowser.org/)).
 
+**Delete analysis copies when you are done, and never keep one longer than 30 days.** A downloaded database holds data that users may since have deleted. The privacy policy promises deleted data is gone from backups within 30 days, and that promise does not cover copies on a laptop.
+
+## Deleted accounts and restoring from a backup
+
+Users delete their own accounts from Settings. The user row goes (talks, sessions, reactions, consents, identities and tokens go with it through the foreign keys) and the user's id is written to a separate SQLite file, `deletions.db`, next to `speechwave.db` on the volume (`DELETIONS_DATABASE_PATH` overrides the location; by default it sits beside `DATABASE_PATH`). The file holds only an id and a deletion time. Ids older than 30 days are set to NULL at each deploy and at each deletion, leaving only the time. It is created automatically if it is missing.
+
+The log is separate because a restore of `speechwave.db` would otherwise roll the log back with it. A normal restore does not touch `deletions.db`.
+
+**After any restore of `speechwave.db`, before the app takes traffic**, connect to the IEx console and run:
+
+```elixir
+Speechwave.Accounts.reapply_recorded_deletions()
+```
+
+It deletes again every user whose id is in the log, returns how many it removed, and raises the `users` id sequence to at least the highest logged id. A restore rolls the sequence back, and without this a new signup could be given an id that is in the log and be deleted by a later re-apply. If `deletions.db` itself is missing or corrupt, first restore it from `backup/deletions.db` in Tigris (or the latest Fly snapshot), then run the command.
+
+Accounts deleted since the backup you restored are the ones this protects. The log has no email or hash by design, so it cannot tell you who was deleted.
+
+### Retention facts (internal; the public pages say "within 30 days")
+
+As of 2026-10-15:
+
+- Fly volume snapshots are daily and expire after 5 days (Fly dashboard setting). They cover the whole volume, including `deletions.db`.
+- The Tigris copy is overwritten every hour at a fixed key. The bucket has soft delete off and no lifecycle rules, and no versioning has been seen.
+
+So deleted data leaves every backup in about 5 days. The public promise is 30 days on purpose, to leave room to change retention. Re-check these facts if the storage setup changes, and keep the public wording true.

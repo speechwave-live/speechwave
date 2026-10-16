@@ -38,12 +38,6 @@ Deferred from the 2026-07-06 stats dashboard work (see
   `Stats.history_days/0` to a different window (e.g. 90 days) would need the
   chart dimensions revisited too, since nothing currently ties them together.
 
-#### Account deletion and consent revocation features for GDPR compliance
-
-Design: `docs/specs/2026-10-15-account-deletion-design.md`. Consent
-revocation already exists (the Unsubscribe button in Settings), so what remains
-is self-service account deletion.
-
 #### GDPR: download my data (access and portability)
 
 Split out of the account deletion work. GDPR also gives people a right to get

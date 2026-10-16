@@ -304,3 +304,47 @@ that `dark:` utilities would need a variant that also matches the OS setting,
 since the old `@custom-variant dark` only matched `[data-theme=dark]`. Contex
 charts hard-code black axis text and lines, so they would need a color
 override as well.
+
+## 2026-10-15 — Self-service account deletion with a separate deletion log
+
+**Decision:** Users delete their own accounts from a Danger zone in Settings,
+after typing their email. Deletion is immediate and permanent. The deleted
+user's id goes into `deletions.db`, a separate SQLite file on the volume, so
+`Accounts.reapply_recorded_deletions/0` can delete them again after a restore.
+After 30 days the id is set to NULL and the row (just a timestamp) is kept for
+reporting. Admins cannot delete themselves from Settings.
+
+**Why:**
+- No grace period. Holding on to the data of someone who asked for erasure
+  defeats the right to be forgotten.
+- Restoring a backup would bring deleted people back, so something has to
+  remember who was deleted. An email hash is still personal data, because
+  anyone can hash a known address and check for it. An id means nothing without
+  a database that contains it, so ids are treated as non-personal data. The full
+  deletion timestamp is kept; deletions are mostly self-service, so only the
+  user could connect a date to themselves.
+- The log is a separate file because a log inside `speechwave.db` is rolled
+  back by a restore along with everything else. A normal restore leaves
+  `deletions.db` alone. It is backed up hourly to its own Tigris key.
+- Admins cannot self-delete so the only admin cannot lock themselves out of
+  `/admin`.
+
+**Public promise vs reality:** The privacy policy and docs say deleted data
+leaves backups "within 30 days". The real figure is about 5 days (Fly snapshots
+expire after 5 days; the Tigris copy is overwritten hourly). The public number
+is deliberately looser so retention can change without breaking the promise.
+The real numbers live in `docs/administration.md`. Downloaded database copies
+for analysis must be deleted within 30 days too, or the promise is false.
+
+**Trade-offs:**
+- The user delete and the log write cannot share a transaction (two files). The
+  log is written first, so a failure leaves at worst a logged id for a user who
+  still exists, which errs toward erasure.
+- If the whole volume is lost, deletions made since the last hourly backup of
+  `deletions.db` are lost with it.
+- The admin stats history is rebuilt from current rows, so deleting a user
+  lowers past counts retroactively. Accepted, like the other reporting
+  limitations.
+- Data access and portability (a "download my data" export) is a separate
+  roadmap item.
+
