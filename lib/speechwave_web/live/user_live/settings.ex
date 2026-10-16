@@ -267,11 +267,10 @@ defmodule SpeechwaveWeb.UserLive.Settings do
             <label for="delete-account-email" class="mt-4 block text-sm">
               Type <strong>{@current_scope.user.email}</strong> to confirm:
             </label>
-            <input
+            <.input
+              field={@delete_form[:email]}
               id="delete-account-email"
               type="text"
-              name={@delete_form[:email].name}
-              value={@delete_form[:email].value}
               autocomplete="off"
               spellcheck="false"
               placeholder={@current_scope.user.email}

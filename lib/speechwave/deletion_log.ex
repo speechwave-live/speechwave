@@ -14,6 +14,11 @@ defmodule Speechwave.DeletionLog do
   the row kept) so the timing of deletions stays available for reporting
   without anything identifying an account.
 
+  Only `record/2` ever creates the file. A lost `deletions.db` must stay
+  visibly missing: if a read, the start-up scrub or a backup quietly created an
+  empty one, the hourly backup would overwrite the good copy in object storage
+  with it.
+
   This module talks to SQLite through `Exqlite.Sqlite3` directly instead of an
   Ecto repo. Deletions are rare, so each call opens a short-lived connection,
   creates the table if it is missing (no migration, nothing to set up at
@@ -29,67 +34,85 @@ defmodule Speechwave.DeletionLog do
 
   @doc "Records that `user_id` was deleted at `deleted_at`."
   def record(user_id, deleted_at \\ DateTime.utc_now()) when is_integer(user_id) do
-    with_conn(fn conn ->
-      query(conn, "INSERT INTO deletions (user_id, deleted_at) VALUES (?1, ?2)", [
-        user_id,
-        timestamp(deleted_at)
-      ])
-    end)
+    with_conn(
+      path(),
+      fn conn ->
+        query(conn, "INSERT INTO deletions (user_id, deleted_at) VALUES (?1, ?2)", [
+          user_id,
+          timestamp(deleted_at)
+        ])
+      end,
+      create: true
+    )
     |> to_ok()
   end
 
   @doc """
   Sets `user_id` to NULL on rows deleted more than 30 days before `now`.
-  The rows themselves are kept.
+  The rows themselves are kept. Does nothing if the log file does not exist.
   """
   def scrub(now \\ DateTime.utc_now()) do
     cutoff = timestamp(DateTime.add(now, -@scrub_after_days * 24 * 3600, :second))
 
-    with_conn(fn conn ->
-      query(
-        conn,
-        "UPDATE deletions SET user_id = NULL WHERE user_id IS NOT NULL AND deleted_at < ?1",
-        [cutoff]
-      )
-    end)
-    |> to_ok()
-  end
-
-  @doc "Ids still present in the log (rows not yet scrubbed), ascending."
-  def logged_ids do
-    {:ok, rows} =
-      with_conn(fn conn ->
+    if File.exists?(path()) do
+      with_conn(path(), fn conn ->
         query(
           conn,
-          "SELECT user_id FROM deletions WHERE user_id IS NOT NULL ORDER BY user_id",
-          []
+          "UPDATE deletions SET user_id = NULL WHERE user_id IS NOT NULL AND deleted_at < ?1",
+          [cutoff]
         )
       end)
+      |> to_ok()
+    else
+      :ok
+    end
+  end
 
-    List.flatten(rows)
+  @doc """
+  Ids still present in the log (rows not yet scrubbed), ascending. Reads the
+  live log by default, or the log file at `log_path`. A missing file reads as
+  empty and is not created.
+  """
+  def logged_ids(log_path \\ path()) do
+    read_column(
+      log_path,
+      "SELECT user_id FROM deletions WHERE user_id IS NOT NULL ORDER BY user_id"
+    )
   end
 
   @doc "Every row's deletion time, ascending."
   def deleted_ats do
-    {:ok, rows} =
-      with_conn(fn conn ->
-        query(conn, "SELECT deleted_at FROM deletions ORDER BY deleted_at", [])
-      end)
-
-    rows
-    |> List.flatten()
+    path()
+    |> read_column("SELECT deleted_at FROM deletions ORDER BY deleted_at")
     |> Enum.map(fn iso ->
       {:ok, dt, _} = DateTime.from_iso8601(iso)
       dt
     end)
   end
 
-  @doc "Writes a consistent copy of the log to `dest_path` using `VACUUM INTO`."
+  @doc """
+  Writes a consistent copy of the log to `dest_path` using `VACUUM INTO`.
+  Returns `{:error, :no_log}` without creating anything if the log file does
+  not exist, so a lost log is never replaced by an empty one.
+  """
   def snapshot_to(dest_path) when is_binary(dest_path) do
-    escaped = String.replace(dest_path, "'", "''")
+    if File.exists?(path()) do
+      escaped = String.replace(dest_path, "'", "''")
 
-    with_conn(fn conn -> Sqlite3.execute(conn, "VACUUM INTO '#{escaped}'") end)
-    |> to_ok()
+      with_conn(path(), fn conn -> Sqlite3.execute(conn, "VACUUM INTO '#{escaped}'") end)
+      |> to_ok()
+    else
+      {:error, :no_log}
+    end
+  end
+
+  defp read_column(log_path, sql) do
+    if File.exists?(log_path) do
+      {:ok, rows} = with_conn(log_path, fn conn -> query(conn, sql, []) end)
+      List.flatten(rows)
+    else
+      []
+    end
   end
 
   # Second precision, always UTC, so plain string comparison orders correctly.
@@ -101,8 +124,18 @@ defmodule Speechwave.DeletionLog do
   defp to_ok(:ok), do: :ok
   defp to_ok({:error, _} = error), do: error
 
-  defp with_conn(fun) do
-    case Sqlite3.open(path()) do
+  # SQLite creates a missing file on open, so callers that must not create the
+  # log check `File.exists?/1` first; only `record/2` passes `create: true`.
+  defp with_conn(log_path, fun, opts \\ []) do
+    if File.exists?(log_path) or Keyword.get(opts, :create, false) do
+      open_and_run(log_path, fun)
+    else
+      {:error, :no_log}
+    end
+  end
+
+  defp open_and_run(log_path, fun) do
+    case Sqlite3.open(log_path) do
       {:ok, conn} ->
         try do
           with :ok <- Sqlite3.execute(conn, "PRAGMA busy_timeout = 5000"),

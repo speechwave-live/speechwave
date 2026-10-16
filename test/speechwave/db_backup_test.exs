@@ -68,6 +68,7 @@ defmodule Speechwave.DbBackupTest do
   end
 
   test "uploads both databases under their own keys" do
+    :ok = DeletionLog.record(1)
     backup_once()
 
     assert_received {:put, "/bucket/backup/speechwave.db", main_body}
@@ -85,6 +86,7 @@ defmodule Speechwave.DbBackupTest do
   end
 
   test "a failing upload of one file does not stop the other" do
+    :ok = DeletionLog.record(1)
     test_pid = self()
 
     Req.Test.stub(DbBackup, fn conn ->
@@ -105,5 +107,13 @@ defmodule Speechwave.DbBackupTest do
   test "removes its temp files", %{tmp_dir: tmp_dir} do
     backup_once()
     assert File.ls!(tmp_dir) == []
+  end
+
+  test "does not upload deletions.db when there is no log yet" do
+    backup_once()
+
+    assert_received {:put, "/bucket/backup/speechwave.db", _}
+    refute_received {:put, "/bucket/backup/deletions.db", _}
+    refute File.exists?(DeletionLog.path())
   end
 end

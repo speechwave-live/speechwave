@@ -271,3 +271,19 @@ above, how the redirect clears the session (a small controller action is the
 likely route since the session lives in the plug layer), the log table's
 module name, and whether `deletions.db` is a second Ecto repo or a thin
 `exqlite` module.
+
+## Changes made after the final review
+
+The fresh whole-branch reviewer found two operational gaps; both are fixed and
+are additions to the design above:
+
+- Only `DeletionLog.record/2` creates `deletions.db`. The start-up scrub,
+  reads and the backup treat a missing file as "no log" and create nothing, and
+  the backup skips `deletions.db` while it is missing. Otherwise a lost log
+  would be recreated empty and overwrite the good copy in Tigris within
+  minutes.
+- `reapply_recorded_deletions/1` takes an optional list of extra log file paths
+  (for a whole-volume Fly snapshot restore, which rolls `deletions.db` back
+  too). Their ids are applied and recorded in the live log; a missing path
+  raises. It also logs a warning when the live log file is missing.
+- `delete_account/2` no longer logs a second row when the user is already gone.

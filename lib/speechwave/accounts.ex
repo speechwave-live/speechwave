@@ -180,6 +180,15 @@ defmodule Speechwave.Accounts do
 
   def delete_account(%User{} = user, typed_email) do
     if is_binary(typed_email) and String.trim(typed_email) == user.email do
+      erase_user(user)
+    else
+      {:error, :confirmation_mismatch}
+    end
+  end
+
+  # Log first, then delete, so a failure errs toward erasure (see the docs above).
+  defp erase_user(user) do
+    if Repo.exists?(from u in User, where: u.id == ^user.id) do
       case DeletionLog.record(user.id) do
         :ok ->
           scrub_deletion_log()
@@ -191,7 +200,8 @@ defmodule Speechwave.Accounts do
           {:error, :log_failed}
       end
     else
-      {:error, :confirmation_mismatch}
+      # Already deleted (second tab, double submit): nothing to do or log.
+      {:ok, user}
     end
   end
 
@@ -219,13 +229,34 @@ defmodule Speechwave.Accounts do
   the backup do not come back. `deletions.db` is not touched by a normal
   restore, so the log still knows about them.
 
-  It also raises the `users` id sequence to at least the highest logged id.
+  After restoring a whole Fly volume snapshot, `deletions.db` is rolled back
+  too. Download `backup/deletions.db` from object storage first and pass its
+  path in `extra_log_paths`: those ids are applied as well and also recorded in
+  the live log. A path that does not exist raises `ArgumentError`.
+
+  It also raises the `users` id sequence to at least the highest id seen.
   A restore rolls the sequence back to its value in the backup, and without
   this a new signup could be given an id that is in the log and be deleted by
   the next re-apply.
   """
-  def reapply_recorded_deletions do
-    ids = DeletionLog.logged_ids()
+  def reapply_recorded_deletions(extra_log_paths \\ []) do
+    live_ids = DeletionLog.logged_ids()
+
+    if not File.exists?(DeletionLog.path()) do
+      Logger.warning(
+        "[Accounts] No deletion log at #{DeletionLog.path()}; re-applying only the ids from extra logs"
+      )
+    end
+
+    extra_ids =
+      Enum.flat_map(extra_log_paths, fn path ->
+        File.exists?(path) || raise ArgumentError, "extra deletion log not found: #{path}"
+        DeletionLog.logged_ids(path)
+      end)
+
+    Enum.each(extra_ids -- live_ids, &DeletionLog.record/1)
+
+    ids = Enum.sort(Enum.uniq(live_ids ++ extra_ids))
     {count, _} = Repo.delete_all(from u in User, where: u.id in ^ids)
     raise_users_sequence(List.last(ids))
     count

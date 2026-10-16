@@ -14,7 +14,13 @@ defmodule SpeechwaveWeb.UserAccountController do
   """
   def delete(conn, params) do
     user = conn.assigns.current_scope.user
-    typed_email = get_in(params, ["account", "email"])
+
+    typed_email =
+      case params do
+        %{"account" => %{"email" => email}} -> email
+        _ -> nil
+      end
+
     tokens = Accounts.list_session_tokens(user)
 
     case Accounts.delete_account(user, typed_email) do

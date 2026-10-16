@@ -129,10 +129,11 @@ defmodule Speechwave.AccountsDeleteTest do
       assert length(DeletionLog.deleted_ats()) == 2
     end
 
-    test "deleting a user that is already gone returns {:ok, user} without raising" do
+    test "deleting a user that is already gone returns {:ok, user} and logs it only once" do
       user = user_fixture()
       assert {:ok, _} = Accounts.delete_account(user, user.email)
       assert {:ok, _} = Accounts.delete_account(user, user.email)
+      assert length(DeletionLog.deleted_ats()) == 1
     end
   end
 
@@ -177,6 +178,54 @@ defmodule Speechwave.AccountsDeleteTest do
       restore_user(id, user.email)
       assert Accounts.reapply_recorded_deletions() == 0
       assert Repo.get(User, id)
+    end
+  end
+
+  describe "reapply_recorded_deletions/1 with extra log files" do
+    @describetag :capture_log
+    # After restoring a whole Fly volume snapshot, deletions.db is rolled back
+    # too, so the newer copy from object storage is passed in as an extra log.
+    defp extra_log_with(ids) do
+      path = Path.join(System.tmp_dir!(), "extra_log_#{System.unique_integer([:positive])}.db")
+      live = DeletionLog.path()
+      File.rm(path)
+      Application.put_env(:speechwave, :deletions_db_path, path)
+      Enum.each(ids, &DeletionLog.record/1)
+      Application.put_env(:speechwave, :deletions_db_path, live)
+      on_exit(fn -> File.rm(path) end)
+      path
+    end
+
+    test "also deletes users whose ids are only in the extra log and records them in the live log" do
+      user = user_fixture()
+      extra = extra_log_with([user.id])
+
+      assert DeletionLog.logged_ids() == []
+      assert Accounts.reapply_recorded_deletions([extra]) == 1
+      refute Repo.get(User, user.id)
+      assert DeletionLog.logged_ids() == [user.id]
+    end
+
+    test "raises when an extra log file does not exist" do
+      assert_raise ArgumentError, fn ->
+        Accounts.reapply_recorded_deletions(["/nonexistent/dir/log.db"])
+      end
+    end
+
+    test "raises the sequence using ids from the extra log" do
+      extra = extra_log_with([800])
+      Accounts.reapply_recorded_deletions([extra])
+      assert user_fixture().id > 800
+    end
+
+    @tag :capture_log
+    test "warns instead of silently returning 0 when the live log file is missing" do
+      log =
+        ExUnit.CaptureLog.capture_log([level: :warning], fn ->
+          Accounts.reapply_recorded_deletions()
+        end)
+
+      assert log =~ "deletion log"
     end
   end
 end

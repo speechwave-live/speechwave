@@ -87,4 +87,45 @@ defmodule Speechwave.DeletionLogTest do
 
     assert rows == [[7]]
   end
+
+  describe "when the log file does not exist" do
+    # An empty log must never be created by a read, scrub or backup: a lost
+    # deletions.db has to stay visibly missing, not turn into an empty file
+    # that then overwrites the good copy in object storage.
+    test "scrub, logged_ids and deleted_ats do not create it" do
+      assert :ok = DeletionLog.scrub()
+      assert DeletionLog.logged_ids() == []
+      assert DeletionLog.deleted_ats() == []
+      refute File.exists?(DeletionLog.path())
+    end
+
+    test "snapshot_to returns {:error, :no_log} and writes nothing" do
+      dest =
+        Path.join(System.tmp_dir!(), "no_log_snapshot_#{System.unique_integer([:positive])}.db")
+
+      assert {:error, :no_log} = DeletionLog.snapshot_to(dest)
+      refute File.exists?(dest)
+      refute File.exists?(DeletionLog.path())
+    end
+  end
+
+  test "scrub keeps a row exactly 30 days old" do
+    now = ~U[2026-11-15 12:00:00Z]
+    :ok = DeletionLog.record(5, DateTime.add(now, -30 * 24 * 3600, :second))
+    :ok = DeletionLog.record(6, DateTime.add(now, -30 * 24 * 3600 - 1, :second))
+
+    assert :ok = DeletionLog.scrub(now)
+    assert DeletionLog.logged_ids() == [5]
+  end
+
+  test "logged_ids can read another log file by path" do
+    :ok = DeletionLog.record(11)
+    copy = Path.join(System.tmp_dir!(), "other_log_#{System.unique_integer([:positive])}.db")
+    on_exit(fn -> File.rm(copy) end)
+    :ok = DeletionLog.snapshot_to(copy)
+    File.rm(DeletionLog.path())
+
+    assert DeletionLog.logged_ids(copy) == [11]
+    assert DeletionLog.logged_ids() == []
+  end
 end

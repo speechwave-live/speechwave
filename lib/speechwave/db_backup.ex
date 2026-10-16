@@ -58,6 +58,9 @@ defmodule Speechwave.DbBackup do
           upload(path, key)
           Logger.info("[DbBackup] Uploaded #{key}")
 
+        {:error, :no_log} ->
+          Logger.info("[DbBackup] No #{key} to back up yet, skipping")
+
         {:error, reason} ->
           raise "snapshot failed: #{inspect(reason)}"
       end
@@ -70,7 +73,8 @@ defmodule Speechwave.DbBackup do
 
   # VACUUM INTO creates a consistent, compacted snapshot while the DB is live
   defp snapshot_main(path) do
-    SQL.query!(Speechwave.Repo, "VACUUM INTO '#{path}'", [])
+    escaped = String.replace(path, "'", "''")
+    SQL.query!(Speechwave.Repo, "VACUUM INTO '#{escaped}'", [])
     :ok
   end
 

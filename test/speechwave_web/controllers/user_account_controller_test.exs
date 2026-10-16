@@ -69,6 +69,34 @@ defmodule SpeechwaveWeb.UserAccountControllerTest do
       assert DeletionLog.logged_ids() == []
     end
 
+    test "malformed account params do not crash", %{conn: conn, user: user} do
+      conn = delete(conn, ~p"/users/account", %{"account" => "foo"})
+
+      assert redirected_to(conn) == ~p"/users/settings"
+      assert Repo.get(User, user.id)
+    end
+
+    @tag :capture_log
+    test "a log failure redirects to settings with an error and keeps the account", %{
+      conn: conn,
+      user: user
+    } do
+      original = Application.fetch_env!(:speechwave, :deletions_db_path)
+      on_exit(fn -> Application.put_env(:speechwave, :deletions_db_path, original) end)
+
+      Application.put_env(
+        :speechwave,
+        :deletions_db_path,
+        Path.join(System.tmp_dir!(), "no_such_dir_#{System.unique_integer([:positive])}/d.db")
+      )
+
+      conn = delete_account(conn, user.email)
+
+      assert redirected_to(conn) == ~p"/users/settings"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error)
+      assert Repo.get(User, user.id)
+    end
+
     test "a request without the account params does not crash", %{conn: conn, user: user} do
       conn = delete(conn, ~p"/users/account", %{})
 

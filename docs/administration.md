@@ -88,7 +88,15 @@ The log is separate because a restore of `speechwave.db` would otherwise roll th
 Speechwave.Accounts.reapply_recorded_deletions()
 ```
 
-It deletes again every user whose id is in the log, returns how many it removed, and raises the `users` id sequence to at least the highest logged id. A restore rolls the sequence back, and without this a new signup could be given an id that is in the log and be deleted by a later re-apply. If `deletions.db` itself is missing or corrupt, first restore it from `backup/deletions.db` in Tigris (or the latest Fly snapshot), then run the command.
+It deletes again every user whose id is in the log, returns how many it removed, and raises the `users` id sequence to at least the highest logged id. A restore rolls the sequence back, and without this a new signup could be given an id that is in the log and be deleted by a later re-apply. If it logs a warning that no deletion log was found, the file is missing: see below.
+
+**Restoring a whole Fly volume snapshot** also rolls `deletions.db` back, so deletions made since the snapshot are missing from it. Do this instead:
+
+1. Before restoring, download `backup/deletions.db` from Tigris to a scratch file (same `aws s3 cp` recipe as above). Do it first: once the restored volume boots, the hourly backup can overwrite the Tigris copy with the older log within 5 minutes.
+2. Restore the snapshot and start the app.
+3. Run `Speechwave.Accounts.reapply_recorded_deletions(["/path/to/downloaded-deletions.db"])`. Ids from the downloaded file are applied too and also recorded in the live log. A path that does not exist raises.
+
+**If `deletions.db` is lost** (volume replaced, file deleted), the app does not create an empty one: only recording a deletion creates the file, and the backup skips `deletions.db` while the file is missing, so the good copy in Tigris is not overwritten. Download `backup/deletions.db` into place before the first new deletion, or pass it to `reapply_recorded_deletions/1` as above. The first deletion after the loss creates a fresh, nearly empty log, and the next hourly backup would then overwrite Tigris with it, so do the restore before anyone deletes an account.
 
 Accounts deleted since the backup you restored are the ones this protects. The log has no email or hash by design, so it cannot tell you who was deleted.
 
