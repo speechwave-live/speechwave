@@ -4,6 +4,9 @@ defmodule Speechwave.Accounts do
   """
 
   import Ecto.Query, warn: false
+  require Logger
+
+  alias Speechwave.DeletionLog
   alias Speechwave.Repo
 
   alias Speechwave.Accounts.{User, UserConsent, UserIdentity, UserNotifier, UserToken}
@@ -156,6 +159,92 @@ defmodule Speechwave.Accounts do
 
   """
   def get_user!(id), do: Repo.get!(User, id)
+
+  ## Account deletion
+
+  @doc """
+  Permanently deletes the user's account and everything that belongs to it.
+
+  `typed_email` must equal the user's current email (surrounding whitespace is
+  ignored, case matters). Admins cannot delete themselves, so the only admin
+  cannot lock themselves out. The id is written to the deletion log first, so
+  a failure leaves at worst a logged id for a user who still exists, which
+  errs toward erasure. Talks, sessions, reactions, consents, identities and
+  tokens go with the user through the `on_delete: :delete_all` foreign keys.
+
+  Deleting a user that is already gone is not an error.
+
+  Returns `{:ok, user}` or `{:error, :admin | :confirmation_mismatch | :log_failed}`.
+  """
+  def delete_account(%User{is_admin: true}, _typed_email), do: {:error, :admin}
+
+  def delete_account(%User{} = user, typed_email) do
+    if is_binary(typed_email) and String.trim(typed_email) == user.email do
+      case DeletionLog.record(user.id) do
+        :ok ->
+          scrub_deletion_log()
+          Repo.delete_all(from u in User, where: u.id == ^user.id)
+          {:ok, user}
+
+        {:error, reason} ->
+          Logger.error("[Accounts] Could not write deletion log: #{inspect(reason)}")
+          {:error, :log_failed}
+      end
+    else
+      {:error, :confirmation_mismatch}
+    end
+  end
+
+  defp scrub_deletion_log do
+    case DeletionLog.scrub() do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("[Accounts] Could not scrub deletion log: #{inspect(reason)}")
+    end
+  end
+
+  @doc """
+  Deletes every user whose id is in the deletion log and returns how many were
+  removed.
+
+  Run this from the production console right after restoring `speechwave.db`
+  from a backup and before the app takes traffic, so accounts deleted since
+  the backup do not come back. `deletions.db` is not touched by a normal
+  restore, so the log still knows about them.
+
+  It also raises the `users` id sequence to at least the highest logged id.
+  A restore rolls the sequence back to its value in the backup, and without
+  this a new signup could be given an id that is in the log and be deleted by
+  the next re-apply.
+  """
+  def reapply_recorded_deletions do
+    ids = DeletionLog.logged_ids()
+    {count, _} = Repo.delete_all(from u in User, where: u.id in ^ids)
+    raise_users_sequence(List.last(ids))
+    count
+  end
+
+  defp raise_users_sequence(nil), do: :ok
+
+  defp raise_users_sequence(max_id) do
+    %{num_rows: updated} =
+      Repo.query!("UPDATE sqlite_sequence SET seq = ?1 WHERE name = 'users' AND seq < ?1", [
+        max_id
+      ])
+
+    if updated == 0 do
+      %{rows: [[present]]} =
+        Repo.query!("SELECT COUNT(*) FROM sqlite_sequence WHERE name = 'users'", [])
+
+      if present == 0 do
+        Repo.query!("INSERT INTO sqlite_sequence (name, seq) VALUES ('users', ?1)", [max_id])
+      end
+    end
+
+    :ok
+  end
 
   ## User registration
 
