@@ -351,7 +351,7 @@ for analysis must be deleted within 30 days too, or the promise is false.
 ## 2026-10-16 — Versioning: 0.x until public launch, then 1.0.0
 
 Speechwave follows Semantic Versioning, with `CHANGELOG.md` (Keep a Changelog)
-as the record and an annotated-style `vX.Y.Z` tag per release. While in 0.x, a
+as the record and a `vX.Y.Z` git tag per release. While in 0.x, a
 minor bump marks a notable user-visible capability (0.3.0: account deletion and
 the consent export) and a patch bump marks fixes only.
 
