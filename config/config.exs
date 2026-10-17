@@ -56,6 +56,13 @@ config :speechwave, :session_timeout_hours, 4
 # local Jekyll preview server instead of the production docs site.
 config :speechwave, :docs_url, "https://docs.speechwave.live"
 
+# Backups only run when `storage` is set (from STORAGE_* in runtime.exs).
+# `req_options` is merged into the upload request; tests use it to stub HTTP.
+config :speechwave, Speechwave.DbBackup,
+  storage: nil,
+  req_options: [],
+  tmp_dir: "/tmp"
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

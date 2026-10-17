@@ -13,31 +13,21 @@ defmodule Speechwave.DbBackupTest do
     tmp_dir = Path.join(System.tmp_dir!(), "db_backup_test_#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp_dir)
 
-    originals =
-      for key <- [:db_backup_storage, :db_backup_req_options, :db_backup_tmp_dir],
-          do: {key, Application.get_env(:speechwave, key)}
+    original = Application.fetch_env!(:speechwave, DbBackup)
 
-    Application.put_env(:speechwave, :db_backup_storage,
-      url: "http://storage.test",
-      bucket: "bucket",
-      access_key_id: "key",
-      secret_access_key: "secret"
+    Application.put_env(:speechwave, DbBackup,
+      storage: [
+        url: "http://storage.test",
+        bucket: "bucket",
+        access_key_id: "key",
+        secret_access_key: "secret"
+      ],
+      req_options: [plug: {Req.Test, DbBackup}, retry: false],
+      tmp_dir: tmp_dir
     )
-
-    Application.put_env(:speechwave, :db_backup_req_options,
-      plug: {Req.Test, DbBackup},
-      retry: false
-    )
-
-    Application.put_env(:speechwave, :db_backup_tmp_dir, tmp_dir)
 
     on_exit(fn ->
-      for {key, value} <- originals do
-        if value,
-          do: Application.put_env(:speechwave, key, value),
-          else: Application.delete_env(:speechwave, key)
-      end
-
+      Application.put_env(:speechwave, DbBackup, original)
       File.rm_rf(tmp_dir)
     end)
 

@@ -43,6 +43,18 @@ if config_env() == :prod do
          System.get_env("DELETIONS_DATABASE_PATH") ||
            Path.join(Path.dirname(database_path), "deletions.db")
 
+  # Off-site backup storage (S3-compatible). Production only: without
+  # STORAGE_BUCKET, `storage` stays nil and no backups run.
+  if System.get_env("STORAGE_BUCKET") do
+    config :speechwave, Speechwave.DbBackup,
+      storage: [
+        url: System.fetch_env!("STORAGE_URL"),
+        bucket: System.fetch_env!("STORAGE_BUCKET"),
+        access_key_id: System.fetch_env!("STORAGE_ACCESS_KEY_ID"),
+        secret_access_key: System.fetch_env!("STORAGE_SECRET_ACCESS_KEY")
+      ]
+  end
+
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
   # want to use a different value for prod and you most likely don't want

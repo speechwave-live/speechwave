@@ -52,23 +52,6 @@ sign-in providers. It must never include secrets (session tokens, the API key)
 and should be rate limited. Decide whether the
 privacy policy should promise this self-service export once it exists.
 
-#### DbBackup configuration and test support cleanup
-
-Deferred from the maintainability review of the account deletion work.
-
-- **One config shape for `DbBackup`.** Three app-env keys exist mostly for
-  tests (`:db_backup_storage`, `:db_backup_req_options`, `:db_backup_tmp_dir`),
-  `storage_config/0` branches between them and the `STORAGE_*` variables, and
-  `Application.backup_children/0` reads `STORAGE_BUCKET` directly. Replace with
-  `config :speechwave, Speechwave.DbBackup, storage: [...], req_options: [],
-  tmp_dir: "/tmp"`, fill `storage:` from `STORAGE_*` in `runtime.exs` so
-  production and tests take the same path, and let `backup_children/0` check
-  that `storage` is set. The test setup shrinks to one `put_env`.
-- **A snapshot contract that does not leak `DeletionLog`'s error atom.**
-  `backup_target/3` matches `{:error, :no_log}`. Define the snapshot callback
-  as `:ok | :skip | {:error, reason}` so a third backup target does not need to
-  know that convention.
-
 #### Uniform `DeletionLog` API and shared test helpers
 
 Also from the maintainability review. `DeletionLog.logged_ids/1` takes a path,
