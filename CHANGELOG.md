@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-16
+
+### Added
+
+- You can now delete your own account from Settings (Danger zone). After you type your email to confirm, your account and everything in it (talks, sessions, reactions, consents and linked sign-ins) is removed immediately and you are signed out. Admin accounts can't be deleted from Settings.
+- Admins can download a CSV of marketing email consents from the stats page, for the last month or any time range.
+
+### Changed
+
+- The privacy policy and terms now describe account deletion and say deleted data leaves our backups within 30 days. An anonymous account identifier is kept for up to 30 days so that a deleted account can't be restored from a backup.
+- Flash messages now appear on the home, terms and privacy pages, so "Logged out successfully." shows after signing out.
+
 ## [0.2.0] - 2026-09-18
 
 ### Added
