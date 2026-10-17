@@ -56,3 +56,6 @@ extension/node_modules/
 *.db
 *.db-shm
 *.db-wal
+
+# Private working drafts (announcements, screencast script). Back up separately.
+/docs/internal/
