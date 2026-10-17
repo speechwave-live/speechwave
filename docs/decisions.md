@@ -348,3 +348,29 @@ for analysis must be deleted within 30 days too, or the promise is false.
 - Data access and portability (a "download my data" export) is a separate
   roadmap item.
 
+## 2026-10-16 — Versioning: 0.x until public launch, then 1.0.0
+
+Speechwave follows Semantic Versioning, with `CHANGELOG.md` (Keep a Changelog)
+as the record and an annotated-style `vX.Y.Z` tag per release. While in 0.x, a
+minor bump marks a notable user-visible capability (0.3.0: account deletion and
+the consent export) and a patch bump marks fixes only.
+
+**1.0.0 means the contracts users depend on are stable, not that the product
+is finished.** Bump to 1.0.0 when all of these hold:
+
+1. **Public launch.** The free tier is open to real users (the roadmap's
+   Pre-launch "Must haves" are done).
+2. **Stable external contracts.** The Chrome extension and reactions channel
+   protocol (join payload, events) and the `/api` surface change only through a
+   versioned migration, because the Web Store extension cannot be hot-fixed.
+3. **Data durability and compliance.** Backups are exercised, the restore
+   runbook has been run once against real data, and the GDPR items are done:
+   deletion, consent revocation and "download my data".
+4. **Plans settled.** Plan limits and pricing are final, if paid plans are
+   offered.
+5. **No known data-loss or security issues.**
+
+**Why:** the number should tell users and integrators when breaking changes
+stop being routine. Tying it to public launch keeps the rule simple and
+checkable.
+
