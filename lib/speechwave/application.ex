@@ -4,10 +4,13 @@ defmodule Speechwave.Application do
   @moduledoc false
 
   use Application
+  require Logger
 
   @impl true
   def start(_type, _args) do
     migrate_on_start()
+    # Clear ids older than 30 days from the deletion log (see Speechwave.DeletionLog).
+    Speechwave.DeletionLog.scrub_logging_errors()
 
     children =
       [

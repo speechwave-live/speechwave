@@ -11,6 +11,13 @@ config :speechwave, Speechwave.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 1
 
+config :speechwave,
+       :deletions_db_path,
+       Path.expand(
+         "../priv/repo/deletions_test#{System.get_env("MIX_TEST_PARTITION", "")}.db",
+         __DIR__
+       )
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :speechwave, SpeechwaveWeb.Endpoint,

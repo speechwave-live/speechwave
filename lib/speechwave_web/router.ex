@@ -46,6 +46,10 @@ defmodule SpeechwaveWeb.Router do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
+
+    # A controller action, not a LiveView event: deleting the account has to
+    # clear the browser's session cookie, which only the plug layer can do.
+    delete "/users/account", UserAccountController, :delete
   end
 
   # ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ defmodule Speechwave.DbBackup do
   require Logger
 
   alias Ecto.Adapters.SQL
+  alias Speechwave.DeletionLog
 
   @initial_delay :timer.minutes(5)
   @interval :timer.hours(1)
@@ -25,44 +26,98 @@ defmodule Speechwave.DbBackup do
 
   @impl true
   def handle_info(:backup, state) do
-    run_backup()
+    run_now()
     Process.send_after(self(), :backup, @interval)
     {:noreply, state}
   end
 
-  def run_now, do: run_backup()
-
-  defp run_backup do
-    backup_path = "/tmp/speechwave_backup.db"
-
+  @doc """
+  Backs up both databases once, now: `speechwave.db` to `backup/speechwave.db` and
+  the deletion log `deletions.db` to `backup/deletions.db`. The two are
+  independent, so a failure in one is logged and does not stop the other.
+  Old ids are scrubbed from the deletion log first.
+  """
+  def run_now do
     Logger.info("[DbBackup] Starting backup")
 
+    # Hourly scrubbing keeps the 30 day promise even with no deploys or deletions,
+    # and keeps unscrubbed ids out of the uploaded copy.
+    DeletionLog.scrub_logging_errors()
+
+    backup_target("backup/speechwave.db", "speechwave_backup.db", &snapshot_main/1)
+    backup_target("backup/deletions.db", "deletions_backup.db", &DeletionLog.snapshot_to/1)
+
+    :ok
+  end
+
+  defp backup_target(key, filename, snapshot) do
+    path = Path.join(tmp_dir(), filename)
+    # VACUUM INTO refuses to write over an existing file
+    File.rm(path)
+
     try do
-      # VACUUM INTO creates a consistent, compacted snapshot while the DB is live
-      SQL.query!(Speechwave.Repo, "VACUUM INTO '#{backup_path}'", [])
-      upload(backup_path)
-      Logger.info("[DbBackup] Backup uploaded successfully")
+      case snapshot.(path) do
+        :ok ->
+          upload(path, key)
+          Logger.info("[DbBackup] Uploaded #{key}")
+
+        {:error, :no_log} ->
+          Logger.info("[DbBackup] No #{key} to back up yet, skipping")
+
+        {:error, reason} ->
+          raise "snapshot failed: #{inspect(reason)}"
+      end
     rescue
-      e -> Logger.error("[DbBackup] Backup failed: #{Exception.message(e)}")
+      e -> Logger.error("[DbBackup] Backup of #{key} failed: #{Exception.message(e)}")
     after
-      File.rm(backup_path)
+      File.rm(path)
     end
   end
 
-  defp upload(path) do
-    endpoint = System.fetch_env!("STORAGE_URL")
-    bucket = System.fetch_env!("STORAGE_BUCKET")
-    access_key_id = System.fetch_env!("STORAGE_ACCESS_KEY_ID")
-    secret_access_key = System.fetch_env!("STORAGE_SECRET_ACCESS_KEY")
-
-    Req.put!("#{endpoint}/#{bucket}/backup/speechwave.db",
-      body: File.read!(path),
-      aws_sigv4: [
-        access_key_id: access_key_id,
-        secret_access_key: secret_access_key,
-        region: "auto",
-        service: "s3"
-      ]
-    )
+  # VACUUM INTO creates a consistent, compacted snapshot while the DB is live
+  defp snapshot_main(path) do
+    escaped = String.replace(path, "'", "''")
+    SQL.query!(Speechwave.Repo, "VACUUM INTO '#{escaped}'", [])
+    :ok
   end
+
+  defp upload(path, key) do
+    storage = storage_config()
+
+    response =
+      Req.put!(
+        "#{storage.url}/#{storage.bucket}/#{key}",
+        [
+          body: File.read!(path),
+          aws_sigv4: [
+            access_key_id: storage.access_key_id,
+            secret_access_key: storage.secret_access_key,
+            region: "auto",
+            service: "s3"
+          ]
+        ] ++ Application.get_env(:speechwave, :db_backup_req_options, [])
+      )
+
+    if response.status not in 200..299 do
+      raise "storage responded with HTTP #{response.status}"
+    end
+  end
+
+  # Tests supply :db_backup_storage; production reads the STORAGE_* variables.
+  defp storage_config do
+    case Application.get_env(:speechwave, :db_backup_storage) do
+      nil ->
+        %{
+          url: System.fetch_env!("STORAGE_URL"),
+          bucket: System.fetch_env!("STORAGE_BUCKET"),
+          access_key_id: System.fetch_env!("STORAGE_ACCESS_KEY_ID"),
+          secret_access_key: System.fetch_env!("STORAGE_SECRET_ACCESS_KEY")
+        }
+
+      config ->
+        Map.new(config)
+    end
+  end
+
+  defp tmp_dir, do: Application.get_env(:speechwave, :db_backup_tmp_dir, "/tmp")
 end

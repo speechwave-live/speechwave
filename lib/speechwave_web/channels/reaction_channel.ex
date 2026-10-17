@@ -22,7 +22,11 @@ defmodule SpeechwaveWeb.ReactionChannel do
               user.plan,
               Presence.list("reactions:#{slug}") |> map_size()
             )} do
-      Phoenix.PubSub.subscribe(Speechwave.PubSub, "user:#{user.id}:disconnect")
+      Phoenix.PubSub.subscribe(
+        Speechwave.PubSub,
+        SpeechwaveWeb.UserAuth.extension_disconnect_topic(user.id)
+      )
+
       send(self(), :after_join)
       {:ok, join_payload(user), assign(socket, talk: talk, user: user)}
     else

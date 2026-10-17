@@ -1,6 +1,7 @@
 defmodule SpeechwaveWeb.UserLive.Settings do
   use SpeechwaveWeb, :live_view
 
+  alias Phoenix.LiveView.JS
   alias Speechwave.Accounts
 
   @impl true
@@ -204,7 +205,110 @@ defmodule SpeechwaveWeb.UserLive.Settings do
           <% end %>
         </div>
       </div>
+
+      <div class="divider" />
+
+      <%!-- Danger zone: permanent account deletion --%>
+      <div
+        id="danger-zone"
+        class="rounded-xl border border-red-200 border-l-[5px] border-l-red-600 bg-red-50 p-4"
+      >
+        <h3 class="flex items-center gap-2 font-bold text-red-700">
+          <.icon name="hero-exclamation-triangle" class="size-5" /> Danger zone
+        </h3>
+        <p class="mt-1.5 text-sm text-gray-700">
+          Permanently delete your account and everything in it: your talks, sessions,
+          reactions and settings. This cannot be undone.
+        </p>
+        <%= if not @can_delete? do %>
+          <p id="danger-zone-admin-note" class="mt-3 text-sm font-medium text-gray-700">
+            Admin accounts can't be deleted from here, so the site always keeps an administrator.
+          </p>
+        <% else %>
+          <button
+            id="open-delete-dialog"
+            type="button"
+            phx-click={JS.dispatch("open-dialog", to: "#delete-account-dialog")}
+            class="mt-3 rounded-lg bg-red-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+          >
+            Delete my account…
+          </button>
+        <% end %>
+      </div>
+
+      <%= if @can_delete? do %>
+        <%!--
+          Native <dialog>, opened and closed by the .DeleteDialog hook below. The
+          form posts to a controller (phx-trigger-action) because only the plug
+          layer can clear the session cookie after the account is gone.
+        --%>
+        <dialog
+          id="delete-account-dialog"
+          phx-hook=".DeleteDialog"
+          phx-mounted={JS.ignore_attributes(["open"])}
+          class="m-auto w-full max-w-md rounded-2xl bg-white p-0 text-gray-800 shadow-xl backdrop:bg-black/50"
+        >
+          <.form
+            for={@delete_form}
+            id="delete-account-form"
+            action={~p"/users/account"}
+            method="delete"
+            phx-change="delete_account_change"
+            phx-submit="delete_account_submit"
+            phx-trigger-action={@submit_delete_form?}
+            class="p-6"
+          >
+            <h2 class="text-lg font-bold text-red-700">Delete your account?</h2>
+            <p class="mt-3 text-sm">
+              This permanently deletes your account, all of your talks and sessions, and your
+              reaction data. <strong>It cannot be undone, and we can't recover it.</strong>
+            </p>
+            <p class="mt-2 text-sm">Deleted data is removed from our backups within 30 days.</p>
+            <label for="delete-account-email" class="mt-4 block text-sm">
+              Type <strong>{@current_scope.user.email}</strong> to confirm:
+            </label>
+            <.input
+              field={@delete_form[:email]}
+              id="delete-account-email"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder={@current_scope.user.email}
+              class="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/30"
+            />
+            <p :if={@delete_error} id="delete-account-error" class="mt-2 text-sm text-red-700">
+              {@delete_error}
+            </p>
+            <div class="mt-5 flex justify-end gap-2.5">
+              <button
+                id="cancel-delete-account"
+                type="button"
+                phx-click={JS.dispatch("close-dialog", to: "#delete-account-dialog")}
+                class="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-800 transition-colors hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                id="confirm-delete-account"
+                type="submit"
+                disabled={!@delete_match?}
+                class="rounded-lg bg-red-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-red-600"
+              >
+                Delete my account
+              </button>
+            </div>
+          </.form>
+        </dialog>
+      <% end %>
     </Layouts.app>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".DeleteDialog">
+      export default {
+        mounted() {
+          this.el.addEventListener("open-dialog", () => this.el.showModal())
+          this.el.addEventListener("close-dialog", () => this.el.close())
+        }
+      }
+    </script>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".SelectOnClick">
       export default {
         mounted() { this.el.addEventListener("click", () => this.el.select()) }
@@ -250,6 +354,11 @@ defmodule SpeechwaveWeb.UserLive.Settings do
       |> assign(:marketing_consent, marketing_consent)
       |> assign(:tuning, tuning)
       |> assign(:extension_settings_form, to_form(extension_settings_changeset))
+      |> assign(:delete_form, to_form(%{"email" => ""}, as: :account))
+      |> assign(:delete_match?, false)
+      |> assign(:delete_error, nil)
+      |> assign(:can_delete?, Accounts.can_delete_account?(user))
+      |> assign(:submit_delete_form?, false)
 
     {:ok, socket}
   end
@@ -312,6 +421,31 @@ defmodule SpeechwaveWeb.UserLive.Settings do
     end
   end
 
+  def handle_event("delete_account_change", params, socket) do
+    typed = typed_email(params)
+
+    {:noreply,
+     socket
+     |> assign(:delete_form, to_form(%{"email" => typed || ""}, as: :account))
+     |> assign(:delete_match?, delete_confirmed?(socket, typed))
+     |> assign(:delete_error, nil)}
+  end
+
+  # Re-checks the typed email on the server, then lets the form post to
+  # UserAccountController, which checks again and does the deletion.
+  def handle_event("delete_account_submit", params, socket) do
+    if delete_confirmed?(socket, typed_email(params)) do
+      {:noreply, assign(socket, :submit_delete_form?, true)}
+    else
+      {:noreply,
+       assign(
+         socket,
+         :delete_error,
+         "That doesn't match your account email, so nothing was deleted."
+       )}
+    end
+  end
+
   def handle_event("clipboard_copy", %{"message" => message}, socket) do
     {:noreply, put_flash(socket, :info, message)}
   end
@@ -320,7 +454,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
     user = socket.assigns.current_scope.user
     {:ok, updated_user} = Accounts.regenerate_api_key(user)
 
-    SpeechwaveWeb.Endpoint.broadcast!("user:#{user.id}:disconnect", "disconnect", %{})
+    SpeechwaveWeb.UserAuth.disconnect_extension(user)
 
     {:noreply, assign(socket, :api_key, updated_user.api_key)}
   end
@@ -346,4 +480,11 @@ defmodule SpeechwaveWeb.UserLive.Settings do
         {:noreply, assign(socket, :extension_settings_form, to_form(changeset))}
     end
   end
+
+  defp delete_confirmed?(socket, typed),
+    do: Accounts.deletion_confirmed?(socket.assigns.current_scope.user, typed)
+
+  # Tolerates malformed params the same way the controller does.
+  defp typed_email(%{"account" => %{"email" => email}}), do: email
+  defp typed_email(_params), do: nil
 end

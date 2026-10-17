@@ -38,8 +38,47 @@ Deferred from the 2026-07-06 stats dashboard work (see
   `Stats.history_days/0` to a different window (e.g. 90 days) would need the
   chart dimensions revisited too, since nothing currently ties them together.
 
-#### Account deletion and consent revocation features for GDPR compliance
+#### GDPR: download my data (access and portability)
 
+Split out of the account deletion work. GDPR also gives people a right to get
+a copy of the personal data held about them (Articles 15 and 20), in a
+structured, commonly used, machine-readable format. Today that would be a manual
+request to admin@speechwave.live.
+
+A "Download my data" button in Settings could return one file (JSON, or a zip
+of CSVs) containing the account row (email, plan, signup date, settings),
+talks, sessions, reaction counts per session, consent records and linked
+sign-in providers. It must never include secrets (session tokens, the API key)
+and should be rate limited. Decide whether the
+privacy policy should promise this self-service export once it exists.
+
+#### DbBackup configuration and test support cleanup
+
+Deferred from the maintainability review of the account deletion work.
+
+- **One config shape for `DbBackup`.** Three app-env keys exist mostly for
+  tests (`:db_backup_storage`, `:db_backup_req_options`, `:db_backup_tmp_dir`),
+  `storage_config/0` branches between them and the `STORAGE_*` variables, and
+  `Application.backup_children/0` reads `STORAGE_BUCKET` directly. Replace with
+  `config :speechwave, Speechwave.DbBackup, storage: [...], req_options: [],
+  tmp_dir: "/tmp"`, fill `storage:` from `STORAGE_*` in `runtime.exs` so
+  production and tests take the same path, and let `backup_children/0` check
+  that `storage` is set. The test setup shrinks to one `put_env`.
+- **A snapshot contract that does not leak `DeletionLog`'s error atom.**
+  `backup_target/3` matches `{:error, :no_log}`. Define the snapshot callback
+  as `:ok | :skip | {:error, reason}` so a third backup target does not need to
+  know that convention.
+
+#### Uniform `DeletionLog` API and shared test helpers
+
+Also from the maintainability review. `DeletionLog.logged_ids/1` takes a path,
+but `record/2`, `scrub/1`, `deleted_ats/0` and `snapshot_to/1` always use the
+configured one, so tests swap the global `:deletions_db_path` to build a second
+log file. Give every public function an optional `log_path` (default `path()`).
+Then add test support helpers: `with_deletion_log_path/2` or
+`unwritable_deletion_log/0` (the unwritable-directory `put_env` block is copied
+into three test files) and an `sqlite_query(path, sql)` helper for the raw
+Exqlite open/prepare/fetch/close boilerplate that appears three times.
 
 #### SSH/eval magic link helper for production test scripts
 
