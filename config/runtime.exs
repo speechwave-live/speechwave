@@ -43,8 +43,8 @@ if config_env() == :prod do
          System.get_env("DELETIONS_DATABASE_PATH") ||
            Path.join(Path.dirname(database_path), "deletions.db")
 
-  # Off-site backup storage (S3-compatible). Without STORAGE_BUCKET, no
-  # backups run.
+  # Off-site backup storage (S3-compatible). Production only: without
+  # STORAGE_BUCKET, `storage` stays nil and no backups run.
   if System.get_env("STORAGE_BUCKET") do
     config :speechwave, Speechwave.DbBackup,
       storage: [
