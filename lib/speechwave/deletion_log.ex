@@ -120,7 +120,7 @@ defmodule Speechwave.DeletionLog do
 
   @doc """
   Writes a consistent copy of the log to `dest_path` using `VACUUM INTO`.
-  Returns `{:error, :no_log}` without creating anything if the log file does
+  Returns `:skip` without creating anything if the log file does
   not exist, so a lost log is never replaced by an empty one.
   """
   def snapshot_to(dest_path) when is_binary(dest_path) do
@@ -130,7 +130,7 @@ defmodule Speechwave.DeletionLog do
       with_conn(path(), fn conn -> Sqlite3.execute(conn, "VACUUM INTO '#{escaped}'") end)
       |> to_ok()
     else
-      {:error, :no_log}
+      :skip
     end
   end
 

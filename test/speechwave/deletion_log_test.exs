@@ -99,11 +99,11 @@ defmodule Speechwave.DeletionLogTest do
       refute File.exists?(DeletionLog.path())
     end
 
-    test "snapshot_to returns {:error, :no_log} and writes nothing" do
+    test "snapshot_to returns :skip and writes nothing" do
       dest =
         Path.join(System.tmp_dir!(), "no_log_snapshot_#{System.unique_integer([:positive])}.db")
 
-      assert {:error, :no_log} = DeletionLog.snapshot_to(dest)
+      assert :skip = DeletionLog.snapshot_to(dest)
       refute File.exists?(dest)
       refute File.exists?(DeletionLog.path())
     end

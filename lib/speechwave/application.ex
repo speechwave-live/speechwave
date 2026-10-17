@@ -39,7 +39,7 @@ defmodule Speechwave.Application do
   end
 
   defp backup_children do
-    if System.get_env("STORAGE_BUCKET"), do: [Speechwave.DbBackup], else: []
+    if Speechwave.DbBackup.configured?(), do: [Speechwave.DbBackup], else: []
   end
 
   @impl true

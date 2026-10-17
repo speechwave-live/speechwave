@@ -14,6 +14,9 @@ defmodule Speechwave.DbBackup do
   @initial_delay :timer.minutes(5)
   @interval :timer.hours(1)
 
+  @doc "True when backup storage is configured, so the backup process should run."
+  def configured?, do: config(:storage) != nil
+
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -36,6 +39,9 @@ defmodule Speechwave.DbBackup do
   the deletion log `deletions.db` to `backup/deletions.db`. The two are
   independent, so a failure in one is logged and does not stop the other.
   Old ids are scrubbed from the deletion log first.
+
+  Each target is written by a snapshot function that returns `:ok` (upload the
+  file), `:skip` (nothing to back up yet) or `{:error, reason}`.
   """
   def run_now do
     Logger.info("[DbBackup] Starting backup")
@@ -61,7 +67,7 @@ defmodule Speechwave.DbBackup do
           upload(path, key)
           Logger.info("[DbBackup] Uploaded #{key}")
 
-        {:error, :no_log} ->
+        :skip ->
           Logger.info("[DbBackup] No #{key} to back up yet, skipping")
 
         {:error, reason} ->
@@ -82,7 +88,7 @@ defmodule Speechwave.DbBackup do
   end
 
   defp upload(path, key) do
-    storage = storage_config()
+    storage = Map.new(config(:storage))
 
     response =
       Req.put!(
@@ -95,7 +101,7 @@ defmodule Speechwave.DbBackup do
             region: "auto",
             service: "s3"
           ]
-        ] ++ Application.get_env(:speechwave, :db_backup_req_options, [])
+        ] ++ config(:req_options)
       )
 
     if response.status not in 200..299 do
@@ -103,21 +109,9 @@ defmodule Speechwave.DbBackup do
     end
   end
 
-  # Tests supply :db_backup_storage; production reads the STORAGE_* variables.
-  defp storage_config do
-    case Application.get_env(:speechwave, :db_backup_storage) do
-      nil ->
-        %{
-          url: System.fetch_env!("STORAGE_URL"),
-          bucket: System.fetch_env!("STORAGE_BUCKET"),
-          access_key_id: System.fetch_env!("STORAGE_ACCESS_KEY_ID"),
-          secret_access_key: System.fetch_env!("STORAGE_SECRET_ACCESS_KEY")
-        }
+  defp tmp_dir, do: config(:tmp_dir)
 
-      config ->
-        Map.new(config)
-    end
-  end
-
-  defp tmp_dir, do: Application.get_env(:speechwave, :db_backup_tmp_dir, "/tmp")
+  # Settings come from `config :speechwave, Speechwave.DbBackup` (see config.exs
+  # for the keys and runtime.exs for how `storage` is filled in).
+  defp config(key), do: Application.fetch_env!(:speechwave, __MODULE__) |> Keyword.fetch!(key)
 end
