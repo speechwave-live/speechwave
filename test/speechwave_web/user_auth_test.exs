@@ -291,6 +291,17 @@ defmodule SpeechwaveWeb.UserAuthTest do
     end
   end
 
+  describe "on_mount chained (admin live session)" do
+    test "mounting twice on one socket does not attach the hook twice", %{conn: conn} do
+      admin = admin_user_fixture()
+      token = Accounts.generate_user_session_token(admin)
+      session = conn |> put_session(:user_token, token) |> get_session()
+
+      {:cont, socket} = UserAuth.on_mount(:require_authenticated, %{}, session, live_socket())
+      assert {:cont, _} = UserAuth.on_mount(:require_admin, %{}, session, socket)
+    end
+  end
+
   describe "on_mount :require_sudo_mode" do
     test "allows users that have authenticated in the last 10 minutes", %{conn: conn, user: user} do
       user_token = Accounts.generate_user_session_token(user)

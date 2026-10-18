@@ -50,11 +50,16 @@ defmodule SpeechwaveWeb.WelcomeBannerTest do
     user = user_fixture()
     {:ok, view, _html} = live(log_in_user(conn, user), ~p"/users/settings")
 
+    # Guard against a vacuous pass: authenticated_at must be set before dismissing.
+    before_scope = :sys.get_state(view.pid).socket.assigns.current_scope
+    assert %DateTime{} = before_scope.user.authenticated_at
+    assert is_nil(before_scope.user.welcomed_at)
+
     render_click(element(view, "#welcome-banner-dismiss"))
 
-    # The settings page still renders and handles events (no redirect to login).
-    assert render(view) =~ "settings"
-    assert has_element?(view, "form")
+    scope = :sys.get_state(view.pid).socket.assigns.current_scope
+    assert %DateTime{} = scope.user.authenticated_at
+    assert %DateTime{} = scope.user.welcomed_at
   end
 
   test "signed-out visitors get no banner", %{conn: conn} do
