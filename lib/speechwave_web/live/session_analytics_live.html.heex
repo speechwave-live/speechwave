@@ -16,11 +16,18 @@
       </p>
     </div>
 
-    <div class="flex items-center gap-4 mb-8">
+    <div class="flex flex-wrap items-center gap-4 mb-8">
       <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
         <div class="text-xs text-steel uppercase tracking-wide">Total Reactions</div>
         <div id="total-reactions" class="text-3xl font-bold text-ink">{@total_reactions}</div>
       </div>
+
+      <%= if @audience_count do %>
+        <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
+          <div class="text-xs text-steel uppercase tracking-wide">People Reacting</div>
+          <div id="audience-count" class="text-3xl font-bold text-ink">{@audience_count}</div>
+        </div>
+      <% end %>
 
       <%= if length(@other_sessions) > 0 do %>
         <div id="compare-link" class="text-sm">

@@ -1,5 +1,11 @@
+import {audienceId} from "../audience_id"
+
 const EmojiButtons = {
   mounted() {
+    // Tell the server who this is. Runs again after a reconnect, which starts
+    // a fresh LiveView process, so the same person is recognised.
+    this.pushEvent("audience_id", {id: audienceId(this.el.dataset.talkSlug)})
+
     this.el.addEventListener("click", (e) => {
       if (e.target.tagName !== "BUTTON") return;
       if (e.target.disabled) return;

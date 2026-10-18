@@ -36,6 +36,7 @@ defmodule SpeechwaveWeb.SessionAnalyticsLive do
            talk: talk,
            by_slide: by_slide,
            total_reactions: Reactions.count_reactions(session.id),
+           audience_count: Reactions.count_audience(session.id),
            other_sessions: other_sessions,
            compare_session: compare_session,
            compare_by_slide: compare_totals

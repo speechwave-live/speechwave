@@ -11,7 +11,12 @@
     >
     </div>
 
-    <div id="emoji-buttons" phx-hook="EmojiButtons" class="flex flex-col gap-2">
+    <div
+      id="emoji-buttons"
+      phx-hook="EmojiButtons"
+      data-talk-slug={@talk.slug}
+      class="flex flex-col gap-2"
+    >
       <div class="flex gap-3 flex-wrap">
         <%= for emoji <- @emojis do %>
           <button

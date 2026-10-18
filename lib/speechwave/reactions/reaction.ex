@@ -5,6 +5,7 @@ defmodule Speechwave.Reactions.Reaction do
   schema "reactions" do
     field :emoji, :string
     field :slide_number, :integer, default: 0
+    field :audience_id, :string
 
     belongs_to :talk_session, Speechwave.Talks.TalkSession
 
