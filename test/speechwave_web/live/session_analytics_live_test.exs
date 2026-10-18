@@ -106,6 +106,7 @@ defmodule SpeechwaveWeb.SessionAnalyticsLiveTest do
 
     {:ok, view, _html} = live(conn, "/sessions/#{s1.id}")
     assert has_element?(view, "#compare-link")
+    refute has_element?(view, "#stats #compare-link")
   end
 
   test "redirects to dashboard when session id is unknown", %{conn: conn} do

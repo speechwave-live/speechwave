@@ -16,36 +16,39 @@
       </p>
     </div>
 
-    <div class="flex flex-wrap items-center gap-4 mb-8">
-      <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
-        <div class="text-xs text-steel uppercase tracking-wide">Total Reactions</div>
-        <div id="total-reactions" class="text-3xl font-bold text-ink">{@total_reactions}</div>
+    <div class="mb-8 space-y-4">
+      <%!-- items-stretch gives every stat box the height of the tallest one --%>
+      <div id="stats" class="flex flex-wrap items-stretch gap-4">
+        <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
+          <div class="text-xs text-steel uppercase tracking-wide">Total Reactions</div>
+          <div id="total-reactions" class="text-3xl font-bold text-ink">{@total_reactions}</div>
+        </div>
+
+        <%= if @audience_count do %>
+          <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
+            <div class="text-xs text-steel uppercase tracking-wide">People Reacting</div>
+            <div id="audience-count" class="text-3xl font-bold text-ink">{@audience_count}</div>
+          </div>
+        <% end %>
+
+        <%= if @top_slide do %>
+          <% {top_slide_number, top_slide_count} = @top_slide %>
+          <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
+            <div class="text-xs text-steel uppercase tracking-wide">Top Slide</div>
+            <div id="top-slide" class="text-3xl font-bold text-ink">{top_slide_number}</div>
+            <div class="text-xs text-muted">{top_slide_count} reactions</div>
+          </div>
+        <% end %>
+
+        <%= if @top_emoji do %>
+          <% {top_emoji, top_emoji_count} = @top_emoji %>
+          <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
+            <div class="text-xs text-steel uppercase tracking-wide">Top Reaction</div>
+            <div id="top-emoji" class="text-3xl font-bold text-ink">{top_emoji}</div>
+            <div class="text-xs text-muted">{top_emoji_count} reactions</div>
+          </div>
+        <% end %>
       </div>
-
-      <%= if @audience_count do %>
-        <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
-          <div class="text-xs text-steel uppercase tracking-wide">People Reacting</div>
-          <div id="audience-count" class="text-3xl font-bold text-ink">{@audience_count}</div>
-        </div>
-      <% end %>
-
-      <%= if @top_slide do %>
-        <% {top_slide_number, top_slide_count} = @top_slide %>
-        <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
-          <div class="text-xs text-steel uppercase tracking-wide">Top Slide</div>
-          <div id="top-slide" class="text-3xl font-bold text-ink">{top_slide_number}</div>
-          <div class="text-xs text-muted">{top_slide_count} reactions</div>
-        </div>
-      <% end %>
-
-      <%= if @top_emoji do %>
-        <% {top_emoji, top_emoji_count} = @top_emoji %>
-        <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
-          <div class="text-xs text-steel uppercase tracking-wide">Top Reaction</div>
-          <div id="top-emoji" class="text-3xl font-bold text-ink">{top_emoji}</div>
-          <div class="text-xs text-muted">{top_emoji_count} reactions</div>
-        </div>
-      <% end %>
 
       <%= if length(@other_sessions) > 0 do %>
         <div id="compare-link" class="text-sm">
