@@ -3,7 +3,9 @@ defmodule Speechwave.AccountsTest do
 
   alias Speechwave.Accounts
   alias Speechwave.ExtensionTuning
+  alias Speechwave.Repo
 
+  import Ecto.Query
   import Speechwave.AccountsFixtures
   alias Speechwave.Accounts.{User, UserConsent, UserToken}
 
@@ -277,6 +279,28 @@ defmodule Speechwave.AccountsTest do
       assert user_token.user_id == user.id
       assert user_token.sent_to == user.email
       assert user_token.context == "login"
+    end
+  end
+
+  describe "mark_welcomed/1" do
+    test "sets welcomed_at on a new user" do
+      user = user_fixture()
+      assert user.welcomed_at == nil
+
+      assert {:ok, updated} = Accounts.mark_welcomed(user)
+      assert %DateTime{} = updated.welcomed_at
+      assert Repo.get!(User, user.id).welcomed_at == updated.welcomed_at
+    end
+
+    test "does not change an existing timestamp" do
+      user = user_fixture()
+
+      Repo.update_all(from(u in User, where: u.id == ^user.id),
+        set: [welcomed_at: ~U[2026-01-01 00:00:00Z]]
+      )
+
+      assert {:ok, updated} = Accounts.mark_welcomed(Repo.get!(User, user.id))
+      assert updated.welcomed_at == ~U[2026-01-01 00:00:00Z]
     end
   end
 

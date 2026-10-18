@@ -439,6 +439,26 @@ defmodule Speechwave.Accounts do
     end)
   end
 
+  ## Welcome banner
+
+  @doc """
+  Records that the user has seen the first-login welcome banner.
+
+  Sets `welcomed_at` to the current time only if it is still `nil`. The
+  `is_nil` guard lives in the UPDATE itself, so two concurrent callers keep
+  whichever timestamp was written first. Returns the user reloaded from the
+  database.
+  """
+  def mark_welcomed(%User{id: id}) do
+    now = DateTime.utc_now(:second)
+
+    Repo.update_all(from(u in User, where: u.id == ^id and is_nil(u.welcomed_at)),
+      set: [welcomed_at: now]
+    )
+
+    {:ok, Repo.get!(User, id)}
+  end
+
   ## Session
 
   @doc """

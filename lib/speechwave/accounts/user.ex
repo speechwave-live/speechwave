@@ -9,6 +9,7 @@ defmodule Speechwave.Accounts.User do
     field :plan, Ecto.Enum, values: [:free, :pro, :org], default: :free
     field :is_admin, :boolean, default: false
     field :confirmed_at, :utc_datetime
+    field :welcomed_at, :utc_datetime
     field :overlay_size_percent, :integer
     field :fireworks_enabled, :boolean, default: true
     field :customize_overlay_size, :boolean, virtual: true, default: true
