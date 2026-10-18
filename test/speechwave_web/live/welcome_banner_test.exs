@@ -10,6 +10,12 @@ defmodule SpeechwaveWeb.WelcomeBannerTest do
 
   defp stored_welcomed_at(user), do: Repo.get!(User, user.id).welcomed_at
 
+  # True when the LiveView's socket has a :welcome_banner handle_event hook.
+  defp welcome_hook?(view) do
+    socket = :sys.get_state(view.pid).socket
+    Enum.any?(socket.private.lifecycle.handle_event, &(&1.id == :welcome_banner))
+  end
+
   test "dismissing records welcomed_at and removes the banner", %{conn: conn} do
     user = user_fixture()
     {:ok, view, _html} = live(log_in_user(conn, user), ~p"/users/settings")
@@ -65,9 +71,22 @@ defmodule SpeechwaveWeb.WelcomeBannerTest do
   test "signed-out visitors get no banner", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/pricing")
 
-    # No hook is attached for signed-out visitors, so there is nothing to
-    # dismiss (and nothing that could write to the database).
     refute has_element?(view, "#welcome-banner")
+
+    # No hook is attached for signed-out visitors, so there is nothing to
+    # dismiss. We inspect the socket rather than send the event, because an
+    # unhandled event correctly crashes PricingLive.
+    refute welcome_hook?(view)
+  end
+
+  test "signed-in users do have the welcome hook attached", %{conn: conn} do
+    {:ok, view, _html} = live(log_in_user(conn, user_fixture()), ~p"/users/settings")
+    assert welcome_hook?(view)
+  end
+
+  test "a user with welcomed_at nil sees the banner on dashboard", %{conn: conn} do
+    {:ok, view, _html} = live(log_in_user(conn, user_fixture()), ~p"/dashboard")
+    assert has_element?(view, "#welcome-banner")
   end
 
   test "a user with welcomed_at set sees no banner on dashboard", %{conn: conn} do
