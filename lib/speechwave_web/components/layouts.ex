@@ -132,24 +132,22 @@ defmodule SpeechwaveWeb.Layouts do
     >
       <div class="max-w-6xl mx-auto px-6 py-3 flex items-start gap-4">
         <p class="flex-1 text-sm text-ink">
-          Welcome to Speechwave.live! Read the
-          <a
+          Welcome to Speechwave.live! Read the <a
+            phx-no-format
             id="welcome-banner-link"
             href={@docs_href}
             target="_blank"
             rel="noopener noreferrer"
             class="font-medium underline underline-offset-2 hover:text-steel transition-colors"
-          >
-            Getting Started
-          </a>
-          guide for a quick tour, or click <strong class="font-semibold">Help</strong>
+          >Getting Started</a> guide for a quick tour, or click
+          <strong class="font-semibold">Help</strong>
           at the top of any page.
         </p>
         <button
           id="welcome-banner-dismiss"
           type="button"
           aria-label="Dismiss welcome message"
-          class="shrink-0 p-1 -m-1 text-steel hover:text-ink transition-colors"
+          class="shrink-0 p-2 -m-2 text-steel hover:text-ink transition-colors"
           phx-click={
             JS.hide(
               to: "#welcome-banner",
