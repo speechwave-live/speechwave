@@ -1,34 +1,34 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
   <div class="p-6 max-w-4xl mx-auto">
     <div class="mb-6">
-      <.link navigate={~p"/dashboard"} class="text-blue-400 hover:text-blue-300 text-sm">
+      <.link navigate={~p"/dashboard"} class="text-mint-deep hover:text-ink text-sm">
         ← Back to Dashboard
       </.link>
-      <h1 class="text-2xl font-bold mt-2">{@session.label}</h1>
-      <p class="text-zinc-400">{@talk.title}</p>
-      <p class="text-zinc-500 text-sm mt-1">
+      <h1 class="text-2xl font-bold mt-2 text-ink">{@session.label}</h1>
+      <p class="text-steel">{@talk.title}</p>
+      <p class="text-muted text-sm mt-1">
         {Calendar.strftime(@session.started_at, "%b %d, %Y %H:%M")}
         <%= if @session.ended_at do %>
           → {Calendar.strftime(@session.ended_at, "%H:%M")}
         <% else %>
-          <span class="text-green-400">• Active</span>
+          <span class="text-mint-deep">• Active</span>
         <% end %>
       </p>
     </div>
 
     <div class="flex items-center gap-4 mb-8">
-      <div class="px-4 py-3 rounded-lg bg-zinc-800 border border-zinc-700">
-        <div class="text-xs text-zinc-400 uppercase tracking-wide">Total Reactions</div>
-        <div id="total-reactions" class="text-3xl font-bold">{@total_reactions}</div>
+      <div class="px-4 py-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
+        <div class="text-xs text-steel uppercase tracking-wide">Total Reactions</div>
+        <div id="total-reactions" class="text-3xl font-bold text-ink">{@total_reactions}</div>
       </div>
 
       <%= if length(@other_sessions) > 0 do %>
         <div id="compare-link" class="text-sm">
-          <span class="text-zinc-400">Compare with: </span>
+          <span class="text-steel">Compare with: </span>
           <%= for %{session: other} <- @other_sessions do %>
             <.link
               navigate={~p"/sessions/#{@session.id}/compare/#{other.id}"}
-              class="text-blue-400 hover:text-blue-300 mr-3"
+              class="text-mint-deep hover:text-ink mr-3"
             >
               {other.label}
             </.link>
@@ -38,7 +38,7 @@
     </div>
 
     <%= if @by_slide == %{} do %>
-      <p class="text-zinc-500">No reactions recorded in this session.</p>
+      <p class="text-muted">No reactions recorded in this session.</p>
     <% else %>
       <div class="space-y-6">
         <%= for slide_number <- @by_slide |> Map.keys() |> Enum.sort() do %>
@@ -46,23 +46,23 @@
           <% max_count = entries |> Enum.map(& &1.count) |> Enum.max(fn -> 1 end) %>
           <div
             id={"slide-row-#{slide_number}"}
-            class="p-4 rounded-lg bg-zinc-800 border border-zinc-700"
+            class="p-4 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]"
           >
-            <div class="text-sm font-semibold text-zinc-300 mb-3">
+            <div class="text-sm font-semibold text-steel mb-3">
               {if slide_number == 0, do: "General", else: "Slide #{slide_number}"}
             </div>
             <div class="space-y-2">
               <%= for %{emoji: emoji, count: count} <- Enum.sort_by(entries, & &1.count, :desc) do %>
                 <div class="flex items-center gap-3">
                   <span class="text-xl w-8">{emoji}</span>
-                  <div class="flex-1 bg-zinc-700 rounded-full h-4 overflow-hidden">
+                  <div class="flex-1 bg-surface rounded-full h-4 overflow-hidden">
                     <div
-                      class="h-full bg-blue-500 rounded-full transition-all"
+                      class="h-full bg-mint rounded-full transition-all"
                       style={"width: #{Float.round(count / max_count * 100, 1)}%"}
                     >
                     </div>
                   </div>
-                  <span class="text-zinc-300 text-sm w-8 text-right">{count}</span>
+                  <span class="text-steel text-sm w-8 text-right">{count}</span>
                 </div>
               <% end %>
             </div>
@@ -74,13 +74,13 @@
     <%= if @compare_session do %>
       <% all_slides =
         (Map.keys(@by_slide) ++ Map.keys(@compare_by_slide)) |> Enum.uniq() |> Enum.sort() %>
-      <div id="compare-section" class="mt-10 pt-8 border-t border-zinc-700">
-        <h2 class="text-xl font-semibold mb-6">
-          Comparing <span class="text-blue-300">{@session.label}</span>
-          vs <span class="text-purple-300">{@compare_session.label}</span>
+      <div id="compare-section" class="mt-10 pt-8 border-t border-hairline">
+        <h2 class="text-xl font-semibold text-ink mb-6">
+          Comparing <span class="text-blue-600">{@session.label}</span>
+          vs <span class="text-purple-600">{@compare_session.label}</span>
         </h2>
-        <div class="grid grid-cols-2 gap-6">
-          <%= for {slide_data, label_color} <- [{@by_slide, "text-blue-300"}, {@compare_by_slide, "text-purple-300"}] do %>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <%= for {slide_data, label_color} <- [{@by_slide, "text-blue-600"}, {@compare_by_slide, "text-purple-600"}] do %>
             <% session_label =
               if slide_data == @by_slide, do: @session.label, else: @compare_session.label %>
             <div>
@@ -89,24 +89,24 @@
                 <%= for slide_number <- all_slides do %>
                   <% entries = Map.get(slide_data, slide_number, []) %>
                   <% max_count = entries |> Enum.map(& &1.count) |> Enum.max(fn -> 1 end) %>
-                  <div class="p-3 rounded-lg bg-zinc-800 border border-zinc-700">
-                    <div class="text-xs font-semibold text-zinc-400 mb-2">
+                  <div class="p-3 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]">
+                    <div class="text-xs font-semibold text-steel mb-2">
                       {if slide_number == 0, do: "General", else: "Slide #{slide_number}"}
                     </div>
                     <%= if entries == [] do %>
-                      <div class="text-xs text-zinc-600">No reactions</div>
+                      <div class="text-xs text-muted">No reactions</div>
                     <% else %>
                       <%= for %{emoji: emoji, count: count} <- Enum.sort_by(entries, & &1.count, :desc) do %>
                         <div class="flex items-center gap-2 mb-1">
                           <span class="text-base w-6">{emoji}</span>
-                          <div class="flex-1 bg-zinc-700 rounded-full h-3 overflow-hidden">
+                          <div class="flex-1 bg-surface rounded-full h-3 overflow-hidden">
                             <div
-                              class="h-full bg-blue-500 rounded-full"
+                              class="h-full bg-mint rounded-full"
                               style={"width: #{Float.round(count / max_count * 100, 1)}%"}
                             >
                             </div>
                           </div>
-                          <span class="text-zinc-300 text-xs w-6 text-right">{count}</span>
+                          <span class="text-steel text-xs w-6 text-right">{count}</span>
                         </div>
                       <% end %>
                     <% end %>
