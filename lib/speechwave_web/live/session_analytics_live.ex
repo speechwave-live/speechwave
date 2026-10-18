@@ -37,6 +37,8 @@ defmodule SpeechwaveWeb.SessionAnalyticsLive do
            by_slide: by_slide,
            total_reactions: Reactions.count_reactions(session.id),
            audience_count: Reactions.count_audience(session.id),
+           top_slide: top_slide(by_slide),
+           top_emoji: top_emoji(by_slide),
            other_sessions: other_sessions,
            compare_session: compare_session,
            compare_by_slide: compare_totals
@@ -54,6 +56,27 @@ defmodule SpeechwaveWeb.SessionAnalyticsLive do
   end
 
   defp resolve_compare_session(_), do: nil
+
+  # Slide with the most reactions as `{slide_number, count}`. Slide 0 holds
+  # reactions sent without slide tracking ("General"), so it is not a real slide
+  # and is left out. Ties go to the lowest slide number.
+  defp top_slide(by_slide) do
+    by_slide
+    |> Enum.reject(fn {slide, _} -> slide == 0 end)
+    |> Enum.map(fn {slide, entries} -> {slide, entries |> Enum.map(& &1.count) |> Enum.sum()} end)
+    |> Enum.min_by(fn {slide, count} -> {-count, slide} end, fn -> nil end)
+  end
+
+  # Most frequent emoji across all slides as `{emoji, count}`. Ties are broken
+  # by the emoji string so the result is stable between renders.
+  defp top_emoji(by_slide) do
+    by_slide
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.group_by(& &1.emoji, & &1.count)
+    |> Enum.map(fn {emoji, counts} -> {emoji, Enum.sum(counts)} end)
+    |> Enum.min_by(fn {emoji, count} -> {-count, emoji} end, fn -> nil end)
+  end
 
   defp group_by_slide(totals) do
     totals

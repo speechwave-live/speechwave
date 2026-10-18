@@ -43,11 +43,42 @@ defmodule SpeechwaveWeb.SessionAnalyticsLiveTest do
     refute has_element?(view, "#audience-count")
   end
 
+  test "shows the top slide and top reaction", %{conn: conn, session: session} do
+    for {emoji, slide} <- [{"❤️", 2}, {"😂", 2}, {"😂", 2}, {"❤️", 3}, {"😂", 0}, {"😂", 0}, {"😂", 0}] do
+      Speechwave.Reactions.create_reaction(session, emoji, slide)
+    end
+
+    {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+    assert has_element?(view, "#top-slide", "2")
+    assert has_element?(view, "#top-emoji", "😂")
+  end
+
+  test "ties go to the lowest slide and the first emoji", %{conn: conn, session: session} do
+    Speechwave.Reactions.create_reaction(session, "😂", 5)
+    Speechwave.Reactions.create_reaction(session, "❤️", 2)
+    {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+    assert has_element?(view, "#top-slide", "2")
+    assert has_element?(view, "#top-emoji", "❤️")
+  end
+
   test "people reacting ignores reactions without an audience id", %{conn: conn, session: session} do
     Speechwave.Reactions.create_reaction(session, "❤️", 1)
     Speechwave.Reactions.create_reaction(session, "❤️", 1, "a")
     {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
     assert has_element?(view, "#audience-count", "1")
+  end
+
+  test "hides top slide and top reaction without reactions", %{conn: conn, session: session} do
+    {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+    refute has_element?(view, "#top-slide")
+    refute has_element?(view, "#top-emoji")
+  end
+
+  test "hides top slide when only general reactions exist", %{conn: conn, session: session} do
+    Speechwave.Reactions.create_reaction(session, "❤️", 0)
+    {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+    refute has_element?(view, "#top-slide")
+    assert has_element?(view, "#top-emoji", "❤️")
   end
 
   test "renders a row for each slide that has reactions", %{conn: conn, session: session} do
