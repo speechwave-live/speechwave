@@ -294,16 +294,61 @@ defmodule SpeechwaveWeb.UserAuth do
     end
   end
 
+  # Assigns `:current_scope` and, for signed-in users, attaches the hook that
+  # handles the welcome banner's "dismiss_welcome" event.
+  #
+  # Why the hook lives here: the banner is rendered by `Layouts.app/1`, a
+  # function component, and function components cannot have `handle_event`
+  # callbacks. Putting the handler in each LiveView would mean copying it into
+  # all of them. `attach_hook/4` lets us intercept the event for every LiveView
+  # that goes through this on_mount, in one place.
+  #
+  # The `:require_admin` live session lists both `:require_authenticated` and
+  # `:require_admin`, so this function runs twice on one socket, and
+  # `attach_hook/4` raises if the same hook id is attached twice. We detect the
+  # first call by checking whether `:current_scope` is already assigned before
+  # `assign_new` runs.
   defp mount_current_scope(socket, session) do
-    Phoenix.Component.assign_new(socket, :current_scope, fn ->
-      {user, _} =
-        if user_token = session["user_token"] do
-          Accounts.get_user_by_session_token(user_token)
-        end || {nil, nil}
+    first_call? = not Map.has_key?(socket.assigns, :current_scope)
 
-      Scope.for_user(user)
-    end)
+    socket =
+      Phoenix.Component.assign_new(socket, :current_scope, fn ->
+        {user, _} =
+          if user_token = session["user_token"] do
+            Accounts.get_user_by_session_token(user_token)
+          end || {nil, nil}
+
+        Scope.for_user(user)
+      end)
+
+    if first_call? and match?(%Scope{user: %Accounts.User{}}, socket.assigns.current_scope) do
+      Phoenix.LiveView.attach_hook(
+        socket,
+        :welcome_banner,
+        :handle_event,
+        &handle_welcome_event/3
+      )
+    else
+      socket
+    end
   end
+
+  # Records that the user dismissed the banner. The client has already hidden
+  # it with JS.hide; this persists the choice and updates the assign so a
+  # later re-render does not bring the banner back.
+  defp handle_welcome_event("dismiss_welcome", _params, socket) do
+    %Scope{user: user} = scope = socket.assigns.current_scope
+    {:ok, updated} = Accounts.mark_welcomed(user)
+
+    # Copy only `welcomed_at` onto the existing user struct. A freshly loaded
+    # user would lose the virtual `authenticated_at` field, which
+    # `Accounts.sudo_mode?/2` reads.
+    scope = %{scope | user: %{user | welcomed_at: updated.welcomed_at}}
+
+    {:halt, Phoenix.Component.assign(socket, :current_scope, scope)}
+  end
+
+  defp handle_welcome_event(_event, _params, socket), do: {:cont, socket}
 
   @doc "Returns the path to redirect to after log in."
   # the user was already logged in, redirect to settings

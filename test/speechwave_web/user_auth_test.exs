@@ -20,6 +20,13 @@ defmodule SpeechwaveWeb.UserAuthTest do
     %{user: %{user_fixture() | authenticated_at: DateTime.utc_now(:second)}, conn: conn}
   end
 
+  # A bare %LiveView.Socket{} has no lifecycle state, which `attach_hook/4`
+  # (used by UserAuth for the welcome banner) requires. A mounted socket has it.
+  defp live_socket(attrs \\ []) do
+    %LiveView.Socket{private: %{lifecycle: %LiveView.Lifecycle{}, live_temp: %{}}}
+    |> struct!(attrs)
+  end
+
   describe "log_in_user/3" do
     test "stores the user token in the session", %{conn: conn, user: user} do
       conn = UserAuth.log_in_user(conn, user)
@@ -220,7 +227,7 @@ defmodule SpeechwaveWeb.UserAuthTest do
       session = conn |> put_session(:user_token, user_token) |> get_session()
 
       {:cont, updated_socket} =
-        UserAuth.on_mount(:mount_current_scope, %{}, session, %LiveView.Socket{})
+        UserAuth.on_mount(:mount_current_scope, %{}, session, live_socket())
 
       assert updated_socket.assigns.current_scope.user.id == user.id
     end
@@ -230,7 +237,7 @@ defmodule SpeechwaveWeb.UserAuthTest do
       session = conn |> put_session(:user_token, user_token) |> get_session()
 
       {:cont, updated_socket} =
-        UserAuth.on_mount(:mount_current_scope, %{}, session, %LiveView.Socket{})
+        UserAuth.on_mount(:mount_current_scope, %{}, session, live_socket())
 
       assert updated_socket.assigns.current_scope == nil
     end
@@ -239,7 +246,7 @@ defmodule SpeechwaveWeb.UserAuthTest do
       session = conn |> get_session()
 
       {:cont, updated_socket} =
-        UserAuth.on_mount(:mount_current_scope, %{}, session, %LiveView.Socket{})
+        UserAuth.on_mount(:mount_current_scope, %{}, session, live_socket())
 
       assert updated_socket.assigns.current_scope == nil
     end
@@ -251,7 +258,7 @@ defmodule SpeechwaveWeb.UserAuthTest do
       session = conn |> put_session(:user_token, user_token) |> get_session()
 
       {:cont, updated_socket} =
-        UserAuth.on_mount(:require_authenticated, %{}, session, %LiveView.Socket{})
+        UserAuth.on_mount(:require_authenticated, %{}, session, live_socket())
 
       assert updated_socket.assigns.current_scope.user.id == user.id
     end
@@ -260,10 +267,11 @@ defmodule SpeechwaveWeb.UserAuthTest do
       user_token = "invalid_token"
       session = conn |> put_session(:user_token, user_token) |> get_session()
 
-      socket = %LiveView.Socket{
-        endpoint: SpeechwaveWeb.Endpoint,
-        assigns: %{__changed__: %{}, flash: %{}}
-      }
+      socket =
+        live_socket(
+          endpoint: SpeechwaveWeb.Endpoint,
+          assigns: %{__changed__: %{}, flash: %{}}
+        )
 
       {:halt, updated_socket} = UserAuth.on_mount(:require_authenticated, %{}, session, socket)
       assert updated_socket.assigns.current_scope == nil
@@ -272,10 +280,11 @@ defmodule SpeechwaveWeb.UserAuthTest do
     test "redirects to login page if there isn't a user_token", %{conn: conn} do
       session = conn |> get_session()
 
-      socket = %LiveView.Socket{
-        endpoint: SpeechwaveWeb.Endpoint,
-        assigns: %{__changed__: %{}, flash: %{}}
-      }
+      socket =
+        live_socket(
+          endpoint: SpeechwaveWeb.Endpoint,
+          assigns: %{__changed__: %{}, flash: %{}}
+        )
 
       {:halt, updated_socket} = UserAuth.on_mount(:require_authenticated, %{}, session, socket)
       assert updated_socket.assigns.current_scope == nil
@@ -287,10 +296,11 @@ defmodule SpeechwaveWeb.UserAuthTest do
       user_token = Accounts.generate_user_session_token(user)
       session = conn |> put_session(:user_token, user_token) |> get_session()
 
-      socket = %LiveView.Socket{
-        endpoint: SpeechwaveWeb.Endpoint,
-        assigns: %{__changed__: %{}, flash: %{}}
-      }
+      socket =
+        live_socket(
+          endpoint: SpeechwaveWeb.Endpoint,
+          assigns: %{__changed__: %{}, flash: %{}}
+        )
 
       assert {:cont, _updated_socket} =
                UserAuth.on_mount(:require_sudo_mode, %{}, session, socket)
@@ -304,10 +314,11 @@ defmodule SpeechwaveWeb.UserAuthTest do
       assert DateTime.compare(token_inserted_at, user.authenticated_at) == :gt
       session = conn |> put_session(:user_token, user_token) |> get_session()
 
-      socket = %LiveView.Socket{
-        endpoint: SpeechwaveWeb.Endpoint,
-        assigns: %{__changed__: %{}, flash: %{}}
-      }
+      socket =
+        live_socket(
+          endpoint: SpeechwaveWeb.Endpoint,
+          assigns: %{__changed__: %{}, flash: %{}}
+        )
 
       assert {:halt, _updated_socket} =
                UserAuth.on_mount(:require_sudo_mode, %{}, session, socket)
