@@ -17,6 +17,11 @@ defmodule SpeechwaveWeb.Layouts do
 
   defp docs_url, do: Application.get_env(:speechwave, :docs_url)
 
+  # Joins the configured docs base and a page path with exactly one "/",
+  # whether or not the base ends in a slash.
+  defp docs_url(path),
+    do: String.trim_trailing(docs_url(), "/") <> "/" <> String.trim_leading(path, "/")
+
   @doc """
   Renders your app layout.
 
@@ -41,6 +46,11 @@ defmodule SpeechwaveWeb.Layouts do
     default: false,
     doc:
       "when true, skips the max-w-2xl wrapper — for marketing pages that handle their own width"
+
+  attr :show_welcome, :boolean,
+    default: true,
+    doc:
+      "when true, signed-in users who have not been welcomed yet see the welcome banner; pages that should never show it pass false"
 
   slot :inner_block, required: true
 
@@ -85,11 +95,17 @@ defmodule SpeechwaveWeb.Layouts do
           </div>
         </div>
       </header>
-      <main class={["pt-14", not @full_width && "px-4 py-8 sm:px-6 lg:px-8"]}>
-        <div class={[@full_width || "mx-auto max-w-2xl space-y-4"]}>
-          {render_slot(@inner_block)}
-        </div>
-      </main>
+      <div class="pt-14">
+        <.welcome_banner
+          :if={@show_welcome and is_nil(@current_scope.user.welcomed_at)}
+          docs_href={docs_url("getting-started.html")}
+        />
+        <main class={[not @full_width && "px-4 py-8 sm:px-6 lg:px-8"]}>
+          <div class={[@full_width || "mx-auto max-w-2xl space-y-4"]}>
+            {render_slot(@inner_block)}
+          </div>
+        </main>
+      </div>
     <% else %>
       <.public_nav current_scope={@current_scope} />
       <main class={["pt-16", not @full_width && "px-4 py-8 sm:px-6 lg:px-8"]}>
@@ -101,6 +117,51 @@ defmodule SpeechwaveWeb.Layouts do
 
     <.public_footer />
     <.flash_group flash={@flash} />
+    """
+  end
+
+  attr :docs_href, :string, required: true
+
+  # One-time banner shown under the header to users who have not been welcomed.
+  # The close button hides it right away and tells the server to record it.
+  defp welcome_banner(assigns) do
+    ~H"""
+    <div
+      id="welcome-banner"
+      class="bg-surface border-b border-hairline motion-safe:animate-[welcomeFadeIn_300ms_ease-out]"
+    >
+      <div class="max-w-6xl mx-auto px-6 py-3 flex items-start gap-4">
+        <p class="flex-1 text-sm text-ink">
+          Welcome to Speechwave.live! Read the
+          <a
+            id="welcome-banner-link"
+            href={@docs_href}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-medium underline underline-offset-2 hover:text-steel transition-colors"
+          >
+            Getting Started
+          </a>
+          guide for a quick tour, or click <strong class="font-semibold">Help</strong>
+          at the top of any page.
+        </p>
+        <button
+          id="welcome-banner-dismiss"
+          type="button"
+          aria-label="Dismiss welcome message"
+          class="shrink-0 p-1 -m-1 text-steel hover:text-ink transition-colors"
+          phx-click={
+            JS.hide(
+              to: "#welcome-banner",
+              transition: {"transition-opacity duration-200", "opacity-100", "opacity-0"}
+            )
+            |> JS.push("dismiss_welcome")
+          }
+        >
+          <.icon name="hero-x-mark" class="size-5" />
+        </button>
+      </div>
+    </div>
     """
   end
 
