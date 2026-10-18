@@ -98,11 +98,17 @@ defmodule SpeechwaveWeb.UserSessionControllerTest do
       refute Accounts.consented?(user, "marketing_email")
     end
 
-    test "shows 'Welcome!' flash when ?notify present but ?updates absent",
+    test "sets no flash when ?notify present but ?updates absent",
          %{conn: conn, token: token} do
       conn = get(conn, ~p"/users/magic_link/#{token}?notify=pro")
 
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Welcome!"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) == nil
+    end
+
+    test "sets no flash on a plain magic link login", %{conn: conn, token: token} do
+      conn = get(conn, ~p"/users/magic_link/#{token}")
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) == nil
     end
 
     test "preserves existing consent on login without ?updates", %{conn: conn} do

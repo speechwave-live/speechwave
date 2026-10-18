@@ -13,14 +13,18 @@ defmodule SpeechwaveWeb.UserSessionController do
       {:ok, {user, _tokens}} ->
         maybe_grant_magic_link_consent(user, updates, notify)
 
-        flash =
-          if notify && updates,
-            do: "You're on the list! We'll email you when #{String.capitalize(notify)} launches.",
-            else: "Welcome!"
+        conn =
+          if notify && updates do
+            put_flash(
+              conn,
+              :info,
+              "You're on the list! We'll email you when #{String.capitalize(notify)} launches."
+            )
+          else
+            conn
+          end
 
-        conn
-        |> put_flash(:info, flash)
-        |> UserAuth.log_in_user(user)
+        UserAuth.log_in_user(conn, user)
 
       {:error, _} ->
         conn
@@ -101,7 +105,6 @@ defmodule SpeechwaveWeb.UserSessionController do
         |> delete_session(:assent_session_params)
         |> delete_session(:oauth_context)
         |> delete_session(:marketing_updates)
-        |> put_flash(:info, "Welcome!")
         |> UserAuth.log_in_user(user)
 
       {:error, :email_not_verified} ->
