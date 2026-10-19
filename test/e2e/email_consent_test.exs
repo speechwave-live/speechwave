@@ -9,9 +9,6 @@ defmodule SpeechwaveWeb.E2E.EmailConsentTest do
   """
   use SpeechwaveWeb.E2ECase
 
-  @consent_label "Keep me updated on new features and product announcements " <>
-                   "(no spam, no selling your email)"
-
   defp sign_in_form(conn, email) do
     conn
     |> visit("/users/log-in")
@@ -22,7 +19,7 @@ defmodule SpeechwaveWeb.E2E.EmailConsentTest do
     conn =
       conn
       |> sign_in_form(unique_user_email())
-      |> check(@consent_label)
+      |> click("#marketing-consent-checkbox")
       |> click_button("Send sign-in link")
       |> assert_has("#magic-link-sent")
 
