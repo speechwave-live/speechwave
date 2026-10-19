@@ -34,7 +34,7 @@ defmodule SpeechwaveWeb.E2ECase do
       use PhoenixTest.Playwright.Case, unquote(Keyword.put(opts, :async, false))
 
       import Speechwave.AccountsFixtures
-      import SpeechwaveWeb.E2ECase
+      import SpeechwaveWeb.E2ECase, only: [log_in_with_magic_link: 2, log_in_as: 2]
 
       @moduletag :e2e
 
@@ -48,8 +48,16 @@ defmodule SpeechwaveWeb.E2ECase do
   messages.
   """
   def route_emails_to_test_process(_context) do
+    previous = Application.fetch_env(:swoosh, :shared_test_process)
     Application.put_env(:swoosh, :shared_test_process, self())
-    ExUnit.Callbacks.on_exit(fn -> Application.delete_env(:swoosh, :shared_test_process) end)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      case previous do
+        {:ok, value} -> Application.put_env(:swoosh, :shared_test_process, value)
+        :error -> Application.delete_env(:swoosh, :shared_test_process)
+      end
+    end)
+
     :ok
   end
 
@@ -66,8 +74,11 @@ defmodule SpeechwaveWeb.E2ECase do
       |> PhoenixTest.click_button("Send sign-in link")
       |> PhoenixTest.assert_has("#magic-link-sent")
 
-    assert_receive {:email, %{text_body: body}}, 1000
-    [magic_url] = Regex.run(~r{https?://\S+/users/magic_link/\S+}, body)
+    assert_receive {:email, %{text_body: body}}, 5000
+
+    [magic_url] =
+      Regex.run(~r{https?://\S+/users/magic_link/\S+}, body) ||
+        flunk("no magic link in the sign-in email:\n#{body}")
 
     session
     |> PhoenixTest.visit(magic_url)

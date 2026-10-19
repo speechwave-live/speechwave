@@ -33,9 +33,9 @@ permission.
 - **Running:** `mix test` skips `:e2e`. `mix test.browser` runs only those.
   Not CI-gated at first (same stance as the extension suite). Revisit once the
   suite is stable and fast enough to gate on.
-- **Setup requirement:** `npm install` in `assets/`, then
-  `npx playwright install chromium`. This needs a line in the README and in
-  `docs/manual_tests.md`. A plain `mix test` must keep working without it:
+- **Setup requirement:** `npm install --prefix assets`, then
+  `npx --prefix assets playwright install chromium`. Documented in the README
+  (the migration notice in `docs/manual_tests.md` points there). A plain `mix test` must keep working without it:
   `test_helper.exs` only starts the Playwright supervisor when `:e2e` is
   included.
 - **Test port:** 4002 + `MIX_TEST_PARTITION`, set in `config/runtime.exs`, so
@@ -195,7 +195,7 @@ Update this table at the end of each implementation pass.
 
 | Pass | Scope | Status |
 |------|-------|--------|
-| 0 | Spike: dependencies, config, `dashboard.sh` port | Done and reviewed by a fresh subagent (fixes applied). On branch `spike/phoenix-test-playwright`, not yet merged |
+| 0 | Spike: dependencies, config, `dashboard.sh` port | Done, reviewed by a fresh subagent (fixes applied) and merged to main |
 | 1 | Merge the spike, extract shared helpers and `Case` module, README and `docs/manual_tests.md` setup notes | Spike merged. `SpeechwaveWeb.E2ECase`, `log_in_with_magic_link/2` and `log_in_as/2` (session cookie) built, docs updated. Seeding fixtures for later passes not started |
 | 2 | Port `account_settings.sh` | Not started |
 | 3 | Port `email_consent.sh` | Not started |
