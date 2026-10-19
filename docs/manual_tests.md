@@ -25,6 +25,7 @@ The old rodney scripts for these flows have been replaced:
 | Session analytics, compare, rename, delete   | `test/e2e/session_analytics_test.exs`  |
 | Attendee reactions across two devices        | `test/e2e/reaction_flow_test.exs`      |
 | Magic-link email cooldown                    | `test/e2e/auth_throttle_test.exs`      |
+| First-login welcome banner                   | `test/e2e/welcome_banner_test.exs`     |
 
 The history and reasoning behind the move are in
 [the migration plan](specs/2026-10-18-browser-test-migration-design.md). Add new
@@ -74,25 +75,9 @@ A request that the throttle lets through creates a
 `manual-test-<timestamp>-<n>@example.com` user in production (usually just the
 first one, since the rest are blocked). Delete those by hand when you're done.
 
-## Welcome banner
+## Welcome banner layout
 
-Tests the first-login welcome banner (`Layouts.app/1`, dismissed through the
-hook in `UserAuth.mount_current_scope/2`). There is no script; this is a
-manual check in a browser.
-
-**Dev only.** It relies on `/dev/login`, which does not exist in production.
-
-1. Go to `http://localhost:4000/dev/login`, enter an email that has never been
-   used (for example `banner-check-<timestamp>@example.com`) and log in. A new
-   email creates a new user with `welcomed_at` empty. Existing dev users were
-   marked as welcomed by the migration and will not show the banner.
-2. Go to `/users/settings`. The banner (`#welcome-banner`) sits directly under
-   the header. "Getting Started" (`#welcome-banner-link`) opens
-   `getting-started.html` on the docs site in a new tab, and "Help" is plain
-   bold text.
-3. Resize to about 375px wide. The text wraps, nothing overlaps the header, and
-   the close button (`#welcome-banner-dismiss`) is easy to tap.
-4. Click the close button. The banner disappears at once with no page reload.
-5. Reload, then go to `/dashboard`. The banner stays gone.
-6. To see it again for the same user, clear the flag in the dev database
-   (`UPDATE users SET welcomed_at = NULL WHERE email = '...'`).
+`test/e2e/welcome_banner_test.exs` covers the banner, its dismissal and the
+375px bounds. Whether the text wraps nicely and the close button feels easy to
+tap is a judgment call, so look at it once after changing the banner: log in as
+a new user at about 375px wide and open `/users/settings`.
