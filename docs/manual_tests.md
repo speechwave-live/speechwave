@@ -11,8 +11,8 @@ against dev or production (e.g. before/after a deploy). It does not replace
 
 > **Migration in progress.** These rodney scripts are being replaced by browser
 > tests in `test/e2e` (run with `mix test.browser`). `dashboard.sh`,
-> `account_settings.sh`, `email_consent.sh` and `session_analytics.sh` have been
-> ported and removed. Don't add new scripts here. See
+> `account_settings.sh`, `email_consent.sh`, `session_analytics.sh` and
+> `reaction_flow.sh` have been ported and removed. Don't add new scripts here. See
 > [the migration plan](specs/2026-10-18-browser-test-migration-design.md) for
 > the order and current status.
 
@@ -49,8 +49,8 @@ go:
 scripts/manual_tests/run_all_dev.sh [--base-url URL]
 ```
 
-(default `http://localhost:4000`). This runs `auth_throttle.sh email` and
-`reaction_flow.sh` back-to-back, printing each script's output as it goes, then
+(default `http://localhost:4000`). This runs `auth_throttle.sh email`
+and then the test-user cleanup, printing each script's output as it goes, then
 a PASS/FAIL summary line per script. Exits non-zero if any failed.
 
 Checks `rodney` is on `PATH` and the dev server is reachable at `--base-url`
@@ -158,53 +158,13 @@ from the dashboard. The seed data comes from
 
 ## Attendee reaction flow
 
-Tests the anonymous attendee-facing reaction page
-(`SpeechwaveWeb.TalkLive`, `/t/:slug`): real-time emoji broadcast across
-devices, the rate-limit cooldown UI, and reaction persistence to an active
-session.
-
-Scripts:
-- `scripts/manual_tests/seed_active_session.exs` — seeds a talk with one
-  active (unstopped) session and no reactions. Run directly with
-  `mix run scripts/manual_tests/seed_active_session.exs <email>`, or via
-  `reaction_flow.sh` below. Prints `email=`, `talk_id=`, `talk_slug=`,
-  `session_id=` on stdout (interleaved with `[debug]` SQL logs on stderr).
-- `scripts/manual_tests/reaction_flow.sh [--base-url URL]` (default
-  `http://localhost:4000`)
-
-**Dev-only** (depends on `complete_magic_link_login` and on `mix run` for
-seeding). See
-"SSH/eval magic-link-token helper for production runs" in `docs/roadmap.md`.
-
-`reaction_flow.sh` opens **two** rodney tabs on the same `/t/:slug` page —
-"Device A" (taps reactions) and "Device B" (observes only) — simulating two
-attendees viewing the same talk:
-
-1. Seeds an active session via `seed_active_session.exs` for a fresh
-   `manual-test-<timestamp>@example.com`.
-2. Opens Device A and Device B on `/t/<talk_slug>`. Checks `#emoji-buttons`
-   renders on both.
-3. Device A taps ❤️. Checks a `.floating-emoji` "❤️" appears (the
-   broadcast + `EmojiStream` hook round-trip back to the tapping tab) and
-   that `#emoji-buttons` enters its cooldown state (`cooling-down` class,
-   disabled buttons, `.cooldown-label` shows "Cooling down… 3s").
-4. **Cross-device check** — switches to Device B and checks a
-   `.floating-emoji` "❤️" appears there too (the PubSub broadcast reached a
-   second client in real time), while Device B's cooldown stays idle
-   ("Tap to react", buttons enabled) — confirming the rate limiter is
-   per-attendee, not global.
-5. Waits ~4s (cooldown is 3s) and checks Device A's `#emoji-buttons` returns
-   to idle.
-6. Device A taps 😂. Checks a `.floating-emoji` "😂" appears.
-7. **Cross-device check** — switches to Device B and checks a
-   `.floating-emoji` "😂" appears there too.
-8. Closes Device B's tab.
-9. Logs in as the seeded user via magic link, opens
-   `/sessions/<session_id>`. Checks `#total-reactions` is `2` and
-   `#slide-row-0` ("General" — `current_slide` stays `0` for this whole
-   flow) shows both ❤️ and 😂.
-10. Deletes the talk (cleanup).
-11. Signs out.
+Ported to a browser test: `test/e2e/reaction_flow_test.exs` (run with
+`mix test.browser`). Two attendees (separate browser contexts) open the same
+`/t/:slug` page. One taps a reaction, and it floats up on both pages while only
+the tapper's buttons cool down. After the cooldown a second reaction is sent
+and both reactions show up in the session's analytics as general (slide 0).
+The seed data comes from
+`Speechwave.TalksFixtures.talk_with_active_session_fixture/1`.
 
 ## Email consent collection
 

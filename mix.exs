@@ -34,7 +34,9 @@ defmodule Speechwave.MixProject do
 
   # `runtime: false` deps are left out of the PLT, so add the E2E test deps
   # explicitly. They only exist in the test env.
-  defp dialyzer_apps(:test), do: [:ex_unit, :phoenix_test, :phoenix_test_playwright]
+  defp dialyzer_apps(:test),
+    do: [:ex_unit, :phoenix_test, :phoenix_test_playwright, :playwright_ex]
+
   defp dialyzer_apps(_), do: [:ex_unit]
 
   # Specifies which paths to compile per environment.

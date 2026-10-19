@@ -39,6 +39,14 @@ defmodule Speechwave.TalksFixtures do
     reaction
   end
 
+  # A talk with one active (unstopped) session and no reactions. Replaces
+  # scripts/manual_tests/seed_active_session.exs for browser tests.
+  def talk_with_active_session_fixture(user) do
+    talk = talk_fixture(user)
+    {:ok, session} = Speechwave.Talks.start_session(talk)
+    %{talk: talk, session: session}
+  end
+
   # A talk with two finished sessions and a few reactions on slides 1 and 2.
   # Replaces scripts/manual_tests/seed_sessions.exs for browser tests.
   # Session 1 has 3 reactions (slide 1: fire and heart, slide 2: party popper),
