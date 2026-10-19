@@ -197,9 +197,10 @@ mise run test-e2e test/e2e/dashboard_test.exs     # one file
 ```
 
 `mix precommit` does not run them, so run them yourself before merging changes
-that touch the UI or the email flows. They use their own database and port 4002, so they can run while the dev server
-is up. New tests should `use SpeechwaveWeb.E2ECase`, which has helpers for
-logging in. The history of replacing the old `scripts/manual_tests` scripts is in
+that touch the UI or the email flows. They use their own database and port
+4002, so they can run while the dev server is up. New tests should
+`use SpeechwaveWeb.E2ECase`, which has helpers for logging in. The history of
+replacing the old `scripts/manual_tests` scripts is in
 [`docs/specs/2026-10-18-browser-test-migration-design.md`](docs/specs/2026-10-18-browser-test-migration-design.md).
 
 The Chrome extension lives in a separate repo ([speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension)) and has its own Jest test suite. See that repo's README for instructions.
