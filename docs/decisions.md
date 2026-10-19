@@ -374,3 +374,52 @@ is finished.** Bump to 1.0.0 when all of these hold:
 stop being routine. Tying it to public launch keeps the rule simple and
 checkable.
 
+
+## 2026-10-18 — First-login welcome banner driven by `users.welcomed_at`
+
+**Decision:** New users see a dismissible banner under the header that links to
+the Getting Started page on the docs site and points at the Help link. It shows
+until the user dismisses it, on every signed-in page. A nullable
+`users.welcomed_at` timestamp drives it: `nil` shows the banner, a timestamp
+means it was dismissed. The migration that adds the column sets `welcomed_at`
+to the current time for every existing user, so only accounts created after the
+deploy see the banner. Dismissal does not reload the page: the close button
+hides the banner on the client and pushes a `dismiss_welcome` event, and one
+`handle_event` hook attached in `UserAuth.mount_current_scope/2` records it for
+every LiveView. The plain "Welcome!" login flash was removed.
+
+**Why:**
+- A separate column instead of reusing `confirmed_at`. `confirmed_at` is set
+  when the first session token is created, but the user struct in hand at that
+  point is stale, and the magic link and OAuth paths would each need their own
+  "first login" check. A column read at render time works the same everywhere,
+  and a new user who signs in on a second device before dismissing the banner
+  still sees it once.
+- Backfill on migrate. Without it, every existing user would get a welcome
+  message on their next page load.
+- A hook in `UserAuth` instead of a controller action. The layout is a
+  function component with no `handle_event` of its own, and a controller POST
+  would mean a full page reload to dismiss a small message. Every page that
+  shows the banner is a LiveView that already runs through `UserAuth`, so one
+  hook covers all of them.
+- The banner is not a flash, because a flash disappears on the next
+  navigation and the first thing a new user does is click something.
+
+**Trade-offs:**
+- `mount_current_scope/2` runs twice in the admin live session, and
+  `attach_hook/4` raises on a duplicate id. The hook is attached only on the
+  first call, and only when the scope has a user, so signed-out pages have no
+  hook and crash on a stray `dismiss_welcome` like any unknown event.
+- The handler updates only `welcomed_at` on the user already in the scope,
+  because that struct carries the virtual `authenticated_at` that
+  `Accounts.sudo_mode?/2` reads. Rebuilding the scope from a freshly loaded
+  user would drop it.
+- Dismissing after the account was deleted in another tab raises in
+  `mark_welcomed/1` (`Repo.get!`). The LiveView remounts and redirects to log in,
+  so this is accepted.
+- The banner has no "show it again" control, and nothing records whether the
+  user clicked through to the docs.
+- The dev login page renders the layout outside a LiveView, so it passes
+  `show_welcome={false}`.
+
+Spec: `docs/specs/2026-10-17-first-login-welcome-banner-design.md`.

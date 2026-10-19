@@ -43,7 +43,7 @@ Add, remove, or reorder emojis here. No other changes needed: the template loops
 | `lib/speechwave/reactions.ex`                                                           | Context: create reactions, per-slide totals query              |
 | `lib/speechwave/reactions/reaction.ex`                                                  | Reaction schema (emoji, slide_number, talk_session_id)         |
 | `lib/speechwave/accounts.ex`                                                            | Context: users, magic link tokens, OAuth identity upsert       |
-| `lib/speechwave/accounts/user.ex`                                                       | User schema (email, api_key, plan, is_admin)                   |
+| `lib/speechwave/accounts/user.ex`                                                       | User schema (email, api_key, plan, is_admin, etc.)             |
 | `lib/speechwave/accounts/user_identity.ex`                                              | OAuth identity link (provider + uid to user)                   |
 | `lib/speechwave/rate_limiter.ex`                                                        | ETS-backed GenServer: 1 reaction per session per 5s            |
 | `lib/speechwave/qr_code.ex`                                                             | Wraps `eqrcode` to produce a base64 PNG data URI               |

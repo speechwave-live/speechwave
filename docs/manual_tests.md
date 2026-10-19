@@ -348,3 +348,26 @@ email each run):
    `#flash-info` appears ("Email changed successfully.") and `#user_email`
    reflects the new address.
 6. Signs out and checks that `/dashboard` then redirects to `/users/log-in`.
+
+## Welcome banner
+
+Tests the first-login welcome banner (`Layouts.app/1`, dismissed through the
+hook in `UserAuth.mount_current_scope/2`). There is no script; this is a
+manual check in a browser.
+
+**Dev-only.** It relies on `/dev/login`, which does not exist in production.
+
+1. Go to `http://localhost:4000/dev/login`, enter an email that has never been
+   used (for example `banner-check-<timestamp>@example.com`) and log in. A new
+   email creates a new user with `welcomed_at` empty. Existing dev users were
+   marked as welcomed by the migration and will not show the banner.
+2. Go to `/users/settings`. The banner (`#welcome-banner`) sits directly under
+   the header. "Getting Started" (`#welcome-banner-link`) opens
+   `getting-started.html` on the docs site in a new tab, and "Help" is plain
+   bold text.
+3. Resize to about 375px wide. The text wraps, nothing overlaps the header, and
+   the close button (`#welcome-banner-dismiss`) is easy to tap.
+4. Click the close button. The banner disappears at once with no page reload.
+5. Reload, then go to `/dashboard`. The banner stays gone.
+6. To see it again for the same user, clear the flag in the dev database
+   (`UPDATE users SET welcomed_at = NULL WHERE email = '...'`).
