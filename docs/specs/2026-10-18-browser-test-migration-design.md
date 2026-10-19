@@ -42,6 +42,12 @@ permission.
   browser tests can run while `mix phx.server` is up and partitions don't
   collide. The endpoint runs with `server: true` in all tests (see deferred
   items).
+- **Failure artifacts:** every E2E test records a screenshot and a trace (the
+  driver can't capture on failure only), and
+  `SpeechwaveWeb.E2EArtifactsFormatter` deletes the files of passing tests when
+  the run ends. Failures keep theirs in `tmp/e2e`, for up to a week. Added
+  after one unexplained failure on main. A test that fails while a confirm
+  dialog is open may get a trace but no screenshot.
 - **E2E modules must be `async: false`.** The shared Swoosh test process
   (`:shared_test_process`) is global app env, and without the
   `Phoenix.Ecto.SQL.Sandbox` plug in the endpoint the sandbox only works in

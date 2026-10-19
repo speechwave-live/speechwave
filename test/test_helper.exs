@@ -4,6 +4,7 @@ ExUnit.start(exclude: [:e2e])
 # plus `npx playwright install chromium`). Only start it when they were asked
 # for (`mix test.browser`), so a plain `mix test` works without Node.
 if :e2e in ExUnit.configuration()[:include] do
+  ExUnit.configure(formatters: [ExUnit.CLIFormatter, SpeechwaveWeb.E2EArtifactsFormatter])
   {:ok, _} = PhoenixTest.Playwright.Supervisor.start_link()
   Application.put_env(:phoenix_test, :base_url, SpeechwaveWeb.Endpoint.url())
 end

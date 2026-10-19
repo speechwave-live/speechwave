@@ -196,6 +196,10 @@ mise run test-e2e                                 # all browser tests
 mise run test-e2e test/e2e/dashboard_test.exs     # one file
 ```
 
+When a browser test fails, its screenshot and Playwright trace are kept in
+`tmp/e2e` (gitignored; passing tests' files are deleted at the end of the run).
+Open a trace with `npx --prefix assets playwright show-trace <file>.zip`.
+
 `mix precommit` does not run them, so run them yourself before merging changes
 that touch the UI or the email flows. They use their own database and port
 4002, so they can run while the dev server is up. New tests should

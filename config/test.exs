@@ -55,4 +55,16 @@ config :phoenix_live_view,
 config :phoenix,
   sort_verified_routes_query_params: true
 
-config :phoenix_test, otp_app: :speechwave, endpoint: SpeechwaveWeb.Endpoint
+# Every E2E test records a screenshot and a trace. The formatter in
+# test/support/e2e_artifacts_formatter.ex deletes the ones from passing tests
+# when the run ends, so only failures are left in tmp/e2e (which is gitignored).
+# Keep the directories in sync with that module.
+config :phoenix_test,
+  otp_app: :speechwave,
+  endpoint: SpeechwaveWeb.Endpoint,
+  playwright: [
+    screenshot: true,
+    screenshot_dir: "tmp/e2e/screenshots",
+    trace: true,
+    trace_dir: "tmp/e2e/traces"
+  ]
