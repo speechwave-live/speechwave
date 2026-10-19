@@ -196,9 +196,11 @@ mise run test-e2e                                 # all browser tests
 mise run test-e2e test/e2e/dashboard_test.exs     # one file
 ```
 
-They use their own database and port 4002, so they can run while the dev server
-is up. New tests should `use SpeechwaveWeb.E2ECase`, which has helpers for
-logging in. The plan for moving the old `scripts/manual_tests` scripts over is in
+`mix precommit` does not run them, so run them yourself before merging changes
+that touch the UI or the email flows. They use their own database and port
+4002, so they can run while the dev server is up. New tests should
+`use SpeechwaveWeb.E2ECase`, which has helpers for logging in. The history of
+replacing the old `scripts/manual_tests` scripts is in
 [`docs/specs/2026-10-18-browser-test-migration-design.md`](docs/specs/2026-10-18-browser-test-migration-design.md).
 
 The Chrome extension lives in a separate repo ([speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension)) and has its own Jest test suite. See that repo's README for instructions.
@@ -228,7 +230,7 @@ Credo strict static analysis (`mix credo --strict --all`).
 
 - [`docs/administration.md`](docs/administration.md): running migrations, sending a user a fresh login link, manual database backups, and downloading a backup for analysis
 - [`docs/decisions.md`](docs/decisions.md): architectural decision record
-- [`docs/manual_tests.md`](docs/manual_tests.md): index of manual and live-environment checks that `mix test` can't cover
+- [`docs/manual_tests.md`](docs/manual_tests.md): what still needs a production server or a person (the browser tests are listed there too)
 - [`docs/roadmap.md`](docs/roadmap.md): deferred work not yet in scope
 - [`docs/fly_db_migrate.md`](docs/fly_db_migrate.md): historical notes on the Fly.io app rename and database migration from the project's Postgres era
 - [`docs/specs/`](docs/specs/) and [`docs/plans/`](docs/plans/): dated design specs and implementation plans for past features
