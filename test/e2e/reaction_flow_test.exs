@@ -34,12 +34,14 @@ defmodule SpeechwaveWeb.E2E.ReactionFlowTest do
     device_b
     |> assert_has(".floating-emoji", text: "❤️")
     |> refute_has("#emoji-buttons.cooling-down")
+    |> refute_has("#{@heart}[disabled]")
     |> assert_has(".cooldown-label", text: "Tap to react", exact: true)
 
     # After the cooldown (about 3 seconds) A can react again.
     device_a
     |> assert_has(".cooldown-label", text: "Tap to react", exact: true, timeout: 6_000)
     |> refute_has("#emoji-buttons.cooling-down")
+    |> tap(fn _ -> wait_out_server_rate_limit() end)
     |> click(@laugh)
     |> assert_has(".floating-emoji", text: "😂")
 
@@ -54,4 +56,10 @@ defmodule SpeechwaveWeb.E2E.ReactionFlowTest do
     |> assert_has("#slide-row-0", text: "❤️")
     |> assert_has("#slide-row-0", text: "😂")
   end
+
+  # The page re-enables its buttons 3 seconds after the click, and the server
+  # drops a reaction that arrives less than 3 seconds after the previous one.
+  # The two clocks start a few milliseconds apart, so give the server's window
+  # a little extra to close before tapping again.
+  defp wait_out_server_rate_limit, do: Process.sleep(300)
 end

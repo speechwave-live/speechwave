@@ -104,6 +104,8 @@ defmodule SpeechwaveWeb.E2ECase do
   out a second Ecto sandbox owner, and the test repo has `pool_size: 1`, so
   the checkout times out. The sandbox is already shared with the first
   session (E2E tests are `async: false`), so a bare browser context is enough.
+  The trade-off: the extra session gets no trace or failure screenshot, even
+  when those are configured.
   """
   def new_browser_session(%{browser_id: browser_id} = context) do
     config =

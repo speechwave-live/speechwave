@@ -118,7 +118,7 @@ Follow-on manual-test coverage identified while designing
 The remaining rodney scripts in `scripts/manual_tests` are dev-only
 because their shared `complete_magic_link_login` helper depends on
 `/dev/mailbox`, which doesn't exist in production. Their own logic has no
-environment-specific branching, only the login/email-delivery step is genuinely
+environment-specific branching. Only the login/email-delivery step is genuinely
 production-sensitive.
 
 Production is a `mix release` build with no `mix`/source in the runner image
