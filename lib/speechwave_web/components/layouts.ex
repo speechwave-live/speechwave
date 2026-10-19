@@ -58,11 +58,11 @@ defmodule SpeechwaveWeb.Layouts do
     ~H"""
     <%= if @current_scope do %>
       <header class="fixed top-0 left-0 right-0 z-50 bg-canvas border-b border-hairline">
-        <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3 sm:gap-4">
           <a href={~p"/"} class="flex items-center gap-2 text-ink font-semibold text-sm shrink-0">
             <img src={~p"/images/logo.svg"} alt="" class="w-5 h-5" /> Speechwave
           </a>
-          <div class="flex items-center gap-4 text-sm ml-auto">
+          <div class="flex items-center gap-3 sm:gap-4 text-sm ml-auto">
             <a href={~p"/dashboard"} class="text-steel hover:text-ink transition-colors">Dashboard</a>
             <a href={~p"/users/settings"} class="text-steel hover:text-ink transition-colors">
               Settings
