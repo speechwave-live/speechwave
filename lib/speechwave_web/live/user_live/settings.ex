@@ -86,7 +86,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
             type="text"
             readonly
             value={@api_key}
-            class="flex-1 font-mono text-sm px-3 py-2 rounded-lg border border-base-300 bg-base-200 text-base-content"
+            class="flex-1 min-w-0 font-mono text-sm px-3 py-2 rounded-lg border border-base-300 bg-base-200 text-base-content"
             phx-hook=".SelectOnClick"
           />
           <button
@@ -108,7 +108,7 @@ defmodule SpeechwaveWeb.UserLive.Settings do
             id="regenerate-api-key-btn"
             phx-click="regenerate_api_key"
             data-confirm="Regenerate your API key? Any active extension connections will be disconnected immediately."
-            class="px-4 py-2 text-sm font-medium rounded-lg border border-base-300 hover:bg-base-200 transition-colors"
+            class="shrink-0 px-4 py-2 text-sm font-medium rounded-lg border border-base-300 hover:bg-base-200 transition-colors"
           >
             Regenerate
           </button>

@@ -60,4 +60,22 @@ defmodule SpeechwaveWeb.E2E.AccountSettingsTest do
     |> visit("/dashboard")
     |> assert_path("/users/log-in")
   end
+
+  describe "on a phone-sized screen" do
+    @describetag browser_context_opts: [viewport: %{width: 375, height: 667}]
+
+    # An admin sees the most header links, so this is the tightest case.
+    test "settings page does not scroll sideways", %{conn: conn} do
+      user = user_fixture() |> Ecto.Changeset.change(is_admin: true) |> Repo.update!()
+
+      conn
+      |> log_in_as(user)
+      |> visit("/users/settings")
+      |> assert_has("#regenerate-api-key-btn")
+      |> evaluate(
+        "document.documentElement.scrollWidth - window.innerWidth",
+        fn overflow -> assert overflow <= 0 end
+      )
+    end
+  end
 end
