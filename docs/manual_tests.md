@@ -81,8 +81,7 @@ Dev has no reverse proxy, so `:x_headers` never carries `x-forwarded-for`,
 `RemoteIp.from/1` returns `nil`, `client_ip` is always `nil`, and
 `maybe_send_magic_link/2`'s `is_nil(ip)` branch always fires — `allow_ip?/1`
 is never called locally. This is documented fail-open behavior, not a bug.
-The script refuses to run in `ip` mode against a `localhost`/`127.0.0.1`
-base URL.
+The script refuses to run against a `localhost`/`127.0.0.1` base URL.
 
 - Submits the magic-link form 4 times in quick succession, each with a
   distinct generated email (so only the IP path is exercised, not the email
@@ -97,12 +96,6 @@ base URL.
   violation_count=1`, `cooldown_ms=120000 violation_count=2`,
   `cooldown_ms=240000 violation_count=3` (the 1st submission is never
   logged — `allow_ip?/1` only warns on violations).
-
-  If `email` mode was run against this same `--base-url` shortly before
-  (from this machine), its second submission already recorded one `ip
-  cooldown` violation against this IP, so this run's warnings will start
-  from a higher `violation_count`/`cooldown_ms` than shown above — each one
-  is still a further doubling, confirming escalation continues.
 
 ## Speaker dashboard
 
