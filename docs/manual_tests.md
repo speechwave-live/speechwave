@@ -11,7 +11,8 @@ against dev or production (e.g. before/after a deploy). It does not replace
 
 > **Migration in progress.** These rodney scripts are being replaced by browser
 > tests in `test/e2e` (run with `mix test.browser`). `dashboard.sh`,
-> `account_settings.sh` and `email_consent.sh` have been ported and removed. Don't add new scripts here. See
+> `account_settings.sh`, `email_consent.sh` and `session_analytics.sh` have been
+> ported and removed. Don't add new scripts here. See
 > [the migration plan](specs/2026-10-18-browser-test-migration-design.md) for
 > the order and current status.
 
@@ -49,9 +50,8 @@ scripts/manual_tests/run_all_dev.sh [--base-url URL]
 ```
 
 (default `http://localhost:4000`). This runs `auth_throttle.sh email`,
-`session_analytics.sh` and `reaction_flow.sh`
-back-to-back, printing each script's output as it goes, then a PASS/FAIL
-summary line per script. Exits non-zero if any failed.
+and `reaction_flow.sh` back-to-back, printing each script's output as it goes,
+then a PASS/FAIL summary line per script. Exits non-zero if any failed.
 
 Checks `rodney` is on `PATH` and the dev server is reachable at `--base-url`
 before starting, with actionable error messages if not.
@@ -150,42 +150,11 @@ sign out.
 
 ## Session analytics
 
-Tests session analytics (`SpeechwaveWeb.SessionAnalyticsLive`,
-`/sessions/:id` and `/sessions/:id/compare/:other_id`) and the dashboard's
-sessions panel: viewing reaction totals, comparing two sessions, renaming,
-and deleting.
-
-Scripts:
-- `scripts/manual_tests/seed_sessions.exs` — seeds a talk with two finished
-  sessions and reactions. Run directly with
-  `mix run scripts/manual_tests/seed_sessions.exs <email>`, or via
-  `session_analytics.sh` below. Prints `email=`, `talk_id=`, `session1_id=`,
-  `session2_id=` on stdout (interleaved with `[debug]` SQL logs on stderr).
-- `scripts/manual_tests/session_analytics.sh [--base-url URL]` (default
-  `http://localhost:4000`)
-
-**Dev-only** — same constraint as `session_analytics.sh` (depends on
-`complete_magic_link_login` and on `mix run` for seeding). See "SSH/eval
-magic-link-token helper for production runs" in `docs/roadmap.md`.
-
-`session_analytics.sh`:
-
-1. Seeds data via `seed_sessions.exs` for a fresh
-   `manual-test-<timestamp>@example.com`: Session 1 gets 3 reactions (🔥 and
-   ❤️ on slide 1, 🎉 on slide 2), Session 2 gets 2 reactions (🔥 on slide 1,
-   👏 on slide 2).
-2. Logs in via magic link.
-3. Opens `/sessions/<session1_id>`. Checks `#total-reactions` is `3` and
-   `#slide-row-1` / `#slide-row-2` render.
-4. Opens `/sessions/<session1_id>/compare/<session2_id>`. Checks
-   `#compare-section` renders.
-5. Returns to `/dashboard`, selects the seeded talk. Checks `#sessions-panel`
-   lists both `#session-<session1_id>` and `#session-<session2_id>`.
-6. Renames session 1 to "Opening Keynote" via `#rename-session-<id>` /
-   `#rename-form-<id>`. Checks `#session-label-<id>` updates.
-7. Deletes session 2 (`#delete-session-<id>`, via `confirm_and_click`).
-8. Deletes the talk (cleanup).
-9. Signs out.
+Ported to a browser test: `test/e2e/session_analytics_test.exs` (run with
+`mix test.browser`). It views a session's totals and per-slide rows, compares
+two sessions, then renames a session, deletes a session and deletes the talk
+from the dashboard. The seed data comes from
+`Speechwave.TalksFixtures.talk_with_two_finished_sessions_fixture/1`.
 
 ## Attendee reaction flow
 
@@ -203,8 +172,8 @@ Scripts:
 - `scripts/manual_tests/reaction_flow.sh [--base-url URL]` (default
   `http://localhost:4000`)
 
-**Dev-only** — same constraint as `session_analytics.sh`
-(depends on `complete_magic_link_login` and on `mix run` for seeding). See
+**Dev-only** (depends on `complete_magic_link_login` and on `mix run` for
+seeding). See
 "SSH/eval magic-link-token helper for production runs" in `docs/roadmap.md`.
 
 `reaction_flow.sh` opens **two** rodney tabs on the same `/t/:slug` page —
