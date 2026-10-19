@@ -18,10 +18,11 @@ config :speechwave,
          __DIR__
        )
 
-# We don't run a server during test. If one is required,
-# you can enable the server option below.
+# The port is set in config/runtime.exs (4002 + MIX_TEST_PARTITION by default).
+# The server runs during tests because the E2E tests (test/e2e) drive the app
+# through a real browser.
 config :speechwave, SpeechwaveWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: 4002],
+  http: [ip: {127, 0, 0, 1}],
   secret_key_base: "ZNi8x7OBa7XcA37WQBQLYngfsJBZMA4Wmy+pkwb/YA0xYh9EDh82k1v5lZ2hpO8O",
   server: true
 
@@ -54,6 +55,4 @@ config :phoenix_live_view,
 config :phoenix,
   sort_verified_routes_query_params: true
 
-# Browser tests (test/browser) drive the app through Playwright, so the
-# endpoint has to actually listen on a port.
 config :phoenix_test, otp_app: :speechwave

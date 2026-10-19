@@ -20,9 +20,15 @@ if System.get_env("PHX_SERVER") do
   config :speechwave, SpeechwaveWeb.Endpoint, server: true
 end
 
-# Test uses a different default port so browser tests can run while the dev
-# server is up.
-default_port = if config_env() == :test, do: "4002", else: "4000"
+# Test uses its own port range (4002 + partition number) so E2E tests can run
+# while the dev server is up and `mix test --partitions` runs don't collide.
+default_port =
+  if config_env() == :test do
+    partition = String.to_integer(System.get_env("MIX_TEST_PARTITION", "0"))
+    Integer.to_string(4002 + partition)
+  else
+    "4000"
+  end
 
 config :speechwave, SpeechwaveWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", default_port))]
