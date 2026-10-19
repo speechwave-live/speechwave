@@ -10,8 +10,8 @@ against dev or production (e.g. before/after a deploy). It does not replace
 `mix test` and isn't CI-gated — it's ad-hoc verification.
 
 > **Migration in progress.** These rodney scripts are being replaced by browser
-> tests in `test/e2e` (run with `mix test.browser`). `dashboard.sh` has been
-> ported. Don't add new scripts here. See
+> tests in `test/e2e` (run with `mix test.browser`). `dashboard.sh` and
+> `account_settings.sh` have been ported and removed. Don't add new scripts here. See
 > [the migration plan](specs/2026-10-18-browser-test-migration-design.md) for
 > the order and current status.
 
@@ -49,9 +49,8 @@ scripts/manual_tests/run_all_dev.sh [--base-url URL]
 ```
 
 (default `http://localhost:4000`). This runs `auth_throttle.sh email`,
-`dashboard.sh`, `session_analytics.sh`, `reaction_flow.sh`, and
-`account_settings.sh` back-to-back,
-printing each script's output as it goes, then a PASS/FAIL summary line per
+`session_analytics.sh`, `reaction_flow.sh`, and `email_consent.sh`
+back-to-back, printing each script's output as it goes, then a PASS/FAIL summary line per
 script. Exits non-zero if any failed.
 
 Checks `rodney` is on `PATH` and the dev server is reachable at `--base-url`
@@ -144,39 +143,10 @@ base URL.
 
 ## Speaker dashboard
 
-Tests the speaker dashboard (`SpeechwaveWeb.DashboardLive`, `/dashboard`):
-magic-link login, plan-usage display, talk creation, link copying, and talk
-deletion.
-
-Script: `scripts/manual_tests/dashboard.sh [--base-url URL]` (default
-`http://localhost:4000`)
-
-**Dev-only** — exits with an error against a non-local `--base-url`, since
-`complete_magic_link_login` depends on `/dev/mailbox`. See "SSH/eval
-magic-link-token helper for production runs" in `docs/roadmap.md` for the
-planned production path.
-
-As a fresh free-tier user (`manual-test-<timestamp>@example.com`, a new
-email each run):
-
-1. Logs in via magic link (`complete_magic_link_login`), landing on
-   `/dashboard` with `#talk-list` present.
-2. Checks the plan-usage summary: `#sessions-used` is `0`, `#session-limit`
-   is `10`, `#participant-limit` is `50` (the `:free` plan defaults for a
-   brand-new account).
-3. Creates a talk titled `manual-test-<timestamp>`. Checks `#created-talk`
-   appears and `#selected-talk-qr` renders with `#talk-link` (matching
-   `<base_url>/t/<slug>`) and `#no-sessions`.
-4. Checks the copy-link button (`#copy-talk-link`) renders with its idle
-   icon visible and its "copied" icon hidden, and that clicking it doesn't
-   error. The icon swap itself isn't verified — headless Chrome has no
-   clipboard permission, so `navigator.clipboard.writeText()` never resolves
-   and the hook's `.then()` callback never runs. This is a headless-browser
-   limitation, not an app bug.
-5. Deletes the talk (`#delete-talk-<id>`, via `confirm_and_click`). Checks
-   the talk is gone from `#talk-list` and `#selected-talk-qr` no longer
-   renders.
-6. Signs out and checks that `/dashboard` then redirects to `/users/log-in`.
+Ported to a browser test: `test/e2e/dashboard_test.exs` (run with
+`mix test.browser`). It covers magic-link login, plan usage, talk creation, the
+copy-link button's initial state, talk deletion through the confirm dialog, and
+sign out.
 
 ## Session analytics
 
@@ -194,7 +164,7 @@ Scripts:
 - `scripts/manual_tests/session_analytics.sh [--base-url URL]` (default
   `http://localhost:4000`)
 
-**Dev-only** — same constraint as `dashboard.sh` (depends on
+**Dev-only** — same constraint as `session_analytics.sh` (depends on
 `complete_magic_link_login` and on `mix run` for seeding). See "SSH/eval
 magic-link-token helper for production runs" in `docs/roadmap.md`.
 
@@ -233,7 +203,7 @@ Scripts:
 - `scripts/manual_tests/reaction_flow.sh [--base-url URL]` (default
   `http://localhost:4000`)
 
-**Dev-only** — same constraint as `dashboard.sh`/`session_analytics.sh`
+**Dev-only** — same constraint as `session_analytics.sh`
 (depends on `complete_magic_link_login` and on `mix run` for seeding). See
 "SSH/eval magic-link-token helper for production runs" in `docs/roadmap.md`.
 
@@ -317,43 +287,9 @@ all three scenarios read from `/dev/mailbox`.
 
 ## Account settings
 
-Tests `SpeechwaveWeb.UserLive.Settings` (`/users/settings`): API key
-regeneration, a full email-change round trip (form submit → confirmation email
-→ click link → email updated in the UI), and a light-touch render check of
-the OAuth Connected Accounts section.
-
-Script: `scripts/manual_tests/account_settings.sh [--base-url URL]` (default
-`http://localhost:4000`)
-
-**Dev-only** — exits with an error against a non-local `--base-url`, since
-`complete_magic_link_login` depends on `/dev/mailbox` and the email-change
-confirmation step requires reading the confirmation email from
-`/dev/mailbox`. See "SSH/eval magic-link-token helper for production runs" in
-`docs/roadmap.md` for the planned production path.
-
-As a fresh free-tier user (`manual-test-<timestamp>@example.com`, a new
-email each run):
-
-1. Logs in via magic link (`complete_magic_link_login`), landing on
-   `/dashboard` with `#talk-list` present.
-2. Navigates to `/users/settings`. Checks `#email_form`, `#api-key-display`,
-   and `#connected-accounts` all render. Confirms the freshly-authenticated
-   session passes the `require_sudo_mode` check (within 10 minutes of login).
-3. Checks the OAuth Connected Accounts section: `#connect-google`,
-   `#connect-microsoft`, and `#connect-github` all render (a brand-new user
-   has no linked identities, so all three "Connect" links should be present).
-   No OAuth flow is driven.
-4. Regenerates the API key: reads the current key, clicks `#regenerate-api-key-btn`
-   (via `confirm_and_click`), reads the new key. Checks the new key is
-   non-empty and differs from the old key.
-5. Changes email: clears `/dev/mailbox`, fills `#user_email` with
-   `manual-test-<timestamp>-new@example.com`, submits the form. Checks
-   `#flash-info` appears ("A link to confirm…"). Opens `/dev/mailbox`, checks
-   the email subject is "Update email instructions" and `To:` contains the new
-   address. Follows the `/users/settings/confirm-email/:token` link. Checks
-   `#flash-info` appears ("Email changed successfully.") and `#user_email`
-   reflects the new address.
-6. Signs out and checks that `/dashboard` then redirects to `/users/log-in`.
+Ported to a browser test: `test/e2e/account_settings_test.exs` (run with
+`mix test.browser`). It regenerates the API key through the confirm dialog,
+changes the email through the emailed confirmation link, and signs out.
 
 ## Welcome banner
 
