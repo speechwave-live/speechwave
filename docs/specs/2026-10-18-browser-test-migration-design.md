@@ -103,12 +103,13 @@ Ordered by how much each one teaches us and how little new machinery it needs.
 ### Two devices in one test
 
 `reaction_flow.sh` checks that a reaction on one device shows up on another,
-plus the cooldown UI and persistence. The review of the spike found that
-`PhoenixTest.Playwright.Case.new_session/2` is public and its Ecto checkout
-code handles a second session in the same test, with each session in its own
-browser context. So two real browser sessions should work. Pass 5 should wrap
-it in a helper on our `Case` module (it needs the validated Playwright config
-and the context) and confirm it with a real run.
+plus the cooldown UI and persistence. The first review of the spike thought
+`PhoenixTest.Playwright.Case.new_session/2` would work for a second session. It
+doesn't here: it checks out another Ecto sandbox owner, and the test repo has
+`pool_size: 1`, so the checkout times out. `E2ECase.new_browser_session/1`
+instead opens a bare second browser context (own cookies and local storage)
+and relies on the sandbox already being shared. Usage:
+`test "...", %{conn: a} = context do b = new_browser_session(context) ...`.
 
 ### Global state to reset
 
@@ -118,9 +119,9 @@ and the context) and confirm it with a real run.
   test can enable the throttle with `Application.put_env/3` (restoring it in
   `on_exit`) and clear those tables with `:ets.delete_all_objects/1`, or just
   use a fresh email, since the cooldown is keyed by email and lasts 60 seconds.
-- **Reaction rate limiter:** `reaction_flow.sh` also exercises
-  `Speechwave.RateLimiter`, another global ETS table with no reset. Use unique
-  session ids per test, or clear the table.
+- **Reaction rate limiter:** `Speechwave.RateLimiter` is another global ETS
+  table with no reset, keyed by session id. Each test gets a new session id
+  from the database, so it didn't need clearing for the reaction flow test.
 
 ## Finishing the migration
 
@@ -200,7 +201,7 @@ Update this table at the end of each implementation pass.
 | 2 | Port `account_settings.sh`; delete the already-ported `dashboard.sh` | Done and merged. Both scripts deleted |
 | 3 | Port `email_consent.sh` | Done and merged. Script deleted |
 | 4 | Port `session_analytics.sh` (seeding fixtures) | Done and merged. Script and `seed_sessions.exs` deleted |
-| 5 | Port `reaction_flow.sh` (two-device question) | Not started |
+| 5 | Port `reaction_flow.sh` (two-device question) | Done on branch `test/e2e-reaction-flow`. Script and `seed_active_session.exs` deleted |
 | 6 | Port `auth_throttle.sh` email mode | Not started |
 | 7 | Delete old scripts, rewrite `docs/manual_tests.md`, decide on gating | Not started |
 | later | Partitioned test databases, if the suite gets slow | Deferred |

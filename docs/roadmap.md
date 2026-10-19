@@ -117,16 +117,17 @@ Follow-on manual-test coverage identified while designing
 
 The remaining rodney scripts in `scripts/manual_tests` are dev-only
 because their shared `complete_magic_link_login` helper depends on
-`/dev/mailbox`, which doesn't exist in production. Their own logic has no environment-specific branching — only the
-login/email-delivery step is genuinely production-sensitive.
+`/dev/mailbox`, which doesn't exist in production. Their own logic has no
+environment-specific branching. Only the login/email-delivery step is genuinely
+production-sensitive.
 
 Production is a `mix release` build with no `mix`/source in the runner image
 (confirmed via `Dockerfile`/`fly.toml`), but `flyctl ssh exec` +
 `/app/bin/speechwave eval` — the same "remote console" mechanism `fly.toml`'s
 `console_command` already uses — runs arbitrary Elixir against compiled
 `Speechwave.*` modules with full DB access. This is how
-a script like `scripts/manual_tests/seed_active_session.exs` can already seed
-data in production (see the dashboard/session-analytics spec).
+a seeding script can already seed data in production (see the
+dashboard/session-analytics spec).
 
 The same mechanism can generate a **login token** instead of relying on email:
 call `Accounts.deliver_login_instructions/2` (or build a token directly via
@@ -135,8 +136,8 @@ call `Accounts.deliver_login_instructions/2` (or build a token directly via
 SSH-generate this URL via `flyctl ssh exec` and have rodney navigate straight
 to it on `https://speechwave.live` — no email delivery, no polling, no
 third-party mailbox service. This would unblock production runs of
-`reaction_flow.sh` and any other rodney script that is still around, and any
-future authenticated-flow script. (The browser tests in `test/e2e` always run
+any rodney script that is still around, and any future authenticated-flow
+script. (The browser tests in `test/e2e` always run
 against a local test server, so they don't need this.)
 
 One new cost worth tracking: unlike dev runs (throwaway local DB), a
