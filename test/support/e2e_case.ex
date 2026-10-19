@@ -34,7 +34,9 @@ defmodule SpeechwaveWeb.E2ECase do
       use PhoenixTest.Playwright.Case, unquote(Keyword.put(opts, :async, false))
 
       import Speechwave.AccountsFixtures
-      import SpeechwaveWeb.E2ECase, only: [log_in_with_magic_link: 2, log_in_as: 2]
+
+      import SpeechwaveWeb.E2ECase,
+        only: [log_in_with_magic_link: 2, log_in_as: 2, receive_magic_link: 0]
 
       @moduletag :e2e
 
@@ -74,16 +76,26 @@ defmodule SpeechwaveWeb.E2ECase do
       |> PhoenixTest.click_button("Send sign-in link")
       |> PhoenixTest.assert_has("#magic-link-sent")
 
+    magic_url = receive_magic_link()
+
+    session
+    |> PhoenixTest.visit(magic_url)
+    |> PhoenixTest.visit("/dashboard")
+    |> PhoenixTest.assert_has("#talk-form")
+  end
+
+  @doc """
+  Waits for the sign-in email and returns the magic link in it, query string
+  included, so tests can check what the link carries before following it.
+  """
+  def receive_magic_link do
     assert_receive {:email, %{text_body: body}}, 5000
 
     [magic_url] =
       Regex.run(~r{https?://\S+/users/magic_link/\S+}, body) ||
         flunk("no magic link in the sign-in email:\n#{body}")
 
-    session
-    |> PhoenixTest.visit(magic_url)
-    |> PhoenixTest.visit("/dashboard")
-    |> PhoenixTest.assert_has("#talk-form")
+    magic_url
   end
 
   @doc """
