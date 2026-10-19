@@ -202,6 +202,6 @@ Update this table at the end of each implementation pass.
 | 3 | Port `email_consent.sh` | Done and merged. Script deleted |
 | 4 | Port `session_analytics.sh` (seeding fixtures) | Done and merged. Script and `seed_sessions.exs` deleted |
 | 5 | Port `reaction_flow.sh` (two-device question) | Done and merged. Script and `seed_active_session.exs` deleted |
-| 6 | Port `auth_throttle.sh` email mode | Not started |
-| 7 | Delete old scripts, rewrite `docs/manual_tests.md`, decide on gating | Not started |
+| 6 | Port `auth_throttle.sh` email mode | Done and merged. Script trimmed to the production-only `ip` mode, `run_all_dev.sh` deleted |
+| 7 | Clean up what is left, rewrite `docs/manual_tests.md`, decide on gating | Not started. To do: delete the unused `lib.sh` helpers (`confirm_and_click`, `complete_magic_link_login`, `clear_dev_mailbox`) and the orphaned `cleanup_manual_test_users.{sh,exs}`; rewrite the Principles, Environments, Requirements and Conventions sections around the one production-only script |
 | later | Partitioned test databases, if the suite gets slow | Deferred |

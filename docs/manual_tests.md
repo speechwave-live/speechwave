@@ -11,8 +11,9 @@ against dev or production (e.g. before/after a deploy). It does not replace
 
 > **Migration in progress.** These rodney scripts are being replaced by browser
 > tests in `test/e2e` (run with `mix test.browser`). `dashboard.sh`,
-> `account_settings.sh`, `email_consent.sh`, `session_analytics.sh` and
-> `reaction_flow.sh` have been ported and removed. Don't add new scripts here. See
+> `account_settings.sh`, `email_consent.sh`, `session_analytics.sh`,
+> `reaction_flow.sh` and the email mode of `auth_throttle.sh` have been ported
+> and removed. Don't add new scripts here. See
 > [the migration plan](specs/2026-10-18-browser-test-migration-design.md) for
 > the order and current status.
 
@@ -40,34 +41,11 @@ against dev or production (e.g. before/after a deploy). It does not replace
   installed and on `PATH`. Run `rodney --help` to confirm it's available and
   see all subcommands.
 
-## Quick start
-
-To run everything that's fully automated against a local dev server in one
-go:
-
-```sh
-scripts/manual_tests/run_all_dev.sh [--base-url URL]
-```
-
-(default `http://localhost:4000`). This runs `auth_throttle.sh email`
-and then the test-user cleanup, printing each script's output as it goes, then
-a PASS/FAIL summary line per script. Exits non-zero if any failed.
-
-Checks `rodney` is on `PATH` and the dev server is reachable at `--base-url`
-before starting, with actionable error messages if not.
-
-**Dev-only** — refuses a non-local `--base-url`, since most scripts depend on
-`/dev/mailbox` and `mix run` for seeding. The `ip`-cooldown mode of
-`auth_throttle.sh` isn't included here since it's production-only and needs a
-manual `fly logs` check afterward — run it separately per the "Magic-link auth
-throttle" section below.
-
 ## Conventions for new sections
 
 Each feature gets its own `##` section: a one-line description of what it
 tests, the script invocation, then either flat content or a `###`
-subsection per mode (as the auth-throttle section below does for `email`
-vs. `ip`).
+subsection per mode.
 
 `scripts/manual_tests/lib.sh` provides shared helpers — source it from new
 scripts:
@@ -88,38 +66,22 @@ Tests `Speechwave.AuthThrottle` (see
 `docs/specs/2026-06-11-magic-link-auth-throttle-design.md`): repeated
 magic-link requests for the same email, or from the same IP, are throttled.
 
-Script: `scripts/manual_tests/auth_throttle.sh [--base-url URL] {email|ip}`
-(defaults: `http://localhost:4000`, `email`)
+### Email cooldown
 
-### Email cooldown (`auth_throttle.sh email`)
+Ported to a browser test: `test/e2e/auth_throttle_test.exs` (run with
+`mix test.browser`). It submits the sign-in form twice for one email and
+checks that exactly one message is delivered, then submits a different email
+to show that one still goes out.
 
-- Submits the magic-link form twice in a row with the same generated test
-  email, asserting `#magic-link-sent` appears both times (the UI looks
-  identical whether the second send was throttled or not).
-- **Dev:** clears `/dev/mailbox` first, then after both submissions checks
-  that exactly one email was delivered. Prints `PASS`/`FAIL`. This counts
-  every message in `/dev/mailbox`, not just ones matching the test email —
-  clearing first keeps this accurate as long as nothing else delivers mail
-  to the local mailbox during the run.
-- **Production:** `/dev/mailbox` doesn't exist, so confirm via one of:
-  - a real inbox you control as the test email, checking it arrives exactly
-    once, or
-  - `fly logs --app speechwave | grep "auth_throttle: ip cooldown"`. The two
-    submissions are seconds apart from the same IP, and
-    `maybe_send_magic_link/2` checks `allow_ip?/1` (30s cooldown) before
-    `allow_email?/1` (60s cooldown) — so the second submission is blocked by
-    the IP cooldown first, and `"auth_throttle: email cooldown"` never
-    appears. One `ip cooldown` line for this machine's IP is equally valid
-    proof the second send was blocked.
+### IP cooldown (`auth_throttle.sh --base-url https://speechwave.live`), production only
 
-### IP cooldown (`auth_throttle.sh ip --base-url https://speechwave.live`) — production only
+Script: `scripts/manual_tests/auth_throttle.sh --base-url URL`
 
 Dev has no reverse proxy, so `:x_headers` never carries `x-forwarded-for`,
 `RemoteIp.from/1` returns `nil`, `client_ip` is always `nil`, and
 `maybe_send_magic_link/2`'s `is_nil(ip)` branch always fires — `allow_ip?/1`
 is never called locally. This is documented fail-open behavior, not a bug.
-The script refuses to run in `ip` mode against a `localhost`/`127.0.0.1`
-base URL.
+The script refuses to run against a `localhost`/`127.0.0.1` base URL.
 
 - Submits the magic-link form 4 times in quick succession, each with a
   distinct generated email (so only the IP path is exercised, not the email
@@ -134,12 +96,6 @@ base URL.
   violation_count=1`, `cooldown_ms=120000 violation_count=2`,
   `cooldown_ms=240000 violation_count=3` (the 1st submission is never
   logged — `allow_ip?/1` only warns on violations).
-
-  If `email` mode was run against this same `--base-url` shortly before
-  (from this machine), its second submission already recorded one `ip
-  cooldown` violation against this IP, so this run's warnings will start
-  from a higher `violation_count`/`cooldown_ms` than shown above — each one
-  is still a further doubling, confirming escalation continues.
 
 ## Speaker dashboard
 
