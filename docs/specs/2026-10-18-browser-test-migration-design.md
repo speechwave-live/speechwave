@@ -156,14 +156,24 @@ build it unless partitions turn out to be too coarse.
 
 Do none of this until the suite is slow enough to justify it.
 
+## Docker build context
+
+Adding Playwright put `assets/node_modules` in the build context, which
+prompted a `.dockerignore`. It uses an allowlist (ignore everything, then allow
+what the Dockerfile copies). Measured with the legacy builder: the context
+dropped from 418.5 MB to 2.1 MB, and the image from 233 MB to 232 MB. The
+release also no longer contains `priv/repo/test.db*` and `.DS_Store`, which
+used to ride along from the developer's checkout. Booting both images with
+dummy env vars gave identical responses for the sign-in page, pricing, CSS, JS
+and logo, and `/dashboard` redirected. If the Dockerfile starts copying a new
+top-level path, add it to the allowlist in `.dockerignore`. `fly deploy` reads
+`.dockerignore` from the working directory by default.
+
 ## Deferred items
 
 Things found along the way that are not part of a pass yet. Move each into a
 pass (or delete it) when someone picks it up.
 
-- **`.dockerignore`:** the Dockerfile does `COPY assets assets` and there is no
-  `.dockerignore`, so a local `assets/node_modules` (now present because of
-  Playwright) goes into the image build context.
 - **`server: true` only for E2E:** every `mix test` run now binds a port, so
   two concurrent runs on the same machine collide. `PHX_SERVER` (already
   honoured by `runtime.exs`) could enable it for `mix test.browser` only, but

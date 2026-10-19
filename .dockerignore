@@ -1,0 +1,20 @@
+# The build context is everything `docker build` (and `fly deploy`) uploads.
+# Start from nothing and allow only what the Dockerfile COPYs, so local
+# databases, _build, deps, docs, the extension and node_modules never leave
+# this machine.
+*
+
+!mix.exs
+!mix.lock
+!config
+!priv
+!lib
+!assets
+!rel
+
+# Local files that live inside the directories allowed above.
+assets/node_modules
+priv/repo/*.db
+priv/repo/*.db-shm
+priv/repo/*.db-wal
+**/.DS_Store
