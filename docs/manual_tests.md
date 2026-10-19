@@ -49,9 +49,9 @@ go:
 scripts/manual_tests/run_all_dev.sh [--base-url URL]
 ```
 
-(default `http://localhost:4000`). This runs `auth_throttle.sh email`,
-and `reaction_flow.sh` back-to-back, printing each script's output as it goes,
-then a PASS/FAIL summary line per script. Exits non-zero if any failed.
+(default `http://localhost:4000`). This runs `auth_throttle.sh email` and
+`reaction_flow.sh` back-to-back, printing each script's output as it goes, then
+a PASS/FAIL summary line per script. Exits non-zero if any failed.
 
 Checks `rodney` is on `PATH` and the dev server is reachable at `--base-url`
 before starting, with actionable error messages if not.
