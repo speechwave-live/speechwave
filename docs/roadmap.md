@@ -111,9 +111,15 @@ deferred rate limiting on magic link sends).
 
 Follow-on manual-test coverage identified while designing
 `docs/specs/2026-06-13-dashboard-session-analytics-manual-tests-design.md`
-(speaker dashboard + session analytics sections of `docs/manual_tests.md`).
+(those sections have since become browser tests, see `docs/manual_tests.md`).
 
 ### SSH/eval magic-link-token helper for production runs
+
+**Status:** no rodney script that logs in remains. The authenticated flows are
+now browser tests in `test/e2e`, which run against a local test server, and the
+only script left (`auth_throttle.sh`) doesn't log in. So this has no consumer
+today. It is kept as a record of the idea in case a production-run check that
+needs a signed-in user comes back.
 
 The remaining rodney scripts in `scripts/manual_tests` are dev-only
 because their shared `complete_magic_link_login` helper depends on

@@ -125,14 +125,15 @@ and relies on the sandbox already being shared. Usage:
 
 ## Finishing the migration
 
-When the last script is ported:
+Done in pass 7:
 
-- Delete `scripts/manual_tests/` (including the `seed_*.exs` and cleanup
-  scripts) and `run_all_dev.sh`.
-- Rewrite `docs/manual_tests.md` to cover only what is still manual: the
-  production-only `ip` throttle check, real email delivery, and Fly logs.
-- Add the browser tests to the `precommit` alias if they are fast and stable
-  by then, or document why not.
+- `scripts/manual_tests/` now holds only `auth_throttle.sh` (the production-only
+  IP check), the three helpers it uses in `lib.sh`, and `seed_screenshots.exs`
+  (used by the docs screenshots project).
+- `docs/manual_tests.md` covers only what is still manual: the production IP
+  throttle check and the welcome banner recipe. It also lists which browser
+  test replaced each old script.
+- Still open: whether to add the browser tests to `precommit` or CI.
 
 ## SQLite and parallelism
 
@@ -203,5 +204,5 @@ Update this table at the end of each implementation pass.
 | 4 | Port `session_analytics.sh` (seeding fixtures) | Done and merged. Script and `seed_sessions.exs` deleted |
 | 5 | Port `reaction_flow.sh` (two-device question) | Done and merged. Script and `seed_active_session.exs` deleted |
 | 6 | Port `auth_throttle.sh` email mode | Done and merged. Script trimmed to the production-only `ip` mode, `run_all_dev.sh` deleted |
-| 7 | Clean up what is left, rewrite `docs/manual_tests.md`, decide on gating | Not started. To do: delete the unused `lib.sh` helpers (`confirm_and_click`, `complete_magic_link_login`, `clear_dev_mailbox`) and the orphaned `cleanup_manual_test_users.{sh,exs}`; rewrite the Principles, Environments, Requirements and Conventions sections around the one production-only script |
+| 7 | Clean up what is left, rewrite `docs/manual_tests.md`, decide on gating | Cleanup done on branch `chore/manual-tests-cleanup`: unused `lib.sh` helpers and the orphaned cleanup scripts deleted, `docs/manual_tests.md` rewritten around what is still manual, roadmap note added. Gating decision pending |
 | later | Partitioned test databases, if the suite gets slow | Deferred |
