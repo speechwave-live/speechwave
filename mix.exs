@@ -28,7 +28,7 @@ defmodule Speechwave.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, "test.browser": :test]
     ]
   end
 
@@ -54,6 +54,8 @@ defmodule Speechwave.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
+      {:phoenix_test, "~> 0.12.1", only: :test, runtime: false},
+      {:phoenix_test_playwright, "~> 0.19.0", only: :test, runtime: false},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
@@ -90,6 +92,7 @@ defmodule Speechwave.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.migrate --quiet", "test"],
+      "test.browser": ["ecto.migrate --quiet", "test --only e2e"],
       lint: ["credo --strict --all"],
       serve: ["phx.server"],
       static: ["dialyzer"],
