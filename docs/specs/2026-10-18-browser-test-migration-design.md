@@ -206,5 +206,5 @@ Update this table at the end of each implementation pass.
 | 4 | Port `session_analytics.sh` (seeding fixtures) | Done and merged. Script and `seed_sessions.exs` deleted |
 | 5 | Port `reaction_flow.sh` (two-device question) | Done and merged. Script and `seed_active_session.exs` deleted |
 | 6 | Port `auth_throttle.sh` email mode | Done and merged. Script trimmed to the production-only `ip` mode, `run_all_dev.sh` deleted |
-| 7 | Clean up what is left, rewrite `docs/manual_tests.md`, decide on gating | Cleanup done on branch `chore/manual-tests-cleanup`: unused `lib.sh` helpers and the orphaned cleanup scripts deleted, `docs/manual_tests.md` rewritten around what is still manual, roadmap note added. Gating decided: on demand only (see Decisions) |
+| 7 | Clean up what is left, rewrite `docs/manual_tests.md`, decide on gating | Cleanup done and merged: unused `lib.sh` helpers and the orphaned cleanup scripts deleted, `docs/manual_tests.md` rewritten around what is still manual, roadmap note added. Gating decided: on demand only (see Decisions). The migration is complete |
 | later | Partitioned test databases, if the suite gets slow | Deferred |
