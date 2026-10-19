@@ -198,7 +198,7 @@ Update this table at the end of each implementation pass.
 | 0 | Spike: dependencies, config, `dashboard.sh` port | Done, reviewed by a fresh subagent (fixes applied) and merged to main |
 | 1 | Merge the spike, extract shared helpers and `Case` module, README and `docs/manual_tests.md` setup notes | Done and merged. `SpeechwaveWeb.E2ECase`, `log_in_with_magic_link/2` and `log_in_as/2` (session cookie), docs updated. Seeding fixtures belong to the passes that need them |
 | 2 | Port `account_settings.sh`; delete the already-ported `dashboard.sh` | Done and merged. Both scripts deleted |
-| 3 | Port `email_consent.sh` | Done on branch `test/e2e-email-consent`, script deleted |
+| 3 | Port `email_consent.sh` | Done and merged. Script deleted |
 | 4 | Port `session_analytics.sh` (seeding fixtures) | Not started |
 | 5 | Port `reaction_flow.sh` (two-device question) | Not started |
 | 6 | Port `auth_throttle.sh` email mode | Not started |
