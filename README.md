@@ -178,6 +178,29 @@ mise run test test/path/to/file.exs  # run a single test file
 mise run test --failed               # re-run only previously failing tests
 ```
 
+#### Browser tests
+
+Tests in `test/e2e` drive a real Chromium through Playwright
+([`phoenix_test_playwright`](https://hexdocs.pm/phoenix_test_playwright)). They
+are slower than the rest of the suite, so `mix test` skips them. One-time setup:
+
+```bash
+npm install --prefix assets
+npx --prefix assets playwright install chromium
+```
+
+Then run them with:
+
+```bash
+mise run test-e2e                                 # all browser tests
+mise run test-e2e test/e2e/dashboard_test.exs     # one file
+```
+
+They use their own database and port 4002, so they can run while the dev server
+is up. New tests should `use SpeechwaveWeb.E2ECase`, which has helpers for
+logging in. The plan for moving the old `scripts/manual_tests` scripts over is in
+[`docs/specs/2026-10-18-browser-test-migration-design.md`](docs/specs/2026-10-18-browser-test-migration-design.md).
+
 The Chrome extension lives in a separate repo ([speechwave-live/chrome-extension](https://github.com/speechwave-live/chrome-extension)) and has its own Jest test suite. See that repo's README for instructions.
 
 #### End-to-end test flow

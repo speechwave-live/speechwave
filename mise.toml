@@ -6,6 +6,10 @@ run = "mix assets.build"
 description = "Run the ExUnit test suite"
 run = "mix test"
 
+[tasks.test-e2e]
+description = "Run the browser (Playwright) tests in test/e2e"
+run = "mix test.browser"
+
 [tasks.lint]
 description = "Credo strict static analysis"
 run = "mix credo --strict --all"
