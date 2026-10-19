@@ -202,6 +202,6 @@ Update this table at the end of each implementation pass.
 | 3 | Port `email_consent.sh` | Done and merged. Script deleted |
 | 4 | Port `session_analytics.sh` (seeding fixtures) | Done and merged. Script and `seed_sessions.exs` deleted |
 | 5 | Port `reaction_flow.sh` (two-device question) | Done and merged. Script and `seed_active_session.exs` deleted |
-| 6 | Port `auth_throttle.sh` email mode | Not started |
+| 6 | Port `auth_throttle.sh` email mode | Done on branch `test/e2e-auth-throttle`. Script trimmed to the production-only `ip` mode, `run_all_dev.sh` deleted |
 | 7 | Delete old scripts, rewrite `docs/manual_tests.md`, decide on gating | Not started |
 | later | Partitioned test databases, if the suite gets slow | Deferred |

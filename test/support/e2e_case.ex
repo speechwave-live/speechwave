@@ -74,6 +74,30 @@ defmodule SpeechwaveWeb.E2ECase do
   end
 
   @doc """
+  Setup callback that turns the magic-link auth throttle on for one test (it is
+  off in the test env so other tests don't trip it) with empty throttle tables,
+  and puts everything back afterwards. Use as
+  `setup {SpeechwaveWeb.E2ECase, :enable_auth_throttle}`.
+  """
+  def enable_auth_throttle(_context) do
+    previous = Application.fetch_env!(:speechwave, :auth_throttle_enabled)
+    Application.put_env(:speechwave, :auth_throttle_enabled, true)
+    clear_auth_throttle_tables()
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.put_env(:speechwave, :auth_throttle_enabled, previous)
+      clear_auth_throttle_tables()
+    end)
+
+    :ok
+  end
+
+  defp clear_auth_throttle_tables do
+    :ets.delete_all_objects(:auth_throttle_email)
+    :ets.delete_all_objects(:auth_throttle_ip)
+  end
+
+  @doc """
   Logs in through the real sign-in form: submits the email, takes the link out
   of the message that Swoosh delivers to the test, and follows it. Ends on
   `/dashboard`. Use `log_in_as/2` instead when login is not what's under test.
