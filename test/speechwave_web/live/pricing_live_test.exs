@@ -31,7 +31,9 @@ defmodule SpeechwaveWeb.PricingLiveTest do
                ~s(<meta name="description" content="Compare Speechwave&#39;s free and paid plans. Start free, no credit card required, and upgrade when you need more participants or sessions."/>)
 
       assert html =~ ~s(<meta property="og:title" content="Pricing · Speechwave"/>)
-      assert html =~ ~s(<meta property="og:url" content="http://localhost:4000/pricing"/>)
+
+      assert html =~
+               ~s(<meta property="og:url" content="#{SpeechwaveWeb.Endpoint.url()}/pricing"/>)
     end
   end
 

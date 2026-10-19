@@ -23,7 +23,7 @@ config :speechwave,
 config :speechwave, SpeechwaveWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "ZNi8x7OBa7XcA37WQBQLYngfsJBZMA4Wmy+pkwb/YA0xYh9EDh82k1v5lZ2hpO8O",
-  server: false
+  server: true
 
 # In test we don't send emails
 config :speechwave, Speechwave.Mailer, adapter: Swoosh.Adapters.Test
@@ -53,3 +53,7 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Browser tests (test/browser) drive the app through Playwright, so the
+# endpoint has to actually listen on a port.
+config :phoenix_test, otp_app: :speechwave
