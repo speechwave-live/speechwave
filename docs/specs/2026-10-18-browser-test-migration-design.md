@@ -31,8 +31,8 @@ permission.
   same `visit |> click_button |> assert_has` calls.
 - **Location:** `test/e2e/`, one file per flow, each tagged `@moduletag :e2e`.
 - **Running:** `mix test` skips `:e2e`. `mix test.browser` runs only those.
-  Not CI-gated at first (same stance as the extension suite). Revisit once the
-  suite is stable and fast enough to gate on.
+  Not in `precommit` or CI (same stance as the extension suite); decided in
+  pass 7. The suite takes about 12 seconds for 9 tests.
 - **Setup requirement:** `npm install --prefix assets`, then
   `npx --prefix assets playwright install chromium`. Documented in the README
   (the migration notice in `docs/manual_tests.md` points there). A plain `mix test` must keep working without it:
@@ -133,7 +133,10 @@ Done in pass 7:
 - `docs/manual_tests.md` covers only what is still manual: the production IP
   throttle check and the welcome banner recipe. It also lists which browser
   test replaced each old script.
-- Still open: whether to add the browser tests to `precommit` or CI.
+- Gating decision: the browser tests stay out of `precommit`, so it works
+  without Node or Chromium and stays fast. Run `mix test.browser` before
+  merging changes that touch the UI or the email flows. Revisit if a CI setup
+  is added, or if regressions slip through.
 
 ## SQLite and parallelism
 
@@ -189,7 +192,6 @@ pass (or delete it) when someone picks it up.
 - **Copy-link click coverage:** see above.
 - **Partitioned runs:** verify `mix test --partitions 2` once the suite is big
   enough to want it.
-- **CI gating:** decide in the final pass.
 
 ## Status
 
@@ -204,5 +206,5 @@ Update this table at the end of each implementation pass.
 | 4 | Port `session_analytics.sh` (seeding fixtures) | Done and merged. Script and `seed_sessions.exs` deleted |
 | 5 | Port `reaction_flow.sh` (two-device question) | Done and merged. Script and `seed_active_session.exs` deleted |
 | 6 | Port `auth_throttle.sh` email mode | Done and merged. Script trimmed to the production-only `ip` mode, `run_all_dev.sh` deleted |
-| 7 | Clean up what is left, rewrite `docs/manual_tests.md`, decide on gating | Cleanup done on branch `chore/manual-tests-cleanup`: unused `lib.sh` helpers and the orphaned cleanup scripts deleted, `docs/manual_tests.md` rewritten around what is still manual, roadmap note added. Gating decision pending |
+| 7 | Clean up what is left, rewrite `docs/manual_tests.md`, decide on gating | Cleanup done on branch `chore/manual-tests-cleanup`: unused `lib.sh` helpers and the orphaned cleanup scripts deleted, `docs/manual_tests.md` rewritten around what is still manual, roadmap note added. Gating decided: on demand only (see Decisions) |
 | later | Partitioned test databases, if the suite gets slow | Deferred |
