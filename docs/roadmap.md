@@ -115,10 +115,10 @@ Follow-on manual-test coverage identified while designing
 
 ### SSH/eval magic-link-token helper for production runs
 
-`scripts/manual_tests/dashboard.sh` and `session_analytics.sh` are dev-only
+`scripts/manual_tests/session_analytics.sh` and the other rodney scripts are dev-only
 because their shared `complete_magic_link_login` helper depends on
-`/dev/mailbox`, which doesn't exist in production. Their own logic (talk CRUD,
-session analytics) has no environment-specific branching — only the
+`/dev/mailbox`, which doesn't exist in production. Their own logic (session
+analytics and so on) has no environment-specific branching — only the
 login/email-delivery step is genuinely production-sensitive.
 
 Production is a `mix release` build with no `mix`/source in the runner image
@@ -136,8 +136,9 @@ call `Accounts.deliver_login_instructions/2` (or build a token directly via
 SSH-generate this URL via `flyctl ssh exec` and have rodney navigate straight
 to it on `https://speechwave.live` — no email delivery, no polling, no
 third-party mailbox service. This would unblock production runs of
-`dashboard.sh` and `session_analytics.sh`, and any future authenticated-flow
-script.
+`session_analytics.sh` and any other rodney script that is still around, and
+any future authenticated-flow script. (The browser tests in `test/e2e` always run
+against a local test server, so they don't need this.)
 
 One new cost worth tracking: unlike dev runs (throwaway local DB), a
 production run leaves behind a real `manual-test-<timestamp>@example.com`

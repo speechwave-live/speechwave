@@ -93,7 +93,7 @@ Ordered by how much each one teaches us and how little new machinery it needs.
 
 | # | Script | What it needs beyond the helpers | Notes |
 |---|--------|----------------------------------|-------|
-| 0 | `dashboard.sh` | nothing | Done in the spike. |
+| 0 | `dashboard.sh` | nothing | Ported in the spike, script deleted in pass 2. |
 | 1 | `account_settings.sh` | reading an input's value (`assert_has(..., value: ...)`) | API key regeneration (confirm dialog) and email change. Many assertions may not need a browser. |
 | 2 | `email_consent.sh` | marketing consent checkbox, consent export | Largest script (217 lines). Check overlap with existing LiveView tests first and only port what needs a real browser. |
 | 3 | `session_analytics.sh` | session seeding fixtures | Replaces `seed_sessions.exs`. Charts render server side, so mostly plain assertions. |
@@ -197,7 +197,7 @@ Update this table at the end of each implementation pass.
 |------|-------|--------|
 | 0 | Spike: dependencies, config, `dashboard.sh` port | Done, reviewed by a fresh subagent (fixes applied) and merged to main |
 | 1 | Merge the spike, extract shared helpers and `Case` module, README and `docs/manual_tests.md` setup notes | Done and merged. `SpeechwaveWeb.E2ECase`, `log_in_with_magic_link/2` and `log_in_as/2` (session cookie), docs updated. Seeding fixtures belong to the passes that need them |
-| 2 | Port `account_settings.sh` | Done on branch `test/e2e-account-settings`, script deleted |
+| 2 | Port `account_settings.sh`; delete the already-ported `dashboard.sh` | Done and merged. Both scripts deleted |
 | 3 | Port `email_consent.sh` | Not started |
 | 4 | Port `session_analytics.sh` (seeding fixtures) | Not started |
 | 5 | Port `reaction_flow.sh` (two-device question) | Not started |
