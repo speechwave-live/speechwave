@@ -10,8 +10,8 @@ against dev or production (e.g. before/after a deploy). It does not replace
 `mix test` and isn't CI-gated — it's ad-hoc verification.
 
 > **Migration in progress.** These rodney scripts are being replaced by browser
-> tests in `test/e2e` (run with `mix test.browser`). `dashboard.sh` and
-> `account_settings.sh` have been ported and removed. Don't add new scripts here. See
+> tests in `test/e2e` (run with `mix test.browser`). `dashboard.sh`,
+> `account_settings.sh` and `email_consent.sh` have been ported and removed. Don't add new scripts here. See
 > [the migration plan](specs/2026-10-18-browser-test-migration-design.md) for
 > the order and current status.
 
@@ -49,9 +49,9 @@ scripts/manual_tests/run_all_dev.sh [--base-url URL]
 ```
 
 (default `http://localhost:4000`). This runs `auth_throttle.sh email`,
-`session_analytics.sh`, `reaction_flow.sh`, and `email_consent.sh`
-back-to-back, printing each script's output as it goes, then a PASS/FAIL summary line per
-script. Exits non-zero if any failed.
+`session_analytics.sh` and `reaction_flow.sh`
+back-to-back, printing each script's output as it goes, then a PASS/FAIL
+summary line per script. Exits non-zero if any failed.
 
 Checks `rodney` is on `PATH` and the dev server is reachable at `--base-url`
 before starting, with actionable error messages if not.
@@ -239,51 +239,12 @@ attendees viewing the same talk:
 
 ## Email consent collection
 
-Tests the three consent surfaces end-to-end: the login checkbox URL
-passthrough, the pricing page Notify Me modal, and the settings revoke flow.
-The key thing unit tests can't verify is that the real magic link URL in the
-real email actually carries the right query params before the user ever clicks
-it.
-
-Script: `scripts/manual_tests/email_consent.sh [--base-url URL]` (default
-`http://localhost:4000`)
-
-**Dev-only** — exits with an error against a non-local `--base-url`, since
-all three scenarios read from `/dev/mailbox`.
-
-**Scenario A — Login with consent checkbox:**
-
-1. Navigates to `/users/log-in`, inputs a fresh test email, checks the
-   marketing consent checkbox, submits.
-2. Reads the magic link from `/dev/mailbox`. Asserts the URL contains
-   `updates=true`.
-3. Clicks the magic link, navigates to `/users/settings`. Asserts
-   `#email-prefs-section[data-consented=true]` and `#revoke-consent-btn`
-   are present.
-4. Clicks `#revoke-consent-btn`. Asserts `data-consented=false` and the
-   revoke button is gone.
-
-**Scenario B — Login without consent checkbox:**
-
-1. Navigates to `/users/log-in`, inputs a fresh test email, submits
-   *without* checking the checkbox.
-2. Reads the magic link from `/dev/mailbox`. Asserts the URL does *not*
-   contain `updates`.
-3. Clicks the magic link, navigates to `/users/settings`. Asserts
-   `#email-prefs-section[data-consented=false]` and no `#revoke-consent-btn`.
-
-**Scenario C — Pricing Notify Me modal (logged-out user):**
-
-1. Navigates to `/pricing` (not logged in). Clicks `#notify-pro-btn`.
-   Asserts `#notify-modal` appears.
-2. Inputs a fresh test email in `#notify-form`, submits. Asserts
-   `#notify-sent-message` appears.
-3. Reads the magic link from `/dev/mailbox`. Asserts the URL contains
-   both `updates` and `notify` query params.
-4. Clicks the magic link, navigates to `/users/settings`. Asserts
-   `#email-prefs-section[data-consented=true]` (consent stored with source
-   `"pricing_pro"`). The flash auto-dismisses too quickly to assert reliably
-   in headless Chrome — the settings page is the stable proof.
+Ported to a browser test: `test/e2e/email_consent_test.exs` (run with
+`mix test.browser`). It covers the three consent surfaces end to end: login
+with the consent checkbox, login without it, and the pricing page Notify Me
+modal. Each one checks the query params in the emailed magic link, then the
+consent state on `/users/settings` (plus the revoke button, and the
+"on the list" flash for Notify Me).
 
 ## Account settings
 
