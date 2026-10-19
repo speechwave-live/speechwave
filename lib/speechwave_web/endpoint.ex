@@ -11,6 +11,12 @@ defmodule SpeechwaveWeb.Endpoint do
     same_site: "Lax"
   ]
 
+  @doc """
+  The `Plug.Session` options, so browser tests can build a session cookie for
+  a logged-in user (see `SpeechwaveWeb.E2ECase.log_in_as/2`).
+  """
+  def session_options, do: @session_options
+
   socket "/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [:x_headers, session: @session_options]],
     longpoll: [connect_info: [:x_headers, session: @session_options]]

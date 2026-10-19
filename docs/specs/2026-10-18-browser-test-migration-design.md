@@ -54,15 +54,19 @@ permission.
 
 Built in the first pass so every later port reuses it:
 
-- `log_in_with_magic_link/2` in `test/support` (currently inline in the spike).
+- `log_in_with_magic_link/2` in `test/support/e2e_case.ex`.
   It submits the login form, takes the link from the Swoosh email, and lands
   on `/dashboard`. Sets `:swoosh, :shared_test_process` for the test and
   clears it on exit.
+- `log_in_as/2`: plants a session cookie so tests that are not about logging
+  in skip the form. Needs `config :phoenix_test, endpoint: ...` and
+  `Endpoint.session_options/0`.
 - Fixture helpers that replace the `seed_*.exs` scripts. They already mostly
   exist as context functions and fixtures (`user_fixture`, and so on). The
   seeding for active sessions and analytics sessions needs equivalents.
-- A `Case` module wrapping `use PhoenixTest.Playwright.Case`, the `:e2e` tag,
-  and the login helper, so each test file starts with one `use` line.
+- `SpeechwaveWeb.E2ECase`: wraps `use PhoenixTest.Playwright.Case`, adds the
+  `:e2e` tag, forces `async: false`, imports the fixtures and the login helpers,
+  so each test file starts with one `use` line.
 
 ## Gotchas learned in the spike
 
@@ -192,7 +196,7 @@ Update this table at the end of each implementation pass.
 | Pass | Scope | Status |
 |------|-------|--------|
 | 0 | Spike: dependencies, config, `dashboard.sh` port | Done and reviewed by a fresh subagent (fixes applied). On branch `spike/phoenix-test-playwright`, not yet merged |
-| 1 | Merge the spike, extract shared helpers and `Case` module, README and `docs/manual_tests.md` setup notes | Not started |
+| 1 | Merge the spike, extract shared helpers and `Case` module, README and `docs/manual_tests.md` setup notes | Spike merged. `SpeechwaveWeb.E2ECase`, `log_in_with_magic_link/2` and `log_in_as/2` (session cookie) built, docs updated. Seeding fixtures for later passes not started |
 | 2 | Port `account_settings.sh` | Not started |
 | 3 | Port `email_consent.sh` | Not started |
 | 4 | Port `session_analytics.sh` (seeding fixtures) | Not started |

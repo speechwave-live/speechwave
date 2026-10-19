@@ -12,7 +12,7 @@ defmodule Speechwave.MixProject do
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
-      dialyzer: [plt_add_apps: [:ex_unit]]
+      dialyzer: [plt_add_apps: dialyzer_apps(Mix.env())]
     ]
   end
 
@@ -31,6 +31,11 @@ defmodule Speechwave.MixProject do
       preferred_envs: [precommit: :test, "test.browser": :test]
     ]
   end
+
+  # `runtime: false` deps are left out of the PLT, so add the E2E test deps
+  # explicitly. They only exist in the test env.
+  defp dialyzer_apps(:test), do: [:ex_unit, :phoenix_test, :phoenix_test_playwright]
+  defp dialyzer_apps(_), do: [:ex_unit]
 
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]

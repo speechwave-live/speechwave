@@ -9,6 +9,12 @@ This is a living index of scripted/manual checks for those cases, run
 against dev or production (e.g. before/after a deploy). It does not replace
 `mix test` and isn't CI-gated — it's ad-hoc verification.
 
+> **Migration in progress.** These rodney scripts are being replaced by browser
+> tests in `test/e2e` (run with `mix test.browser`). `dashboard.sh` has been
+> ported. Don't add new scripts here. See
+> [the migration plan](specs/2026-10-18-browser-test-migration-design.md) for
+> the order and current status.
+
 ## Principles
 
 1. **Prefer full automation with UI-based assertions.** Most flows show

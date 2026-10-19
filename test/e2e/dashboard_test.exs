@@ -3,41 +3,13 @@ defmodule SpeechwaveWeb.E2E.DashboardTest do
   Real-browser port of scripts/manual_tests/dashboard.sh (login, talk CRUD,
   sign out). Run with `mix test.browser`.
   """
-  use PhoenixTest.Playwright.Case, async: false
-
-  import Speechwave.AccountsFixtures, only: [unique_user_email: 0]
-
-  @moduletag :e2e
-
-  setup do
-    # The login email is sent from the endpoint's process, not the test's, so
-    # point Swoosh's test adapter at this process to receive it.
-    Application.put_env(:swoosh, :shared_test_process, self())
-    on_exit(fn -> Application.delete_env(:swoosh, :shared_test_process) end)
-  end
-
-  defp log_in_with_magic_link(conn, email) do
-    conn =
-      conn
-      |> visit("/users/log-in")
-      |> fill_in("Email address", with: email)
-      |> click_button("Send sign-in link")
-      |> assert_has("#magic-link-sent")
-
-    assert_receive {:email, %{text_body: body}}, 1000
-    [magic_url] = Regex.run(~r{https?://\S+/users/magic_link/\S+}, body)
-
-    conn
-    |> visit(magic_url)
-    |> visit("/dashboard")
-    |> assert_has("#talk-form")
-  end
+  use SpeechwaveWeb.E2ECase
 
   test "login, create and delete a talk, sign out", %{conn: conn} do
     title = "Browser spike talk"
-    conn = log_in_with_magic_link(conn, unique_user_email())
 
     conn
+    |> log_in_with_magic_link(unique_user_email())
     |> assert_has("#sessions-used", text: "0", exact: true)
     |> assert_has("#session-limit", text: "50", exact: true)
     |> assert_has("#participant-limit", text: "15", exact: true)
@@ -62,5 +34,15 @@ defmodule SpeechwaveWeb.E2E.DashboardTest do
     |> click_link("Sign out")
     |> visit("/dashboard")
     |> assert_path("/users/log-in")
+  end
+
+  test "a session cookie gets a user to the dashboard without the sign-in form", %{conn: conn} do
+    user = user_fixture()
+
+    conn
+    |> log_in_as(user)
+    |> visit("/dashboard")
+    |> assert_has("#talk-form")
+    |> assert_has("span", text: user.email)
   end
 end

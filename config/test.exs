@@ -55,4 +55,4 @@ config :phoenix_live_view,
 config :phoenix,
   sort_verified_routes_query_params: true
 
-config :phoenix_test, otp_app: :speechwave
+config :phoenix_test, otp_app: :speechwave, endpoint: SpeechwaveWeb.Endpoint
