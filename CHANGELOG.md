@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-19
+
+Version 0.3.0 was tagged but never deployed, so its changes below go live with this release.
+
+### Added
+
+- New users see a short welcome banner on their first login, with a link to the Getting Started guide. The close button hides it right away and it does not come back.
+- The session analytics page shows how many people reacted, the top slide and the top reaction.
+- The reaction page now creates a random ID in the audience member's browser, so the analytics can count people instead of just reactions. The server stores only a one-way hash of it combined with the session, so nothing links a person across sessions. The privacy policy describes it.
+
+### Changed
+
+- Speechwave now always uses the light theme, including on the session analytics page.
+
+### Fixed
+
+- The Settings page no longer scrolls sideways on phone-sized screens.
+
 ## [0.3.0] - 2026-10-16
 
 ### Added
