@@ -473,10 +473,12 @@ Spec: `docs/specs/2026-10-22-suspicious-user-reaper-design.md`.
 ## 2026-10-23 — Suspicious Users shows a deletions strip, not a reconstructed history
 
 **Decision:** The Suspicious Users card on `/admin/stats` keeps its line chart
-and adds a short bar strip under it. Each bar is the number of suspicious users
-the reaper deleted that day (UTC), read from the deletion log. The strip
-appears only when there was at least one such deletion in the last 30 days, so
-the card looks the same as before until the reaper has deleted someone.
+and adds a short strip under it. When the reaper has deleted anyone in the last
+30 days, the strip is a row of bars, one per day (UTC), counting those
+deletions, read from the deletion log. When it has not, the strip says "No
+deletions in the last 30 days." When the log cannot be read (corrupt, or locked
+by a writer), it says so and the rest of the page still loads. A failed read is
+therefore never mistaken for "no deletions".
 
 **Why:**
 - The line is built from the current `users` table, so every deletion removes
@@ -501,7 +503,11 @@ the card looks the same as before until the reaper has deleted someone.
   same way when users are deleted, including self-service deletions. Left as
   they are.
 - The strip is drawn by hand in `Speechwave.Admin.Chart.render_bar_svg/2`, not
-  with Contex. Contex would label all 30 days and could not share the line
-  chart's margins. The bars line up with the days above only approximately.
+  with Contex's bar chart, which would label all 30 days and use its own
+  margins. The strip builds the same date scale as the line chart over the same
+  days and width, so its bars sit under the matching days and its labels fall
+  on the same tick days with the same text.
+- The log read rescues any error and shows the "could not read" message. A bug
+  in the read path would look like a busy log, with a warning in the server log.
 
 Spec: `docs/specs/2026-10-23-suspicious-deletions-strip-design.md`.

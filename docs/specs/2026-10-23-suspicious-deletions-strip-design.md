@@ -32,11 +32,25 @@ all unchanged. Below the line chart sits a bar strip with these properties:
   my call; it gives a screen reader and a quick glance one number.) The total
   is the sum of the same 30 zero-filled days the bars show, so the label and
   the bars cannot disagree.
-- The strip is hidden when there were no suspicious deletions in the 30-day
-  window, so the card looks exactly as it does today until the reaper has
-  deleted someone.
+- The strip area is always shown, in one of three states (changed after the
+  first review; it was originally hidden when empty):
+  - **Bars:** at least one suspicious deletion in the window. The bars and the
+    label above.
+  - **Empty:** no suspicious deletions in the window. No chart, only the text
+    "No deletions in the last 30 days."
+  - **Unavailable:** the deletion log could not be read (corrupt, or locked by
+    a writer). No chart, only the text "Could not read the deletion log, it may
+    be busy. Reload to try again." The rest of the page still loads, and the
+    failure is logged as a warning.
+- The strip's date labels sit on the same tick days as the line chart's x axis
+  (the same date scale), so a bar can be matched to the line above by its
+  label. The SVG has an `aria-label`.
 - Bars line up with the days of the line chart above as closely as the chart
   library allows. Exact pixel alignment is not required.
+- At phone width (about 375px) both charts scale together through their
+  viewBox, so they stay aligned. The bars and the text label stay readable, but
+  the axis text shrinks to about 5px, the same as the line charts on every card.
+  Fixing that is out of scope (see `docs/techdebt.md`).
 
 Only the Suspicious Users card gets a strip. No other card changes.
 
@@ -52,8 +66,9 @@ not create the file.
 ## Structure
 
 - `Speechwave.Admin.Stats` gains `suspicious_deletions(now \\ DateTime.utc_now())`
-  returning `[{Date.t(), non_neg_integer}]` for the same 30 days as every other
-  history, oldest first, zero-filled. `dashboard/1` attaches it to the
+  returning `{:ok, [{Date.t(), non_neg_integer}]}` for the same 30 days as every
+  other history, oldest first, zero-filled, or `{:error, :unreadable}` (with a
+  logged warning) when the log cannot be read. `dashboard/1` attaches it to the
   `:suspicious` metric as a new `:deletions` key. Other metrics are unchanged
   and have no `:deletions` key, so shared helpers such as `metric/1` and the
   card component must not assume every metric has the same keys. Update the
@@ -64,13 +79,15 @@ not create the file.
   strip's small height with 30 daily bars and sensible tick labels. If it
   cannot, a small hand-built SVG in the same module is acceptable. The builder
   chooses.
-- `SpeechwaveWeb.AdminComponents.admin_stat_card/1` gains optional attributes
-  for the strip (its SVG and its label text). When the strip SVG is nil the card
-  renders exactly as today.
-- `StatsLive.mount/3` renders the strip SVG for the `:suspicious` stat when its
-  deletions total is above zero, and passes it with the label to the card.
+- `SpeechwaveWeb.AdminComponents.admin_stat_card/1` gains an optional `strip`
+  attribute (state, label text, and the SVG when there are bars). When it is
+  nil the card renders exactly as today, which is the case for every card
+  except Suspicious Users.
+- `StatsLive.mount/3` builds the strip for the `:suspicious` stat from its
+  `:deletions` value: bars, empty, or unavailable.
 - DOM ids: the strip container is `stat-suspicious-deletions`, inside the
-  existing `stat-suspicious` card.
+  existing `stat-suspicious` card, with a `data-state` of `bars`, `empty` or
+  `unavailable`.
 
 ## Tests
 
@@ -81,14 +98,17 @@ not create the file.
   - Ignores `:self` rows and rows older than the window.
   - Includes rows whose `user_id` has been scrubbed.
   - Returns 30 zeros and creates no file when `deletions.db` is missing.
+  - Returns `{:error, :unreadable}` and does not raise when the log is corrupt.
   - A deletion at 23:59:59 UTC and one at 00:00:00 UTC the next day land on
     different days.
   - `dashboard/1`'s `:suspicious` metric has `:deletions`; no other metric does.
 - `chart_test.exs`: the bar renderer returns an SVG string for a normal
-  history and for one with a single bar.
-- `stats_live_test.exs`: with at least one suspicious deletion, the page has
-  `#stat-suspicious-deletions`; with none, it does not; no other card has a
-  strip.
+  history and for one with a single bar, has an `aria-label`, and labels the
+  same tick days as the line chart.
+- `stats_live_test.exs`: `#stat-suspicious-deletions` has `data-state="bars"`
+  with a suspicious deletion, `"empty"` with none (or only self-service or
+  out-of-window ones), and `"unavailable"` when the log is corrupt, in which
+  case the rest of the page still renders; no other card has a strip.
 
 Run `mix precommit` when done.
 
@@ -115,5 +135,5 @@ Run `mix precommit` when done.
 
 ## Anti-goals
 
-- The card must not look different from today when there is nothing to show.
+- A failed read of the log must never take the stats page down, and must not look like "no deletions".
 - Reading the log must never create or modify `deletions.db`.
