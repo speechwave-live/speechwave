@@ -236,7 +236,7 @@ defmodule Speechwave.Admin.StatsTest do
       :ok = DeletionLog.record(3, :suspicious, ~U[2026-11-15 01:00:00Z])
       :ok = DeletionLog.record(4, :self, ~U[2026-11-14 09:00:00Z])
 
-      deletions = Stats.suspicious_deletions(@now)
+      {:ok, deletions} = Stats.suspicious_deletions(@now)
 
       assert length(deletions) == Stats.history_days()
       assert {~D[2026-10-17], _} = List.first(deletions)
@@ -250,7 +250,7 @@ defmodule Speechwave.Admin.StatsTest do
       :ok = DeletionLog.record(1, :suspicious, ~U[2026-10-16 12:00:00Z])
       :ok = DeletionLog.record(2, :suspicious, ~U[2026-10-17 12:00:00Z])
 
-      deletions = Stats.suspicious_deletions(@now)
+      {:ok, deletions} = Stats.suspicious_deletions(@now)
 
       assert deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum() == 1
       assert count_on(deletions, ~D[2026-10-17]) == 1
@@ -260,7 +260,7 @@ defmodule Speechwave.Admin.StatsTest do
       :ok = DeletionLog.record(1, :suspicious, ~U[2026-11-13 23:59:59Z])
       :ok = DeletionLog.record(2, :suspicious, ~U[2026-11-14 00:00:00Z])
 
-      deletions = Stats.suspicious_deletions(@now)
+      {:ok, deletions} = Stats.suspicious_deletions(@now)
 
       assert count_on(deletions, ~D[2026-11-13]) == 1
       assert count_on(deletions, ~D[2026-11-14]) == 1
@@ -271,24 +271,22 @@ defmodule Speechwave.Admin.StatsTest do
       :ok = DeletionLog.scrub(~U[2026-12-15 00:00:00Z])
       assert DeletionLog.logged_ids() == []
 
-      assert count_on(Stats.suspicious_deletions(@now), ~D[2026-11-01]) == 1
+      {:ok, deletions} = Stats.suspicious_deletions(@now)
+      assert count_on(deletions, ~D[2026-11-01]) == 1
     end
 
     @tag :capture_log
-    test "returns 30 zeros instead of raising when the log cannot be read" do
+    test "returns {:error, :unreadable} instead of raising when the log cannot be read" do
       # Stands in for a corrupt file. A busy or locked file takes the same path:
       # the read comes back as an error, and the stats page must still load.
       File.write!(DeletionLog.path(), "this is not a sqlite database")
       on_exit(fn -> File.rm(DeletionLog.path()) end)
 
-      deletions = Stats.suspicious_deletions(@now)
-
-      assert length(deletions) == 30
-      assert deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum() == 0
+      assert {:error, :unreadable} = Stats.suspicious_deletions(@now)
     end
 
     test "returns 30 zeros and creates no file when the log is missing" do
-      deletions = Stats.suspicious_deletions(@now)
+      {:ok, deletions} = Stats.suspicious_deletions(@now)
 
       assert length(deletions) == 30
       assert deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum() == 0
@@ -325,7 +323,8 @@ defmodule Speechwave.Admin.StatsTest do
       dashboard = Stats.dashboard()
 
       {:suspicious, suspicious} = List.keyfind(dashboard, :suspicious, 0)
-      assert length(suspicious.deletions) == Stats.history_days()
+      assert {:ok, deletions} = suspicious.deletions
+      assert length(deletions) == Stats.history_days()
 
       for {key, metric} <- dashboard, key != :suspicious do
         refute Map.has_key?(metric, :deletions), "#{key} should not have :deletions"

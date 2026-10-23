@@ -67,7 +67,6 @@ defmodule Speechwave.Admin.Chart do
 
     plot_width = width - @plot_left - @plot_right_margin
     plot_height = height - @plot_top - @plot_bottom_margin
-    count = length(history)
     max_value = history |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 0 end) |> max(1)
 
     # Use the same kind of date scale Contex builds for the line chart, over the
@@ -96,24 +95,24 @@ defmodule Speechwave.Admin.Chart do
           ~s(height="#{fmt(bar_h)}" fill="#{@bar_colour}"/>)
       end)
 
-    # Label every 7th day from the left, and the last day, but skip a regular
-    # label that would sit on top of the last one.
+    # Label the same tick days, with the same text, as the line chart's x axis:
+    # both come from an identical TimeScale, so a bar can be matched to the line
+    # above by its label.
     labels =
-      history
-      |> Enum.with_index()
-      |> Enum.filter(fn {_entry, index} ->
-        index == count - 1 or (rem(index, 7) == 0 and count - 1 - index >= 4)
-      end)
-      |> Enum.map(fn {{date, _value}, _index} ->
-        ~s(<text x="#{fmt(x_of.(date))}" y="#{height - 6}" text-anchor="middle" font-size="10" ) <>
-          ~s(fill="#{@text_colour}">#{Calendar.strftime(date, "%d %b")}</text>)
+      x_scale
+      |> Scale.ticks_domain()
+      |> Enum.map(fn tick ->
+        x = @plot_left + Scale.domain_to_range(x_scale, tick)
+
+        ~s(<text x="#{fmt(x)}" y="#{height - 6}" text-anchor="middle" font-size="10" ) <>
+          ~s(fill="#{@text_colour}">#{Scale.get_formatted_tick(x_scale, tick)}</text>)
       end)
 
     baseline_y = @plot_top + plot_height
 
     svg =
       [
-        ~s(<svg xmlns="http://www.w3.org/2000/svg" class="chart" viewBox="0 0 #{width} #{height}" role="img">),
+        ~s(<svg xmlns="http://www.w3.org/2000/svg" class="chart" viewBox="0 0 #{width} #{height}" role="img" aria-label="Suspicious users deleted per day">),
         ~s(<line x1="#{@plot_left}" x2="#{width - @plot_right_margin}" y1="#{baseline_y}" y2="#{baseline_y}" stroke="#{@axis_colour}"/>),
         ~s(<text x="#{@plot_left - 9}" y="#{@plot_top + 4}" text-anchor="end" font-size="10" fill="#{@text_colour}">#{max_value}</text>),
         ~s(<text x="#{@plot_left - 9}" y="#{baseline_y + 3}" text-anchor="end" font-size="10" fill="#{@text_colour}">0</text>),

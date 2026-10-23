@@ -66,19 +66,34 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
      )}
   end
 
-  # Only the Suspicious Users stat carries `:deletions`. The strip is shown only
-  # when the reaper deleted someone in the window, so the card is unchanged
-  # until then.
-  defp with_deletions_strip(%{deletions: deletions} = stat) do
+  # Only the Suspicious Users stat carries `:deletions`. Its strip is always
+  # shown, in one of three states, so a failed read of the deletion log is never
+  # mistaken for "no deletions".
+  defp with_deletions_strip(%{deletions: {:ok, deletions}} = stat) do
     total = deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum()
 
-    if total > 0 do
-      stat
-      |> Map.put(:strip_svg, Chart.render_bar_svg(deletions))
-      |> Map.put(:strip_label, "Deleted by the reaper, per day. #{total} in the last 30 days.")
-    else
-      stat
-    end
+    strip =
+      if total > 0 do
+        %{
+          state: "bars",
+          label: "Deleted by the reaper, per day. #{total} in the last 30 days.",
+          svg: Chart.render_bar_svg(deletions)
+        }
+      else
+        %{state: "empty", label: "No deletions in the last 30 days.", svg: nil}
+      end
+
+    Map.put(stat, :strip, strip)
+  end
+
+  defp with_deletions_strip(%{deletions: {:error, :unreadable}} = stat) do
+    strip = %{
+      state: "unavailable",
+      label: "Could not read the deletion log, it may be busy. Reload to try again.",
+      svg: nil
+    }
+
+    Map.put(stat, :strip, strip)
   end
 
   defp with_deletions_strip(stat), do: stat

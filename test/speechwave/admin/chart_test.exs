@@ -72,6 +72,30 @@ defmodule Speechwave.Admin.ChartTest do
       refute svg_string(Chart.render_bar_svg(a)) == svg_string(Chart.render_bar_svg(b))
     end
 
+    test "has an accessible name" do
+      history = for i <- 29..0//-1, do: {Date.add(Date.utc_today(), -i), rem(i, 3)}
+
+      assert history |> Chart.render_bar_svg() |> svg_string() =~ ~s(aria-label=")
+    end
+
+    test "labels the same tick days as the line chart's x axis" do
+      history = for i <- 29..0//-1, do: {Date.add(~D[2026-10-23], -i), rem(i, 3)}
+
+      # Contex draws the x axis tick labels as <text y="9" ...>.
+      line_labels =
+        ~r/<text y="9"[^>]*>([^<]+)<\/text>/
+        |> Regex.scan(history |> Chart.render_svg() |> svg_string(), capture: :all_but_first)
+        |> List.flatten()
+
+      bar_html = history |> Chart.render_bar_svg() |> svg_string()
+
+      assert line_labels != []
+
+      for label <- line_labels do
+        assert bar_html =~ ">#{label}</text>", "expected the strip to label #{label}"
+      end
+    end
+
     test "is shorter than the line chart" do
       history = for i <- 29..0//-1, do: {Date.add(Date.utc_today(), -i), rem(i, 3)}
 

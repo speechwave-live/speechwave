@@ -9,8 +9,9 @@ defmodule Speechwave.Admin.Stats do
   the same value as the last entry of `history` (state as of "now", which
   falls within today's bucket since no future rows can exist in the DB).
 
-  The `:suspicious` metric also carries `deletions`, a list of
-  `{Date.t(), count}` over the same days: how many suspicious users the
+  The `:suspicious` metric also carries `deletions`, the result of
+  `suspicious_deletions/1` (`{:ok, [{Date.t(), count}]}` over the same days, or
+  `{:error, :unreadable}`): how many suspicious users the
   reaper deleted each day, read from the deletion log. The line chart for
   suspicious users is built from the current `users` table, so it shrinks
   retroactively as the reaper deletes people; `deletions` is the explanation
@@ -108,35 +109,43 @@ defmodule Speechwave.Admin.Stats do
 
   @doc """
   How many suspicious users the reaper deleted on each of the last 30 UTC
-  days, as `[{Date.t(), count}]`, oldest first, with zero-filled days.
+  days, as `{:ok, [{Date.t(), count}]}`, oldest first, with zero-filled days.
 
   Reads `DeletionLog.deletions_by_source/0`, so it counts only rows with
   source `:suspicious` (self-service and inactive deletions are ignored),
   includes rows whose `user_id` has been scrubbed, and ignores rows outside
   the window. A missing log file reads as no deletions and is not created.
+
+  Returns `{:error, :unreadable}` when the log cannot be read (a corrupt file,
+  or one locked by a writer), so the caller can tell that apart from "no
+  deletions". The failure is logged as a warning.
   """
   def suspicious_deletions(now \\ DateTime.utc_now()) do
     days = last_n_days(DateTime.truncate(now, :second), @history_days)
 
-    per_day =
-      for {deleted_at, :suspicious} <- read_deletions(),
-          reduce: %{} do
-        acc -> Map.update(acc, DateTime.to_date(deleted_at), 1, &(&1 + 1))
-      end
+    case read_deletions() do
+      {:ok, rows} ->
+        per_day =
+          for {deleted_at, :suspicious} <- rows, reduce: %{} do
+            acc -> Map.update(acc, DateTime.to_date(deleted_at), 1, &(&1 + 1))
+          end
 
-    Enum.map(days, fn day -> {day, Map.get(per_day, day, 0)} end)
+        {:ok, Enum.map(days, fn day -> {day, Map.get(per_day, day, 0)} end)}
+
+      :error ->
+        {:error, :unreadable}
+    end
   end
 
   # The strip is a side note on the Suspicious Users card, so a log that cannot
-  # be read right now (a corrupt file, or one locked by a writer) must not take
-  # down the whole stats page. Treat it as "no deletions", so the strip hides,
-  # and say why in the log. `DeletionLog` raises on a failed read, hence rescue.
+  # be read right now must not take down the whole stats page. `DeletionLog`
+  # raises on a failed read, hence the rescue; the caller shows a message.
   defp read_deletions do
-    DeletionLog.deletions_by_source()
+    {:ok, DeletionLog.deletions_by_source()}
   rescue
     error ->
       Logger.warning("[Stats] Could not read the deletion log: #{Exception.message(error)}")
-      []
+      :error
   end
 
   defp consent_history(days, cutoff, source) do

@@ -8,10 +8,10 @@ defmodule SpeechwaveWeb.AdminComponents do
   attr :title, :string, required: true
   attr :current, :integer, required: true
   attr :chart_svg, :any, default: nil
-  # An optional bar strip under the chart (used by Suspicious Users for the
-  # reaper's daily deletions). Nothing extra renders when `strip_svg` is nil.
-  attr :strip_svg, :any, default: nil
-  attr :strip_label, :string, default: nil
+  # An optional strip under the chart (used by Suspicious Users for the
+  # reaper's daily deletions): `%{state: "bars" | "empty" | "unavailable",
+  # label: String.t(), svg: SVG or nil}`. Nothing extra renders when nil.
+  attr :strip, :map, default: nil
 
   def admin_stat_card(assigns) do
     ~H"""
@@ -19,9 +19,9 @@ defmodule SpeechwaveWeb.AdminComponents do
       <div class="text-sm text-steel">{@title}</div>
       <div class="mt-1 text-3xl font-semibold text-ink">{@current}</div>
       <div :if={@chart_svg} class="mt-3">{@chart_svg}</div>
-      <div :if={@strip_svg} id={"#{@id}-deletions"} class="mt-2">
-        <div class="text-xs text-steel">{@strip_label}</div>
-        {@strip_svg}
+      <div :if={@strip} id={"#{@id}-deletions"} data-state={@strip.state} class="mt-2">
+        <div class="text-xs text-steel">{@strip.label}</div>
+        <div :if={@strip.svg}>{@strip.svg}</div>
       </div>
     </div>
     """
