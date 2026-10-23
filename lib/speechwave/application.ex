@@ -20,6 +20,7 @@ defmodule Speechwave.Application do
         {Phoenix.PubSub, name: Speechwave.PubSub},
         Speechwave.RateLimiter,
         Speechwave.AuthThrottle,
+        Speechwave.DataExportThrottle,
         Speechwave.Talks.SessionReaper,
         {Speechwave.Accounts.SuspiciousUserReaper,
          Application.get_env(:speechwave, :suspicious_user_reaper, [])},

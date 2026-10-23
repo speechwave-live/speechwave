@@ -1,0 +1,316 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Speechwave personal data export",
+  "description": "A copy of the personal data Speechwave holds about one user. See README.md in the same zip.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format_version",
+    "exported_at",
+    "account",
+    "sign_in_providers",
+    "consents",
+    "talks"
+  ],
+  "properties": {
+    "format_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Version of this file layout."
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this export was made (UTC). The data is a snapshot from that moment."
+    },
+    "account": {
+      "type": "object",
+      "description": "The account itself.",
+      "additionalProperties": false,
+      "required": [
+        "email",
+        "plan",
+        "is_admin",
+        "confirmed_at",
+        "welcomed_at",
+        "overlay_size_percent",
+        "fireworks_enabled",
+        "inserted_at",
+        "updated_at"
+      ],
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "The email address of the account."
+        },
+        "plan": {
+          "type": "string",
+          "enum": [
+            "free",
+            "pro",
+            "org"
+          ],
+          "description": "The plan the account is on."
+        },
+        "is_admin": {
+          "type": "boolean",
+          "description": "True if this account is a Speechwave administrator account."
+        },
+        "confirmed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "When the email address was confirmed. Null if it never was."
+        },
+        "welcomed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "When the welcome banner was first shown. Null if it was not."
+        },
+        "overlay_size_percent": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Size of the reaction overlay in the Chrome extension, as a percent of the screen. Null means the default."
+        },
+        "fireworks_enabled": {
+          "type": "boolean",
+          "description": "Whether the fireworks effect plays on the overlay."
+        },
+        "inserted_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the account was created."
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the account row last changed."
+        }
+      }
+    },
+    "sign_in_providers": {
+      "type": "array",
+      "description": "Sign-in providers linked to the account.",
+      "items": {
+        "type": "object",
+        "description": "One linked sign-in provider.",
+        "additionalProperties": false,
+        "required": [
+          "provider",
+          "uid",
+          "linked_at"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Sign-in provider, such as google, microsoft or github."
+          },
+          "uid": {
+            "type": "string",
+            "description": "The user's identifier at that provider."
+          },
+          "linked_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the provider was linked to the account."
+          }
+        }
+      }
+    },
+    "consents": {
+      "type": "array",
+      "description": "Consent records, such as marketing email.",
+      "items": {
+        "type": "object",
+        "description": "One consent record.",
+        "additionalProperties": false,
+        "required": [
+          "consent_type",
+          "granted",
+          "granted_at",
+          "revoked_at",
+          "source"
+        ],
+        "properties": {
+          "consent_type": {
+            "type": "string",
+            "description": "What the consent covers, such as marketing_email."
+          },
+          "granted": {
+            "type": "boolean",
+            "description": "True if consent is currently given."
+          },
+          "granted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When consent was given. Null if it never was."
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When consent was withdrawn. Null if it has not been."
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where consent was collected, such as login or pricing_pro."
+          }
+        }
+      }
+    },
+    "talks": {
+      "type": "array",
+      "description": "The user's talks, oldest first.",
+      "items": {
+        "type": "object",
+        "description": "One talk.",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "slug",
+          "inserted_at",
+          "updated_at",
+          "sessions"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Title of the talk."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The talk's short name used in its audience link."
+          },
+          "inserted_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the talk was created."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the talk last changed."
+          },
+          "sessions": {
+            "type": "array",
+            "description": "Sessions of this talk, oldest first.",
+            "items": {
+              "type": "object",
+              "description": "One live session of a talk.",
+              "additionalProperties": false,
+              "required": [
+                "label",
+                "started_at",
+                "ended_at",
+                "reactions"
+              ],
+              "properties": {
+                "label": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Name of the session."
+                },
+                "started_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time",
+                  "description": "When the session started."
+                },
+                "ended_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time",
+                  "description": "When the session ended. Null if it is still running or was never stopped."
+                },
+                "reactions": {
+                  "type": "object",
+                  "description": "Summary of the audience reactions in the session. Individual reactions are not exported.",
+                  "additionalProperties": false,
+                  "required": [
+                    "total",
+                    "audience_size",
+                    "by_emoji",
+                    "by_slide"
+                  ],
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Number of reactions in the session."
+                    },
+                    "audience_size": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "description": "Number of distinct audience members who reacted. Null if the session has no audience information."
+                    },
+                    "by_emoji": {
+                      "type": "object",
+                      "description": "Reaction count for each emoji, keyed by the emoji.",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    },
+                    "by_slide": {
+                      "type": "array",
+                      "description": "Reaction count for each slide and emoji pair.",
+                      "items": {
+                        "type": "object",
+                        "description": "One slide and emoji count.",
+                        "additionalProperties": false,
+                        "required": [
+                          "slide_number",
+                          "emoji",
+                          "count"
+                        ],
+                        "properties": {
+                          "slide_number": {
+                            "type": "integer",
+                            "description": "Slide number. 0 means slide tracking was not in use."
+                          },
+                          "emoji": {
+                            "type": "string",
+                            "description": "The emoji."
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Number of reactions with this emoji on this slide."
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
