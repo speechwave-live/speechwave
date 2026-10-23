@@ -5,7 +5,7 @@ defmodule Speechwave.Admin.Chart do
   LiveView style.
   """
 
-  alias Contex.{Dataset, LinePlot, Plot}
+  alias Contex.{Dataset, LinePlot, Plot, Scale, TimeScale}
 
   # Contex reserves a fixed ~70px margin per axis for tick labels regardless
   # of chart size, so the chart needs to be sized generously enough for real
@@ -57,7 +57,7 @@ defmodule Speechwave.Admin.Chart do
   category and tries to label all 30 of them, which crowds a strip this short,
   and its fixed ~70px margins would not line up with the line chart above.
   Drawing the rectangles ourselves lets the strip share the line chart's plot
-  margins and label only a handful of days. The y scale runs from 0 to the
+  margins and date scale and label only a handful of days. The y scale runs from 0 to the
   largest count (at least 1), and any non-zero day gets at least a 2px bar so
   a single deletion is visible.
   """
@@ -68,30 +68,44 @@ defmodule Speechwave.Admin.Chart do
     plot_width = width - @plot_left - @plot_right_margin
     plot_height = height - @plot_top - @plot_bottom_margin
     count = length(history)
-    slot = plot_width / max(count, 1)
-    bar_width = slot * 0.6
     max_value = history |> Enum.map(&elem(&1, 1)) |> Enum.max(fn -> 0 end) |> max(1)
 
+    # Use the same kind of date scale Contex builds for the line chart, over the
+    # same first and last day and the same plot width. Contex widens the domain
+    # to "nice" tick boundaries, so a plain even split would put each bar a day
+    # or two away from its point on the line above.
+    {first_date, _} = List.first(history)
+    {last_date, _} = List.last(history)
+
+    x_scale =
+      TimeScale.new()
+      |> TimeScale.domain(to_naive(first_date), to_naive(last_date))
+      |> Scale.set_range(0, plot_width)
+
+    x_of = fn date -> @plot_left + Scale.domain_to_range(x_scale, to_naive(date)) end
+    day_width = x_of.(Date.add(first_date, 1)) - x_of.(first_date)
+    bar_width = day_width * 0.6
+
     bars =
-      history
-      |> Enum.with_index()
-      |> Enum.map(fn {{_date, value}, index} ->
+      Enum.map(history, fn {date, value} ->
         bar_h = if value > 0, do: max(value / max_value * plot_height, 2), else: 0
-        x = @plot_left + index * slot + (slot - bar_width) / 2
+        x = x_of.(date) - bar_width / 2
         y = @plot_top + plot_height - bar_h
 
         ~s(<rect x="#{fmt(x)}" y="#{fmt(y)}" width="#{fmt(bar_width)}" ) <>
           ~s(height="#{fmt(bar_h)}" fill="#{@bar_colour}"/>)
       end)
 
+    # Label every 7th day from the left, and the last day, but skip a regular
+    # label that would sit on top of the last one.
     labels =
       history
       |> Enum.with_index()
-      |> Enum.filter(fn {_entry, index} -> index == count - 1 or rem(index, 7) == 0 end)
-      |> Enum.map(fn {{date, _value}, index} ->
-        x = @plot_left + (index + 0.5) * slot
-
-        ~s(<text x="#{fmt(x)}" y="#{height - 6}" text-anchor="middle" font-size="10" ) <>
+      |> Enum.filter(fn {_entry, index} ->
+        index == count - 1 or (rem(index, 7) == 0 and count - 1 - index >= 4)
+      end)
+      |> Enum.map(fn {{date, _value}, _index} ->
+        ~s(<text x="#{fmt(x_of.(date))}" y="#{height - 6}" text-anchor="middle" font-size="10" ) <>
           ~s(fill="#{@text_colour}">#{Calendar.strftime(date, "%d %b")}</text>)
       end)
 
@@ -113,6 +127,8 @@ defmodule Speechwave.Admin.Chart do
     # date formatted by Calendar.strftime/2, never user input.
     Phoenix.HTML.raw(svg)
   end
+
+  defp to_naive(date), do: NaiveDateTime.new!(date, ~T[00:00:00])
 
   defp fmt(number), do: :erlang.float_to_binary(number / 1, decimals: 1)
 end

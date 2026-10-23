@@ -24,7 +24,8 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
   def mount(_params, _session, socket) do
     stats =
       Enum.map(Stats.dashboard(), fn {key, stat} ->
-        {key, Map.put(stat, :chart_svg, Chart.render_svg(stat.history))}
+        stat = Map.put(stat, :chart_svg, Chart.render_svg(stat.history))
+        {key, with_deletions_strip(stat)}
       end)
 
     # The export form submits as a plain GET to ConsentExportController (no
@@ -64,6 +65,23 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
        any_time: params["any_time"] == "true"
      )}
   end
+
+  # Only the Suspicious Users stat carries `:deletions`. The strip is shown only
+  # when the reaper deleted someone in the window, so the card is unchanged
+  # until then.
+  defp with_deletions_strip(%{deletions: deletions} = stat) do
+    total = deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+
+    if total > 0 do
+      stat
+      |> Map.put(:strip_svg, Chart.render_bar_svg(deletions))
+      |> Map.put(:strip_label, "Deleted by the reaper, per day. #{total} in the last 30 days.")
+    else
+      stat
+    end
+  end
+
+  defp with_deletions_strip(stat), do: stat
 
   defp title_for(key), do: Map.fetch!(@titles, key)
 
