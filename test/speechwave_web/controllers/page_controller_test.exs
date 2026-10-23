@@ -100,6 +100,21 @@ defmodule SpeechwaveWeb.PageControllerTest do
     refute text =~ "indefinitely"
   end
 
+  test "GET /privacy names the providers that run the service in the sharing section", %{
+    conn: conn
+  } do
+    html = get(conn, ~p"/privacy") |> html_response(200)
+
+    text =
+      html
+      |> LazyHTML.from_document()
+      |> LazyHTML.query("#privacy-data-sharing")
+      |> LazyHTML.text()
+
+    assert text =~ "hosting"
+    assert text =~ "email delivery"
+  end
+
   test "GET /privacy does not say audience reactions cannot be linked to you", %{conn: conn} do
     html = get(conn, ~p"/privacy") |> html_response(200)
 
