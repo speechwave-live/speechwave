@@ -23,7 +23,7 @@ Out of scope:
 
 ## What it does
 
-A GenServer, `Speechwave.Accounts.SuspiciousUserReaper`, sweeps once a day.
+A GenServer, `Speechwave.Accounts.SuspiciousUserReaper`, sweeps once a day, with the first sweep one minute after boot (`:initial_delay`). Production machines auto-suspend and deploys restart the VM, so a timer that needed 24 hours of uptime might never fire.
 Each sweep deletes every user who is:
 
 - unconfirmed (`confirmed_at` is nil), and
@@ -40,7 +40,7 @@ count is above zero.
 ### Structure
 
 The reaper follows `Speechwave.Talks.SessionReaper`: `start_link/1` with an
-optional `:name`, a configurable `:sweep_interval` (default one day), a
+optional `:name`, a configurable `:sweep_interval` (default one day) and `:initial_delay` (default one minute), a
 `:sweep` info message that reschedules itself, and a synchronous
 `:sweep_now` call for tests. It is added to the supervision tree next to
 `SessionReaper` in `lib/speechwave/application.ex`.
@@ -139,7 +139,7 @@ with the supervised one and a long `sweep_interval`, and call `:sweep_now`
 - The deletion is recorded in the log with source `suspicious`; a
   self-service deletion is recorded with source `self`.
 - A sweep with nothing to delete returns 0 and writes nothing to the log.
-- A log failure for one user does not stop the others.
+- A log failure makes the sweep delete nobody and not raise (the all-fail case stands in for "one failure does not stop the others").
 - `DeletionLog`: a fresh file has the `source` column; a file created with
   the old schema gains it with existing rows reading `self`; `record/3`
   rejects an unknown source; `entries/1` reads an old-schema file without
