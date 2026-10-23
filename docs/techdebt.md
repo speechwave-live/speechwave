@@ -48,3 +48,25 @@ Found reviewing the reaper (`docs/specs/2026-10-22-suspicious-user-reaper-design
   bracket it, and the query uses a strict `<`.
 - **`accounts_delete_test.exs` defines `now/0` and `days_ago/1` inside a
   `describe`**, which makes them file-wide.
+
+## Data export (Download my data)
+
+Found reviewing the export (`docs/specs/2026-10-23-gdpr-data-export-design.md`).
+
+- **The cooldown is claimed before the zip is sent.** A failed build releases
+  it, but if the download fails afterwards (the browser disconnects or the user
+  cancels), the user waits 5 minutes with no file. Releasing the claim from a
+  `register_before_send` or after `send_download` fails would close it.
+- **The export route is a GET with a side effect.** A cross-site link or a
+  browser prefetch can use up someone's cooldown. The attacker cannot read the
+  zip, so the impact is small. A POST from a form button would fix it.
+- **The README and privacy page explain the audience exclusion badly.** They
+  say reactions "cannot be linked back to you", which a reader (or an LLM) could
+  take to mean the counts are not about their talks. Say instead that audience
+  IDs are random browser identifiers that do not identify the audience member.
+- **`audience_size` is a lower bound for old sessions.** Reactions recorded
+  before audience tracking have no audience ID and are not counted, the same as
+  on the dashboard. The schema explains a null but not a partial count.
+- **`sign_in_providers` has no explicit order.** Two exports of the same account
+  can list providers in a different order. `Accounts.list_user_identities/1`
+  needs an `order_by`.
