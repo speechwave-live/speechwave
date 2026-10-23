@@ -200,14 +200,14 @@ defmodule Speechwave.Accounts do
     cond do
       not can_delete_account?(user) -> {:error, :admin}
       not deletion_confirmed?(user, typed_email) -> {:error, :confirmation_mismatch}
-      true -> erase_user(user)
+      true -> erase_user(user, :self)
     end
   end
 
   # Log first, then delete, so a failure errs toward erasure (see the docs above).
-  defp erase_user(user) do
+  defp erase_user(user, source) do
     if Repo.exists?(from u in User, where: u.id == ^user.id) do
-      case DeletionLog.record(user.id) do
+      case DeletionLog.record(user.id, source) do
         :ok ->
           DeletionLog.scrub_logging_errors()
 
@@ -258,8 +258,8 @@ defmodule Speechwave.Accounts do
     live_ids = DeletionLog.logged_ids()
     extra = extra_log_paths |> Enum.flat_map(&DeletionLog.entries/1) |> Enum.uniq_by(&elem(&1, 0))
 
-    for {id, deleted_at} <- extra, id not in live_ids do
-      DeletionLog.record(id, deleted_at) == :ok ||
+    for {id, deleted_at, source} <- extra, id not in live_ids do
+      DeletionLog.record(id, source, deleted_at) == :ok ||
         raise "Could not write user #{id} to the deletion log at #{DeletionLog.path()}"
     end
 

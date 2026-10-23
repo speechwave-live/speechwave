@@ -91,6 +91,7 @@ defmodule Speechwave.AccountsDeleteTest do
 
       assert DeletionLog.logged_ids() == [user.id]
       assert [%DateTime{}] = DeletionLog.deleted_ats()
+      assert [{%DateTime{}, :self}] = DeletionLog.deletions_by_source()
     end
 
     test "accepts the email with surrounding whitespace" do
@@ -133,7 +134,13 @@ defmodule Speechwave.AccountsDeleteTest do
     end
 
     test "scrubs old log rows while deleting" do
-      :ok = DeletionLog.record(9_999, DateTime.add(DateTime.utc_now(), -31 * 24 * 3600, :second))
+      :ok =
+        DeletionLog.record(
+          9_999,
+          :self,
+          DateTime.add(DateTime.utc_now(), -31 * 24 * 3600, :second)
+        )
+
       user = user_fixture()
 
       {:ok, _} = Accounts.delete_account(user, user.email)
@@ -210,12 +217,12 @@ defmodule Speechwave.AccountsDeleteTest do
     end
 
     test "returns 0 when no logged id has a user" do
-      :ok = DeletionLog.record(123_456)
+      :ok = DeletionLog.record(123_456, :self)
       assert Accounts.reapply_recorded_deletions() == 0
     end
 
     test "raises the users id sequence above the highest logged id" do
-      :ok = DeletionLog.record(500)
+      :ok = DeletionLog.record(500, :self)
       Accounts.reapply_recorded_deletions()
 
       assert user_fixture().id > 500
@@ -256,8 +263,9 @@ defmodule Speechwave.AccountsDeleteTest do
       Application.put_env(:speechwave, :deletions_db_path, path)
 
       Enum.each(ids, fn
-        {id, at} -> DeletionLog.record(id, at)
-        id -> DeletionLog.record(id)
+        {id, at, source} -> DeletionLog.record(id, source, at)
+        {id, at} -> DeletionLog.record(id, :self, at)
+        id -> DeletionLog.record(id, :self)
       end)
 
       Application.put_env(:speechwave, :deletions_db_path, live)
@@ -284,6 +292,14 @@ defmodule Speechwave.AccountsDeleteTest do
       assert Accounts.reapply_recorded_deletions([extra]) == 1
       :ok = DeletionLog.scrub()
       assert DeletionLog.logged_ids() == []
+    end
+
+    test "keeps the original source" do
+      user = user_fixture()
+      extra = extra_log_with([{user.id, DateTime.utc_now(), :suspicious}])
+
+      assert Accounts.reapply_recorded_deletions([extra]) == 1
+      assert [{_, :suspicious}] = DeletionLog.deletions_by_source()
     end
 
     test "records an id that appears twice in the extra log once" do
