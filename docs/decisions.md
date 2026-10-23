@@ -463,9 +463,9 @@ recorded as `self`, and rows written before the column existed read as `self`.
 - The stats chart is rebuilt from current rows, so each sweep lowers past
   signup counts retroactively. This is a known cost. Changing the chart to
   show deleted users as a stacked bar is a follow-up.
-- `SuspiciousUserReaper` also starts in tests, where its first sweep would
-  come a minute after boot. That is harmless because nothing eligible exists
-  in the test database. If an unrelated test becomes flaky because of it, set
-  `:initial_delay` from application config in `config/test.exs`.
+- `SuspiciousUserReaper` also starts in tests. The supervised instance has no
+  sandbox allowance, so a sweep a minute after boot would crash with an
+  ownership error or delete another test's data. `config/test.exs` therefore
+  sets a 24 hour initial delay for the supervised instance.
 
 Spec: `docs/specs/2026-10-22-suspicious-user-reaper-design.md`.

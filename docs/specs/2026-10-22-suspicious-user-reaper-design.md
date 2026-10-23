@@ -119,11 +119,11 @@ In `config/config.exs`, beside `:session_timeout_hours`:
 
     config :speechwave, :suspicious_user_retention_days, 15
 
-The sweep interval is an option to the reaper, not application config, as
-with `SessionReaper`. No `config/test.exs` change is needed. Like
-`SessionReaper`, the reaper is an unconditional child in the supervision
-tree, so it also runs under `mix test`, but its daily interval means the
-supervised instance never fires during a test run. Tests start their own
+The reaper's options come from the `:suspicious_user_reaper` application
+config, which is empty outside tests. The reaper is an unconditional child in
+the supervision tree, so it also runs under `mix test`. The supervised
+instance has no sandbox allowance, so `config/test.exs` sets a 24 hour
+initial delay for it. Tests start their own
 instance with `start_supervised!/1`, passing `name: nil` to avoid clashing
 with the supervised one and a long `sweep_interval`, and call `:sweep_now`
 (see `test/speechwave/talks/session_reaper_test.exs`).

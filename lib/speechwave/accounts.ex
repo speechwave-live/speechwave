@@ -256,16 +256,24 @@ defmodule Speechwave.Accounts do
 
     # In an Ecto query, `^` pins an outside value in, and `is_nil/1` becomes
     # SQL `IS NULL`.
-    users =
-      Repo.all(
-        from u in User,
-          where: is_nil(u.confirmed_at) and not u.is_admin and u.inserted_at < ^cutoff
-      )
+    eligible = fn ->
+      from u in User,
+        where: is_nil(u.confirmed_at) and not u.is_admin and u.inserted_at < ^cutoff
+    end
+
+    ids = Repo.all(from u in eligible.(), select: u.id)
 
     # Enum.count/2 counts the items for which the function returns a truthy
     # value, so `{:error, :log_failed}` results are simply not counted.
-    Enum.count(users, fn user ->
-      match?({:ok, _}, erase_user(user, :suspicious))
+    Enum.count(ids, fn id ->
+      # Re-check the same predicates right before erasing, so a user who
+      # confirmed since the id list was read is skipped. This narrows the race
+      # but cannot close it; the guard must stay out of the DELETE itself, or
+      # a live user's id could be logged.
+      case Repo.one(from u in eligible.(), where: u.id == ^id) do
+        nil -> false
+        user -> match?({:ok, _}, erase_user(user, :suspicious))
+      end
     end)
   end
 

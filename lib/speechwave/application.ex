@@ -21,7 +21,8 @@ defmodule Speechwave.Application do
         Speechwave.RateLimiter,
         Speechwave.AuthThrottle,
         Speechwave.Talks.SessionReaper,
-        Speechwave.Accounts.SuspiciousUserReaper,
+        {Speechwave.Accounts.SuspiciousUserReaper,
+         Application.get_env(:speechwave, :suspicious_user_reaper, [])},
         SpeechwaveWeb.Endpoint,
         SpeechwaveWeb.Presence
       ] ++ backup_children()

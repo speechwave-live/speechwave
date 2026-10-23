@@ -11,8 +11,8 @@ defmodule Speechwave.DeletionLog do
 
   A row holds only `user_id`, `deleted_at` and `source` (why the account was
   deleted: `:self`, `:suspicious` or `:inactive`; it identifies no one): no
-  email, no hash, nothing else about the person. Rows older than 30 days are scrubbed (`user_id` set to NULL,
-  the row kept) so the timing of deletions stays available for reporting
+  email, no hash, nothing else about the person. Rows older than 30 days are
+  scrubbed (`user_id` set to NULL, the row kept) so the timing of deletions stays available for reporting
   without anything identifying an account.
 
   Only `record/3` ever creates the file. A lost `deletions.db` must stay
@@ -259,6 +259,8 @@ defmodule Speechwave.DeletionLog do
     end
   end
 
+  # `scrub/1` and `snapshot_to/1` also go through here, so an old-schema live
+  # file is upgraded at the first boot scrub or backup, not only by `record/3`.
   defp ensure_schema(conn) do
     with :ok <-
            Sqlite3.execute(

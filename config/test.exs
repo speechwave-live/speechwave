@@ -68,3 +68,10 @@ config :phoenix_test,
     trace: true,
     trace_dir: "tmp/e2e/traces"
   ]
+
+# The supervised reaper has no sandbox allowance, so a sweep would either crash
+# with an ownership error or delete another test's data. Push its first sweep
+# past the end of any test run. Tests that need a reaper start their own.
+config :speechwave, :suspicious_user_reaper,
+  initial_delay: :timer.hours(24),
+  sweep_interval: :timer.hours(24)

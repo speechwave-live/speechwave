@@ -13,7 +13,7 @@ defmodule Speechwave.DeletionLogTest do
     DateTime.add(DateTime.utc_now(), -(days * 24 + extra_hours) * 3600, :second)
   end
 
-  test "record stores the id and timestamp and nothing else" do
+  test "record stores the id, timestamp and source and nothing else" do
     assert :ok = DeletionLog.record(42, :self)
     assert DeletionLog.logged_ids() == [42]
     assert [%DateTime{}] = DeletionLog.deleted_ats()
@@ -182,7 +182,7 @@ defmodule Speechwave.DeletionLogTest do
   end
 
   describe "entries/1" do
-    test "returns unscrubbed {id, deleted_at} triples from the given file" do
+    test "returns unscrubbed {id, deleted_at, source} triples from the given file" do
       at = DateTime.utc_now() |> DateTime.truncate(:second)
       :ok = DeletionLog.record(1, :self, at)
       :ok = DeletionLog.record(2, :self, days_ago(40))

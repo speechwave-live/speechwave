@@ -176,7 +176,7 @@ Copy the structure of `lib/speechwave/talks/session_reaper.ex`, except `init/1` 
 
 - [ ] **Step 4: Add it to the supervision tree**
 
-In `lib/speechwave/application.ex`, add `Speechwave.Accounts.SuspiciousUserReaper` to `children` directly after `Speechwave.Talks.SessionReaper`. No config change: like `SessionReaper` it runs in tests, where its first sweep would come a minute after boot; the suite finishing sooner than that is not guaranteed, so this is harmless only because the sweep deletes nothing eligible in the test database. If an unrelated test ever becomes flaky because of it, set `:initial_delay` from application config in `config/test.exs`.
+In `lib/speechwave/application.ex`, add `Speechwave.Accounts.SuspiciousUserReaper` to `children` directly after `Speechwave.Talks.SessionReaper`. Pass the child `Application.get_env(:speechwave, :suspicious_user_reaper, [])` as options, and in `config/test.exs` set a 24 hour `:initial_delay` for the supervised instance: it has no sandbox allowance, so a sweep a minute after boot would crash with an ownership error or delete another test's data.
 
 - [ ] **Step 5: Add the `docs/decisions.md` entry**
 
