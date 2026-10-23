@@ -21,6 +21,7 @@ defmodule Speechwave.Application do
         Speechwave.RateLimiter,
         Speechwave.AuthThrottle,
         Speechwave.Talks.SessionReaper,
+        Speechwave.Accounts.SuspiciousUserReaper,
         SpeechwaveWeb.Endpoint,
         SpeechwaveWeb.Presence
       ] ++ backup_children()

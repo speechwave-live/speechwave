@@ -309,10 +309,11 @@ override as well.
 
 **Decision:** Users delete their own accounts from a Danger zone in Settings,
 after typing their email. Deletion is immediate and permanent. The deleted
-user's id goes into `deletions.db`, a separate SQLite file on the volume, so
+user's id goes into `deletions.db`, a separate SQLite file on the volume, along
+with the deletion time and a `source` saying why the account was deleted, so
 `Accounts.reapply_recorded_deletions/1` can delete them again after a restore.
-After 30 days the id is set to NULL and the row (just a timestamp) is kept for
-reporting. Admins cannot delete themselves from Settings.
+After 30 days the id is set to NULL and the row (just a timestamp and the
+source) is kept for reporting. Admins cannot delete themselves from Settings.
 
 **Why:**
 - No grace period. Holding on to the data of someone who asked for erasure
@@ -423,3 +424,48 @@ every LiveView. The plain "Welcome!" login flash was removed.
   `show_welcome={false}`.
 
 Spec: `docs/specs/2026-10-17-first-login-welcome-banner-design.md`.
+
+## 2026-10-22 — Suspicious users are deleted automatically at 15 days, and the deletion log records why
+
+**Decision:** `Speechwave.Accounts.SuspiciousUserReaper` deletes every
+unconfirmed, non-admin user whose account is older than
+`:suspicious_user_retention_days` (15). It sweeps once a day, and the first
+sweep runs one minute after boot (`:initial_delay`). The deletion log gains a
+`source` column (`self`, `suspicious`, or the reserved `inactive`), so one file
+records every account deletion and the reason. Self-service deletions are
+recorded as `self`, and rows written before the column existed read as `self`.
+
+**Why:**
+- Unconfirmed accounts never had a login session, so they hold no talks,
+  sessions or reactions. There is nothing to lose, so there is no warning
+  email, undo or dry-run mode. Someone with a real address can sign up again.
+- 15 days, not 3. The stats page calls an account suspicious after 3 days, but
+  a magic link email can sit unread over a weekend. 15 days leaves a real
+  window to confirm.
+- One log with a `source` column, not a second file. Restoring a backup would
+  bring back suspicious accounts too, and replaying them is harmless because
+  the next sweep would delete them again. `inactive` is reserved so deleting
+  inactive confirmed users later needs no schema change.
+- The first sweep runs a minute after boot because the production machines
+  auto-suspend and deploys restart the VM. A timer that needed 24 hours of
+  uptime might never fire.
+
+**Alternatives considered:**
+- A separate log for automatic deletions. Rejected: two files to back up and
+  replay for the same job.
+- Deleting at the 3-day mark. Rejected: too short for a slow email.
+
+**Trade-offs:**
+- A user who asked for a fresh magic link on day 14 can be deleted before
+  clicking it. Accepted, because they can sign up again.
+- Finding the users and deleting each one are not atomic. A user who confirms
+  in that instant could still be erased. Accepted for the same reason.
+- The stats chart is rebuilt from current rows, so each sweep lowers past
+  signup counts retroactively. This is a known cost. Changing the chart to
+  show deleted users as a stacked bar is a follow-up.
+- `SuspiciousUserReaper` also starts in tests, where its first sweep would
+  come a minute after boot. That is harmless because nothing eligible exists
+  in the test database. If an unrelated test becomes flaky because of it, set
+  `:initial_delay` from application config in `config/test.exs`.
+
+Spec: `docs/specs/2026-10-22-suspicious-user-reaper-design.md`.
