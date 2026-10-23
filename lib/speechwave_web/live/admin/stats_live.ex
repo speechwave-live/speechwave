@@ -24,7 +24,8 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
   def mount(_params, _session, socket) do
     stats =
       Enum.map(Stats.dashboard(), fn {key, stat} ->
-        {key, Map.put(stat, :chart_svg, Chart.render_svg(stat.history))}
+        stat = Map.put(stat, :chart_svg, Chart.render_svg(stat.history))
+        {key, with_deletions_strip(stat)}
       end)
 
     # The export form submits as a plain GET to ConsentExportController (no
@@ -64,6 +65,38 @@ defmodule SpeechwaveWeb.Admin.StatsLive do
        any_time: params["any_time"] == "true"
      )}
   end
+
+  # Only the Suspicious Users stat carries `:deletions`. Its strip is always
+  # shown, in one of three states, so a failed read of the deletion log is never
+  # mistaken for "no deletions".
+  defp with_deletions_strip(%{deletions: {:ok, deletions}} = stat) do
+    total = deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+
+    strip =
+      if total > 0 do
+        %{
+          state: "bars",
+          label: "Deleted by the reaper, per day. #{total} in the last 30 days.",
+          svg: Chart.render_bar_svg(deletions)
+        }
+      else
+        %{state: "empty", label: "No deletions in the last 30 days.", svg: nil}
+      end
+
+    Map.put(stat, :strip, strip)
+  end
+
+  defp with_deletions_strip(%{deletions: {:error, :unreadable}} = stat) do
+    strip = %{
+      state: "unavailable",
+      label: "Could not read the deletion log, it may be busy. Reload to try again.",
+      svg: nil
+    }
+
+    Map.put(stat, :strip, strip)
+  end
+
+  defp with_deletions_strip(stat), do: stat
 
   defp title_for(key), do: Map.fetch!(@titles, key)
 

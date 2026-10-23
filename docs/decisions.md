@@ -469,3 +469,45 @@ recorded as `self`, and rows written before the column existed read as `self`.
   sets a 24 hour initial delay for the supervised instance.
 
 Spec: `docs/specs/2026-10-22-suspicious-user-reaper-design.md`.
+
+## 2026-10-23 — Suspicious Users shows a deletions strip, not a reconstructed history
+
+**Decision:** The Suspicious Users card on `/admin/stats` keeps its line chart
+and adds a short strip under it. When the reaper has deleted anyone in the last
+30 days, the strip is a row of bars, one per day (UTC), counting those
+deletions, read from the deletion log. When it has not, the strip says "No
+deletions in the last 30 days." When the log cannot be read (corrupt, or locked
+by a writer), it says so and the rest of the page still loads. A failed read is
+therefore never mistaken for "no deletions".
+
+**Why:**
+- The line is built from the current `users` table, so every deletion removes
+  that person from past days too and the line shrinks retroactively. The strip
+  shows where the missing people went, so a dip reads as the reaper at work and
+  not as users confirming.
+- The strip needs nothing new in the log. `deletions_by_source/0` already has
+  each deletion time and source.
+
+**Alternatives considered:**
+- A stacked chart rebuilding past suspicious users, including deleted ones.
+  Rejected: the log holds no signup time. The history could only be estimated
+  from the 15 day cutoff, and that would be wrong whenever the cutoff changed.
+  Storing signup times would put more about a person in a file that was
+  designed to hold only a timestamp and a reason.
+- Stacking deleted-that-day on top of present-that-day. Rejected: one part is
+  a daily count and the other is a running total, so the bar height means
+  nothing as a headcount.
+
+**Trade-offs:**
+- The line still shrinks retroactively. Total Users and Unconfirmed shrink the
+  same way when users are deleted, including self-service deletions. Left as
+  they are.
+- The strip is drawn by hand in `Speechwave.Admin.Chart.render_bar_svg/2`, not
+  with Contex's bar chart, which would label all 30 days and use its own
+  margins. The strip builds the same date scale as the line chart over the same
+  days and width, so its bars sit under the matching days and its labels fall
+  on the same tick days with the same text.
+- The log read rescues any error and shows the "could not read" message. A bug
+  in the read path would look like a busy log, with a warning in the server log.
+
+Spec: `docs/specs/2026-10-23-suspicious-deletions-strip-design.md`.

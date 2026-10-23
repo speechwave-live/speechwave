@@ -4,6 +4,8 @@ defmodule SpeechwaveWeb.Admin.StatsLiveTest do
   import Phoenix.LiveViewTest
   import Speechwave.AccountsFixtures
 
+  alias Speechwave.DeletionLog
+
   test "redirects to login when logged out" do
     conn = build_conn()
     assert {:error, {:redirect, %{to: path}}} = live(conn, ~p"/admin/stats")
@@ -117,6 +119,84 @@ defmodule SpeechwaveWeb.Admin.StatsLiveTest do
       render_change(view, "export_changed", %{"export" => %{"source" => ""}})
       refute has_element?(view, "#export-from[disabled]")
       assert has_element?(view, ~s(#export-from[value="#{from}"]))
+    end
+  end
+
+  describe "suspicious deletions strip" do
+    # The deletion log is one shared file, so these tests must not run async.
+    setup %{conn: conn} do
+      File.rm(DeletionLog.path())
+      %{conn: log_in_user(conn, admin_user_fixture())}
+    end
+
+    test "shows bars when the reaper has deleted suspicious users", %{conn: conn} do
+      :ok = DeletionLog.record(1, :suspicious)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+      assert has_element?(
+               view,
+               ~s(#stat-suspicious #stat-suspicious-deletions[data-state="bars"])
+             )
+
+      assert has_element?(view, "#stat-suspicious-deletions", "1 in the last 30 days")
+      assert has_element?(view, "#stat-suspicious-deletions svg")
+    end
+
+    test "says there were no deletions when there are none", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+      assert has_element?(view, ~s(#stat-suspicious-deletions[data-state="empty"]))
+      assert has_element?(view, "#stat-suspicious-deletions", "No deletions in the last 30 days")
+      refute has_element?(view, "#stat-suspicious-deletions svg")
+    end
+
+    test "says there were no deletions when only self-service deletions exist", %{conn: conn} do
+      :ok = DeletionLog.record(1, :self)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+      assert has_element?(view, ~s(#stat-suspicious-deletions[data-state="empty"]))
+    end
+
+    test "says there were no deletions when the only suspicious one is older than 30 days", %{
+      conn: conn
+    } do
+      :ok = DeletionLog.record(1, :suspicious, DateTime.add(DateTime.utc_now(), -31, :day))
+
+      {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+      assert has_element?(view, ~s(#stat-suspicious-deletions[data-state="empty"]))
+    end
+
+    @tag :capture_log
+    test "says the log could not be read, and still loads the page", %{conn: conn} do
+      File.write!(DeletionLog.path(), "this is not a sqlite database")
+      on_exit(fn -> File.rm(DeletionLog.path()) end)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+      assert has_element?(view, "#stat-suspicious")
+      assert has_element?(view, ~s(#stat-suspicious-deletions[data-state="unavailable"]))
+      assert has_element?(view, "#stat-suspicious-deletions", "Could not read the deletion log")
+      refute has_element?(view, "#stat-suspicious-deletions svg")
+      assert has_element?(view, "#stat-total-users")
+    end
+
+    test "no other card has a strip", %{conn: conn} do
+      :ok = DeletionLog.record(1, :suspicious)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+      strips =
+        view
+        |> render()
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query(~s{[id$="-deletions"]})
+        |> Enum.to_list()
+
+      assert length(strips) == 1
+      assert has_element?(view, "#stat-suspicious-deletions")
     end
   end
 end

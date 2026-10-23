@@ -42,4 +42,67 @@ defmodule Speechwave.Admin.ChartTest do
     # non-overlapping date and value labels rather than a bare sparkline.
     assert html =~ "exc-tick"
   end
+
+  describe "render_bar_svg/2" do
+    defp svg_string(svg), do: svg |> Safe.to_iodata() |> IO.iodata_to_binary()
+
+    defp svg_height(html) do
+      [_, height] = Regex.run(~r/<svg[^>]*\sviewBox="0 0 [\d.]+ ([\d.]+)"/, html)
+      {height, _rest} = Float.parse(height)
+      height
+    end
+
+    test "renders a 30-day history as an SVG" do
+      history = for i <- 29..0//-1, do: {Date.add(Date.utc_today(), -i), rem(i, 3)}
+
+      assert Chart.render_bar_svg(history) |> svg_string() =~ "<svg"
+    end
+
+    test "renders a history with a single non-zero day without raising" do
+      history =
+        for i <- 29..0//-1, do: {Date.add(Date.utc_today(), -i), if(i == 5, do: 1, else: 0)}
+
+      assert Chart.render_bar_svg(history) |> svg_string() =~ "<svg"
+    end
+
+    test "renders different SVG output for different data" do
+      a = for i <- 29..0//-1, do: {Date.add(Date.utc_today(), -i), rem(i, 3)}
+      b = for i <- 29..0//-1, do: {Date.add(Date.utc_today(), -i), rem(i, 4)}
+
+      refute svg_string(Chart.render_bar_svg(a)) == svg_string(Chart.render_bar_svg(b))
+    end
+
+    test "has an accessible name" do
+      history = for i <- 29..0//-1, do: {Date.add(Date.utc_today(), -i), rem(i, 3)}
+
+      assert history |> Chart.render_bar_svg() |> svg_string() =~ ~s(aria-label=")
+    end
+
+    test "labels the same tick days as the line chart's x axis" do
+      history = for i <- 29..0//-1, do: {Date.add(~D[2026-10-23], -i), rem(i, 3)}
+
+      # Contex draws the x axis tick labels as <text y="9" ...>.
+      line_labels =
+        ~r/<text y="9"[^>]*>([^<]+)<\/text>/
+        |> Regex.scan(history |> Chart.render_svg() |> svg_string(), capture: :all_but_first)
+        |> List.flatten()
+
+      bar_html = history |> Chart.render_bar_svg() |> svg_string()
+
+      assert line_labels != []
+
+      for label <- line_labels do
+        assert bar_html =~ ">#{label}</text>", "expected the strip to label #{label}"
+      end
+    end
+
+    test "is shorter than the line chart" do
+      history = for i <- 29..0//-1, do: {Date.add(Date.utc_today(), -i), rem(i, 3)}
+
+      bar_height = history |> Chart.render_bar_svg() |> svg_string() |> svg_height()
+      line_height = history |> Chart.render_svg() |> svg_string() |> svg_height()
+
+      assert bar_height < line_height
+    end
+  end
 end
