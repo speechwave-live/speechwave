@@ -5,6 +5,7 @@ defmodule Speechwave.Admin.StatsTest do
   import Speechwave.TalksFixtures
 
   alias Speechwave.Admin.Stats
+  alias Speechwave.DeletionLog
 
   describe "user_categories/1" do
     test "counts total, confirmed, and unconfirmed users" do
@@ -215,6 +216,73 @@ defmodule Speechwave.Admin.StatsTest do
     end
   end
 
+  describe "suspicious_deletions/1" do
+    # The deletion log is one shared file, and DataCase tests here are not async.
+    setup do
+      File.rm(DeletionLog.path())
+      :ok
+    end
+
+    @now ~U[2026-11-15 12:00:00Z]
+
+    defp count_on(deletions, date) do
+      {^date, count} = List.keyfind(deletions, date, 0)
+      count
+    end
+
+    test "counts only :suspicious rows per UTC day, zero-filled, oldest first" do
+      :ok = DeletionLog.record(1, :suspicious, ~U[2026-11-14 08:00:00Z])
+      :ok = DeletionLog.record(2, :suspicious, ~U[2026-11-14 20:00:00Z])
+      :ok = DeletionLog.record(3, :suspicious, ~U[2026-11-15 01:00:00Z])
+      :ok = DeletionLog.record(4, :self, ~U[2026-11-14 09:00:00Z])
+
+      deletions = Stats.suspicious_deletions(@now)
+
+      assert length(deletions) == Stats.history_days()
+      assert {~D[2026-10-17], _} = List.first(deletions)
+      assert {~D[2026-11-15], _} = List.last(deletions)
+      assert count_on(deletions, ~D[2026-11-14]) == 2
+      assert count_on(deletions, ~D[2026-11-15]) == 1
+      assert deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum() == 3
+    end
+
+    test "ignores rows older than the window" do
+      :ok = DeletionLog.record(1, :suspicious, ~U[2026-10-16 12:00:00Z])
+      :ok = DeletionLog.record(2, :suspicious, ~U[2026-10-17 12:00:00Z])
+
+      deletions = Stats.suspicious_deletions(@now)
+
+      assert deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum() == 1
+      assert count_on(deletions, ~D[2026-10-17]) == 1
+    end
+
+    test "splits days at UTC midnight" do
+      :ok = DeletionLog.record(1, :suspicious, ~U[2026-11-13 23:59:59Z])
+      :ok = DeletionLog.record(2, :suspicious, ~U[2026-11-14 00:00:00Z])
+
+      deletions = Stats.suspicious_deletions(@now)
+
+      assert count_on(deletions, ~D[2026-11-13]) == 1
+      assert count_on(deletions, ~D[2026-11-14]) == 1
+    end
+
+    test "counts rows whose user_id has been scrubbed" do
+      :ok = DeletionLog.record(1, :suspicious, ~U[2026-11-01 10:00:00Z])
+      :ok = DeletionLog.scrub(~U[2026-12-15 00:00:00Z])
+      assert DeletionLog.logged_ids() == []
+
+      assert count_on(Stats.suspicious_deletions(@now), ~D[2026-11-01]) == 1
+    end
+
+    test "returns 30 zeros and creates no file when the log is missing" do
+      deletions = Stats.suspicious_deletions(@now)
+
+      assert length(deletions) == 30
+      assert deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum() == 0
+      refute File.exists?(DeletionLog.path())
+    end
+  end
+
   describe "dashboard/1" do
     test "returns all 11 metrics in a fixed order" do
       user = user_fixture()
@@ -238,6 +306,17 @@ defmodule Speechwave.Admin.StatsTest do
              ]
 
       assert {_, %{current: _, history: _}} = List.keyfind(dashboard, :talks, 0)
+    end
+
+    test "only the suspicious metric carries a deletions history" do
+      dashboard = Stats.dashboard()
+
+      {:suspicious, suspicious} = List.keyfind(dashboard, :suspicious, 0)
+      assert length(suspicious.deletions) == Stats.history_days()
+
+      for {key, metric} <- dashboard, key != :suspicious do
+        refute Map.has_key?(metric, :deletions), "#{key} should not have :deletions"
+      end
     end
   end
 end
