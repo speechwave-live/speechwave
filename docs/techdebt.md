@@ -60,10 +60,6 @@ Found reviewing the export (`docs/specs/2026-10-23-gdpr-data-export-design.md`).
 - **The export route is a GET with a side effect.** A cross-site link or a
   browser prefetch can use up someone's cooldown. The attacker cannot read the
   zip, so the impact is small. A POST from a form button would fix it.
-- **The README and privacy page explain the audience exclusion badly.** They
-  say reactions "cannot be linked back to you", which a reader (or an LLM) could
-  take to mean the counts are not about their talks. Say instead that audience
-  IDs are random browser identifiers that do not identify the audience member.
 - **`audience_size` is a lower bound for old sessions.** Reactions recorded
   before audience tracking have no audience ID and are not counted, the same as
   on the dashboard. The schema explains a null but not a partial count.

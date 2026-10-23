@@ -24,7 +24,7 @@ Dates are in UTC, written as ISO 8601 (for example `2026-10-23T12:00:00Z`).
 ## What is not included, and why
 
 - **Your API key and login tokens.** These are credentials. Anyone holding this file could use them to act as you, and a download is easy to forget about. Your API key is shown in Settings, where you can replace it.
-- **Individual reactions, their times and audience IDs.** Reactions come from audience members, not from you, so they are other people's data. Each audience member is only a random browser identifier that cannot be linked back to you. You get the counts instead.
+- **Individual reactions, their times and audience IDs.** Reactions come from your audience, so they are other people's data. Audience IDs are random browser identifiers that do not identify the audience member. You get the counts instead.
 - **Copies in backups.** Speechwave keeps backups for a limited time, and this export does not cover them. Backup copies are removed on the schedule in the privacy policy.
 
 ## This is not a backup

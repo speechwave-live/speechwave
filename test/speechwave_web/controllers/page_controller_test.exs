@@ -84,6 +84,28 @@ defmodule SpeechwaveWeb.PageControllerTest do
     assert Enum.count(matches) == 1
   end
 
+  test "GET /privacy says how long data is kept without promising to keep inactive accounts", %{
+    conn: conn
+  } do
+    html = get(conn, ~p"/privacy") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert document |> LazyHTML.query("#privacy-data-retention") |> Enum.count() == 1
+
+    text = document |> LazyHTML.query("#privacy-data-retention") |> LazyHTML.text()
+    assert text =~ "15 days"
+    assert text =~ "inactive"
+    assert text =~ "Fly.io"
+    assert text =~ "Resend"
+    refute text =~ "indefinitely"
+  end
+
+  test "GET /privacy does not say audience reactions cannot be linked to you", %{conn: conn} do
+    html = get(conn, ~p"/privacy") |> html_response(200)
+
+    refute html =~ "cannot be linked back to you"
+  end
+
   test "GET /privacy returns 200 with SEO meta tags", %{conn: conn} do
     html = get(conn, ~p"/privacy") |> html_response(200)
 
