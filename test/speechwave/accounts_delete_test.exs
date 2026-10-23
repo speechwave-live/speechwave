@@ -350,4 +350,103 @@ defmodule Speechwave.AccountsDeleteTest do
       assert user_fixture().id > 800
     end
   end
+
+  describe "delete_suspicious_users/0" do
+    defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
+    defp days_ago(n), do: DateTime.add(now(), -n, :day)
+
+    defp confirmed_user_fixture do
+      user = user_fixture()
+      # confirmed_at is only set when a session token is generated.
+      _token = session_token_fixture(user)
+      user
+    end
+
+    test "deletes an unconfirmed user older than the cutoff and logs it as :suspicious" do
+      user = user_fixture()
+      backdate_user(user, days_ago(16))
+
+      assert Accounts.delete_suspicious_users() == 1
+      refute Repo.get(User, user.id)
+      assert [{_, :suspicious}] = DeletionLog.deletions_by_source()
+    end
+
+    test "keeps an unconfirmed user inside the cutoff" do
+      user = user_fixture()
+      backdate_user(user, days_ago(14))
+
+      assert Accounts.delete_suspicious_users() == 0
+      assert Repo.get(User, user.id)
+    end
+
+    test "keeps a confirmed user of any age" do
+      user = confirmed_user_fixture()
+      backdate_user(user, days_ago(400))
+
+      assert Accounts.delete_suspicious_users() == 0
+      assert Repo.get(User, user.id)
+    end
+
+    test "keeps an unconfirmed admin" do
+      admin = admin_user_fixture()
+      backdate_user(admin, days_ago(400))
+
+      assert Accounts.delete_suspicious_users() == 0
+      assert Repo.get(User, admin.id)
+    end
+
+    test "returns 0 and does not create the log when nothing is eligible" do
+      _ = user_fixture()
+
+      assert Accounts.delete_suspicious_users() == 0
+      refute File.exists?(DeletionLog.path())
+    end
+
+    test "a second sweep deletes nothing" do
+      user = user_fixture()
+      backdate_user(user, days_ago(16))
+
+      assert Accounts.delete_suspicious_users() == 1
+      assert Accounts.delete_suspicious_users() == 0
+      assert [_one_row] = DeletionLog.deletions_by_source()
+    end
+
+    test "honours :suspicious_user_retention_days" do
+      original = Application.get_env(:speechwave, :suspicious_user_retention_days)
+
+      on_exit(fn ->
+        if original,
+          do: Application.put_env(:speechwave, :suspicious_user_retention_days, original),
+          else: Application.delete_env(:speechwave, :suspicious_user_retention_days)
+      end)
+
+      Application.put_env(:speechwave, :suspicious_user_retention_days, 1)
+
+      user = user_fixture()
+      backdate_user(user, days_ago(2))
+
+      assert Accounts.delete_suspicious_users() == 1
+      refute Repo.get(User, user.id)
+    end
+
+    # Making exactly one deletion fail is impractical, so this all-fail case
+    # stands in for "one failure does not stop the others".
+    @tag :capture_log
+    test "deletes nobody and does not raise when the log cannot be written" do
+      original = Application.fetch_env!(:speechwave, :deletions_db_path)
+      on_exit(fn -> Application.put_env(:speechwave, :deletions_db_path, original) end)
+
+      Application.put_env(
+        :speechwave,
+        :deletions_db_path,
+        Path.join(System.tmp_dir!(), "no_such_dir_#{System.unique_integer([:positive])}/d.db")
+      )
+
+      users = for _ <- 1..2, do: user_fixture()
+      Enum.each(users, &backdate_user(&1, days_ago(16)))
+
+      assert Accounts.delete_suspicious_users() == 0
+      assert Enum.all?(users, &Repo.get(User, &1.id))
+    end
+  end
 end
