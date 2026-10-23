@@ -57,7 +57,7 @@ defmodule Speechwave.DataExportThrottle do
   defp blocked(user_id, now) do
     case :ets.lookup(@table, user_id) do
       [{^user_id, claimed_at}] ->
-        Logger.warning("data_export_throttle: cooldown", user_id: user_id)
+        Logger.warning("data_export_throttle: cooldown for user #{user_id}")
         remaining_ms = @cooldown_ms - (now - claimed_at)
         {:error, max(1, ceil(remaining_ms / 1000))}
 

@@ -39,20 +39,6 @@ Deferred from the 2026-07-06 stats dashboard work (see
   `Stats.history_days/0` to a different window (e.g. 90 days) would need the
   chart dimensions revisited too, since nothing currently ties them together.
 
-#### GDPR: download my data (access and portability)
-
-Split out of the account deletion work. GDPR also gives people a right to get
-a copy of the personal data held about them (Articles 15 and 20), in a
-structured, commonly used, machine-readable format. Today that would be a manual
-request to admin@speechwave.live.
-
-A "Download my data" button in Settings could return one file (JSON, or a zip
-of CSVs) containing the account row (email, plan, signup date, settings),
-talks, sessions, reaction counts per session, consent records and linked
-sign-in providers. It must never include secrets (session tokens, the API key)
-and should be rate limited. Decide whether the
-privacy policy should promise this self-service export once it exists.
-
 #### Uniform `DeletionLog` API and shared test helpers
 
 Also from the maintainability review. `DeletionLog.logged_ids/1` takes a path,

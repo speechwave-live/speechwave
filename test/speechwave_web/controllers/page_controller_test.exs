@@ -77,6 +77,13 @@ defmodule SpeechwaveWeb.PageControllerTest do
     assert html =~ ~s(<meta property="og:title" content="Terms of Service · Speechwave">)
   end
 
+  test "GET /privacy describes the self-service data download", %{conn: conn} do
+    html = get(conn, ~p"/privacy") |> html_response(200)
+
+    matches = html |> LazyHTML.from_document() |> LazyHTML.query("#privacy-data-export")
+    assert Enum.count(matches) == 1
+  end
+
   test "GET /privacy returns 200 with SEO meta tags", %{conn: conn} do
     html = get(conn, ~p"/privacy") |> html_response(200)
 
