@@ -22,6 +22,16 @@ defmodule Speechwave.DataExport do
 
   @format_version 1
 
+  @schema_path Path.join(
+                 :code.priv_dir(:speechwave) |> to_string(),
+                 "data_export/speechwave_data.schema.json"
+               )
+  @readme_path Path.join(:code.priv_dir(:speechwave) |> to_string(), "data_export/README.md")
+  @external_resource @schema_path
+  @external_resource @readme_path
+  @schema File.read!(@schema_path)
+  @readme File.read!(@readme_path)
+
   @doc "Builds the export map for the scope's user."
   def build(%Scope{user: user}, exported_at \\ DateTime.utc_now()) do
     talks = list_talks(user)
@@ -35,6 +45,24 @@ defmodule Speechwave.DataExport do
       consents: consents(user),
       talks: Enum.map(talks, &talk(&1, reaction_summaries))
     }
+  end
+
+  @doc """
+  Packs the export into an in-memory zip with the data, its JSON Schema and a
+  README. The README's `{{exported_at}}` placeholder is filled in here.
+  """
+  def to_zip(%Scope{} = scope, exported_at \\ DateTime.utc_now()) do
+    json = scope |> build(exported_at) |> Jason.encode!(pretty: true)
+    readme = String.replace(@readme, "{{exported_at}}", DateTime.to_iso8601(exported_at))
+
+    files = [
+      {~c"speechwave_data.json", json},
+      {~c"speechwave_data.schema.json", @schema},
+      {~c"README.md", readme}
+    ]
+
+    {:ok, {_name, zip}} = :zip.create(~c"speechwave-data.zip", files, [:memory])
+    {:ok, zip}
   end
 
   defp account(user) do

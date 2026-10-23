@@ -111,4 +111,72 @@ defmodule Speechwave.DataExportTest do
       refute json =~ "audience-secret-id"
     end
   end
+
+  describe "to_zip/2" do
+    defp unzip(zip) do
+      {:ok, files} = :zip.unzip(zip, [:memory])
+      Map.new(files, fn {name, content} -> {to_string(name), content} end)
+    end
+
+    defp validate!(files) do
+      schema =
+        files["speechwave_data.schema.json"] |> Jason.decode!() |> ExJsonSchema.Schema.resolve()
+
+      data = Jason.decode!(files["speechwave_data.json"])
+      assert :ok = ExJsonSchema.Validator.validate(schema, data)
+    end
+
+    test "contains the three files and the data validates against the schema" do
+      user = user_fixture()
+      identity_fixture(user)
+      {:ok, _} = Accounts.grant_consent(user, "marketing_email")
+      talk = talk_fixture(user, %{title: "Q&A \"live\" 日本語 🎉"})
+
+      session =
+        session_fixture(talk, %{ended_at: DateTime.utc_now() |> DateTime.truncate(:second)})
+
+      reaction_fixture(session, "🔥", 1, "aud-a")
+      reaction_fixture(session, "❤️", 2, nil)
+      session_fixture(talk, %{label: "Empty"})
+
+      {:ok, zip} = DataExport.to_zip(Scope.for_user(user))
+      files = unzip(zip)
+
+      assert Enum.sort(Map.keys(files)) ==
+               ["README.md", "speechwave_data.json", "speechwave_data.schema.json"]
+
+      validate!(files)
+    end
+
+    test "a bare, unconfirmed user also validates" do
+      {:ok, user} = Accounts.register_user(%{email: unique_user_email()})
+      user = %{user | confirmed_at: nil}
+
+      {:ok, zip} = DataExport.to_zip(Scope.for_user(user))
+      validate!(unzip(zip))
+    end
+
+    test "the README states the export date, that it is not a backup, and no re-import" do
+      user = user_fixture()
+      at = ~U[2026-10-23 12:00:00Z]
+
+      {:ok, zip} = DataExport.to_zip(Scope.for_user(user), at)
+      readme = unzip(zip)["README.md"]
+
+      assert readme =~ "2026-10-23"
+      refute readme =~ "{{exported_at}}"
+      assert String.downcase(readme) =~ "not a backup"
+      assert String.downcase(readme) =~ "re-import"
+    end
+
+    test "no file contains the api key" do
+      user = user_fixture()
+
+      {:ok, zip} = DataExport.to_zip(Scope.for_user(user))
+
+      for {name, content} <- unzip(zip) do
+        refute content =~ user.api_key, "#{name} leaks the api key"
+      end
+    end
+  end
 end
