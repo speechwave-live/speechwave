@@ -208,6 +208,27 @@ defmodule SpeechwaveWeb.UserLive.Settings do
 
       <div class="divider" />
 
+      <%!-- Download a copy of the user's personal data (GDPR access and portability) --%>
+      <div id="your-data-section">
+        <h3 class="font-semibold text-base-content">Your data</h3>
+        <p class="mt-1.5 text-sm text-base-content/70">
+          Download a copy of the data we hold about you: your account, linked sign-ins,
+          consents, talks and sessions, with reaction counts. You get a zip with the data,
+          a schema describing it, and a README. It leaves out your API key and other
+          people's data.
+        </p>
+        <a
+          id="download-my-data"
+          href={~p"/users/settings/export"}
+          download
+          class="mt-3 inline-flex items-center gap-2 rounded-lg border border-base-300 px-3.5 py-2 text-sm font-semibold text-base-content transition-colors hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <.icon name="hero-arrow-down-tray" class="size-4" /> Download my data
+        </a>
+      </div>
+
+      <div class="divider" />
+
       <%!-- Danger zone: permanent account deletion --%>
       <div
         id="danger-zone"

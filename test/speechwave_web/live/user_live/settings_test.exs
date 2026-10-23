@@ -16,6 +16,18 @@ defmodule SpeechwaveWeb.UserLive.SettingsTest do
       assert html =~ "Connected accounts"
     end
 
+    test "has a download my data link", %{conn: conn} do
+      {:ok, lv, _html} = conn |> log_in_user(user_fixture()) |> live(~p"/users/settings")
+
+      assert has_element?(lv, "#download-my-data[href='/users/settings/export']")
+    end
+
+    test "admins get the download link too", %{conn: conn} do
+      {:ok, lv, _html} = conn |> log_in_user(admin_user_fixture()) |> live(~p"/users/settings")
+
+      assert has_element?(lv, "#download-my-data")
+    end
+
     test "redirects if user is not logged in", %{conn: conn} do
       assert {:error, redirect} = live(conn, ~p"/users/settings")
 

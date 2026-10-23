@@ -50,6 +50,9 @@ defmodule SpeechwaveWeb.Router do
     # A controller action, not a LiveView event: deleting the account has to
     # clear the browser's session cookie, which only the plug layer can do.
     delete "/users/account", UserAccountController, :delete
+
+    # Also a controller action: a LiveView cannot send a file download.
+    get "/users/settings/export", UserDataExportController, :show
   end
 
   # ---------------------------------------------------------------------------
