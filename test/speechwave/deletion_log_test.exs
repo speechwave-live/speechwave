@@ -13,8 +13,8 @@ defmodule Speechwave.DeletionLogTest do
     DateTime.add(DateTime.utc_now(), -(days * 24 + extra_hours) * 3600, :second)
   end
 
-  test "record stores the id and timestamp and nothing else" do
-    assert :ok = DeletionLog.record(42)
+  test "record stores the id, timestamp and source and nothing else" do
+    assert :ok = DeletionLog.record(42, :self)
     assert DeletionLog.logged_ids() == [42]
     assert [%DateTime{}] = DeletionLog.deleted_ats()
 
@@ -24,32 +24,32 @@ defmodule Speechwave.DeletionLogTest do
     Exqlite.Sqlite3.release(conn, stmt)
     Exqlite.Sqlite3.close(conn)
 
-    assert rows |> List.flatten() |> Enum.sort() == ["deleted_at", "user_id"]
+    assert rows |> List.flatten() |> Enum.sort() == ["deleted_at", "source", "user_id"]
   end
 
   test "creates the file and table on first use" do
     refute File.exists?(DeletionLog.path())
-    assert :ok = DeletionLog.record(1)
+    assert :ok = DeletionLog.record(1, :self)
     assert File.exists?(DeletionLog.path())
   end
 
   test "scrub nulls ids older than 30 days and keeps the row" do
-    :ok = DeletionLog.record(1, days_ago(31))
-    :ok = DeletionLog.record(2, DateTime.utc_now())
+    :ok = DeletionLog.record(1, :self, days_ago(31))
+    :ok = DeletionLog.record(2, :self, DateTime.utc_now())
     assert :ok = DeletionLog.scrub()
     assert DeletionLog.logged_ids() == [2]
     assert length(DeletionLog.deleted_ats()) == 2
   end
 
   test "scrub leaves a row just inside 30 days" do
-    :ok = DeletionLog.record(3, days_ago(29, 23))
+    :ok = DeletionLog.record(3, :self, days_ago(29, 23))
     assert :ok = DeletionLog.scrub()
     assert DeletionLog.logged_ids() == [3]
   end
 
   test "scrub is idempotent" do
-    :ok = DeletionLog.record(1, days_ago(40))
-    :ok = DeletionLog.record(2)
+    :ok = DeletionLog.record(1, :self, days_ago(40))
+    :ok = DeletionLog.record(2, :self)
     :ok = DeletionLog.scrub()
     :ok = DeletionLog.scrub()
     assert DeletionLog.logged_ids() == [2]
@@ -66,11 +66,11 @@ defmodule Speechwave.DeletionLogTest do
       Path.join(System.tmp_dir!(), "no_such_dir_#{System.unique_integer([:positive])}/d.db")
     )
 
-    assert {:error, _} = DeletionLog.record(1)
+    assert {:error, _} = DeletionLog.record(1, :self)
   end
 
   test "snapshot_to writes a readable copy" do
-    :ok = DeletionLog.record(7)
+    :ok = DeletionLog.record(7, :self)
 
     dest =
       Path.join(System.tmp_dir!(), "deletions_snapshot_#{System.unique_integer([:positive])}.db")
@@ -86,6 +86,58 @@ defmodule Speechwave.DeletionLogTest do
     Exqlite.Sqlite3.close(conn)
 
     assert rows == [[7]]
+  end
+
+  describe "source" do
+    test "record stores the source" do
+      :ok = DeletionLog.record(1, :suspicious)
+      assert [{%DateTime{}, :suspicious}] = DeletionLog.deletions_by_source()
+    end
+
+    test "record rejects an unknown source and creates no file" do
+      assert_raise ArgumentError, fn -> DeletionLog.record(1, :bogus) end
+      refute File.exists?(DeletionLog.path())
+    end
+
+    test "deletions_by_source is empty and creates nothing when the log is missing" do
+      assert DeletionLog.deletions_by_source() == []
+      refute File.exists?(DeletionLog.path())
+    end
+
+    test "scrub keeps the source" do
+      :ok = DeletionLog.record(1, :suspicious, days_ago(40))
+      :ok = DeletionLog.scrub()
+      assert DeletionLog.logged_ids() == []
+      assert [{_, :suspicious}] = DeletionLog.deletions_by_source()
+    end
+
+    test "an old-schema log is upgraded by record and read as :self before that" do
+      {:ok, conn} = Exqlite.Sqlite3.open(DeletionLog.path())
+
+      :ok =
+        Exqlite.Sqlite3.execute(
+          conn,
+          "CREATE TABLE deletions (user_id INTEGER, deleted_at TEXT NOT NULL)"
+        )
+
+      :ok =
+        Exqlite.Sqlite3.execute(
+          conn,
+          "INSERT INTO deletions (user_id, deleted_at) VALUES (1, '2026-01-01T00:00:00Z')"
+        )
+
+      Exqlite.Sqlite3.close(conn)
+      before = File.read!(DeletionLog.path())
+
+      # Reads work on the old schema, treat every row as :self, and change nothing.
+      assert [{1, %DateTime{}, :self}] = DeletionLog.entries(DeletionLog.path())
+      assert [{%DateTime{}, :self}] = DeletionLog.deletions_by_source()
+      assert File.read!(DeletionLog.path()) == before
+
+      # The first write adds the column.
+      :ok = DeletionLog.record(2, :suspicious)
+      assert [{_, :self}, {_, :suspicious}] = DeletionLog.deletions_by_source()
+    end
   end
 
   describe "when the log file does not exist" do
@@ -111,32 +163,32 @@ defmodule Speechwave.DeletionLogTest do
 
   test "scrub keeps a row exactly 30 days old" do
     now = ~U[2026-11-15 12:00:00Z]
-    :ok = DeletionLog.record(5, DateTime.add(now, -30 * 24 * 3600, :second))
-    :ok = DeletionLog.record(6, DateTime.add(now, -30 * 24 * 3600 - 1, :second))
+    :ok = DeletionLog.record(5, :self, DateTime.add(now, -30 * 24 * 3600, :second))
+    :ok = DeletionLog.record(6, :self, DateTime.add(now, -30 * 24 * 3600 - 1, :second))
 
     assert :ok = DeletionLog.scrub(now)
     assert DeletionLog.logged_ids() == [5]
   end
 
   test "entries can read another log file by path" do
-    :ok = DeletionLog.record(11)
+    :ok = DeletionLog.record(11, :self)
     copy = Path.join(System.tmp_dir!(), "other_log_#{System.unique_integer([:positive])}.db")
     on_exit(fn -> File.rm(copy) end)
     :ok = DeletionLog.snapshot_to(copy)
     File.rm(DeletionLog.path())
 
-    assert [{11, %DateTime{}}] = DeletionLog.entries(copy)
+    assert [{11, %DateTime{}, :self}] = DeletionLog.entries(copy)
     assert DeletionLog.logged_ids() == []
   end
 
   describe "entries/1" do
-    test "returns unscrubbed {id, deleted_at} pairs from the given file" do
+    test "returns unscrubbed {id, deleted_at, source} triples from the given file" do
       at = DateTime.utc_now() |> DateTime.truncate(:second)
-      :ok = DeletionLog.record(1, at)
-      :ok = DeletionLog.record(2, days_ago(40))
+      :ok = DeletionLog.record(1, :self, at)
+      :ok = DeletionLog.record(2, :self, days_ago(40))
       :ok = DeletionLog.scrub()
 
-      assert DeletionLog.entries(DeletionLog.path()) == [{1, at}]
+      assert DeletionLog.entries(DeletionLog.path()) == [{1, at, :self}]
     end
 
     test "raises for a SQLite file without a deletions table and does not modify it" do

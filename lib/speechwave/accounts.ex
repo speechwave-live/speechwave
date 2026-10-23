@@ -200,14 +200,14 @@ defmodule Speechwave.Accounts do
     cond do
       not can_delete_account?(user) -> {:error, :admin}
       not deletion_confirmed?(user, typed_email) -> {:error, :confirmation_mismatch}
-      true -> erase_user(user)
+      true -> erase_user(user, :self)
     end
   end
 
   # Log first, then delete, so a failure errs toward erasure (see the docs above).
-  defp erase_user(user) do
+  defp erase_user(user, source) do
     if Repo.exists?(from u in User, where: u.id == ^user.id) do
-      case DeletionLog.record(user.id) do
+      case DeletionLog.record(user.id, source) do
         :ok ->
           DeletionLog.scrub_logging_errors()
 
@@ -225,6 +225,56 @@ defmodule Speechwave.Accounts do
       # Already deleted (second tab, double submit): nothing to do or log.
       {:ok, %{user: user, session_tokens: []}}
     end
+  end
+
+  @doc """
+  Deletes every "suspicious" user and returns how many were deleted.
+
+  A suspicious user is one who signed up but never confirmed their email (no
+  `confirmed_at`), is not an admin, and registered more than
+  `:suspicious_user_retention_days` ago (default 15). Confirmation happens the
+  first time someone logs in with a link or an OAuth provider, so these
+  accounts are almost always abandoned or created by bots.
+
+  No confirmation step or warning email is needed: the user never proved they
+  own the address, so there is nobody we could reliably warn, and an account
+  that never logged in holds nothing worth keeping.
+
+  Each user is erased independently with `erase_user/2`. One that cannot be
+  erased (for example because the deletion log is unwritable) is skipped and
+  logged, does not stop the others, and is retried on the next sweep. Only
+  successful deletions are counted.
+  """
+  def delete_suspicious_users do
+    days = Application.get_env(:speechwave, :suspicious_user_retention_days, 15)
+
+    # `inserted_at` is a `:utc_datetime` column, so truncate to whole seconds.
+    cutoff =
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+      |> DateTime.add(-days, :day)
+
+    # In an Ecto query, `^` pins an outside value in, and `is_nil/1` becomes
+    # SQL `IS NULL`.
+    eligible = fn ->
+      from u in User,
+        where: is_nil(u.confirmed_at) and not u.is_admin and u.inserted_at < ^cutoff
+    end
+
+    ids = Repo.all(from u in eligible.(), select: u.id)
+
+    # Enum.count/2 counts the items for which the function returns a truthy
+    # value, so `{:error, :log_failed}` results are simply not counted.
+    Enum.count(ids, fn id ->
+      # Re-check the same predicates right before erasing, so a user who
+      # confirmed since the id list was read is skipped. This narrows the race
+      # but cannot close it; the guard must stay out of the DELETE itself, or
+      # a live user's id could be logged.
+      case Repo.one(from u in eligible.(), where: u.id == ^id) do
+        nil -> false
+        user -> match?({:ok, _}, erase_user(user, :suspicious))
+      end
+    end)
   end
 
   @doc """
@@ -258,8 +308,8 @@ defmodule Speechwave.Accounts do
     live_ids = DeletionLog.logged_ids()
     extra = extra_log_paths |> Enum.flat_map(&DeletionLog.entries/1) |> Enum.uniq_by(&elem(&1, 0))
 
-    for {id, deleted_at} <- extra, id not in live_ids do
-      DeletionLog.record(id, deleted_at) == :ok ||
+    for {id, deleted_at, source} <- extra, id not in live_ids do
+      DeletionLog.record(id, source, deleted_at) == :ok ||
         raise "Could not write user #{id} to the deletion log at #{DeletionLog.path()}"
     end
 

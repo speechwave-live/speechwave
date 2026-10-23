@@ -58,7 +58,7 @@ defmodule Speechwave.DbBackupTest do
   end
 
   test "uploads both databases under their own keys" do
-    :ok = DeletionLog.record(1)
+    :ok = DeletionLog.record(1, :self)
     run_now()
 
     assert_received {:put, "/bucket/backup/speechwave.db", main_body}
@@ -67,7 +67,7 @@ defmodule Speechwave.DbBackupTest do
   end
 
   test "the deletions upload is a SQLite file containing the logged ids" do
-    :ok = DeletionLog.record(99)
+    :ok = DeletionLog.record(99, :self)
 
     run_now()
 
@@ -76,7 +76,7 @@ defmodule Speechwave.DbBackupTest do
   end
 
   test "a failing upload of one file does not stop the other" do
-    :ok = DeletionLog.record(1)
+    :ok = DeletionLog.record(1, :self)
     test_pid = self()
 
     Req.Test.stub(DbBackup, fn conn ->
@@ -95,8 +95,8 @@ defmodule Speechwave.DbBackupTest do
   end
 
   test "scrubs ids older than 30 days before uploading the log" do
-    :ok = DeletionLog.record(5, DateTime.add(DateTime.utc_now(), -31 * 24 * 3600, :second))
-    :ok = DeletionLog.record(6)
+    :ok = DeletionLog.record(5, :self, DateTime.add(DateTime.utc_now(), -31 * 24 * 3600, :second))
+    :ok = DeletionLog.record(6, :self)
 
     run_now()
 

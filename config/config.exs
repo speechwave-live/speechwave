@@ -52,6 +52,11 @@ config :speechwave, :auth_throttle_enabled, true
 # after this many hours. See docs/plans/2026-07-15-session-timeout.md.
 config :speechwave, :session_timeout_hours, 4
 
+# Users who never confirmed their email are deleted by the suspicious user
+# reaper once they are older than this many days.
+# See docs/specs/2026-10-22-suspicious-user-reaper-design.md.
+config :speechwave, :suspicious_user_retention_days, 15
+
 # Where the "Help" nav link points. Overridden in dev.exs to point at the
 # local Jekyll preview server instead of the production docs site.
 config :speechwave, :docs_url, "https://docs.speechwave.live"
