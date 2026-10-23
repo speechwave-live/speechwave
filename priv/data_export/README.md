@@ -31,6 +31,6 @@ Dates are in UTC, written as ISO 8601 (for example `2026-10-23T12:00:00Z`).
 
 This file is a copy of your data for you to read and keep. It is not a backup of your account, and Speechwave cannot re-import it at this time. Deleting your account removes your data for good, so keep this file somewhere safe if you want a record.
 
-## Questions and your rights
+## Questions
 
-The privacy policy at https://speechwave.live/privacy explains why we hold this data, who we share it with, how long we keep it, and your rights. For anything else, email admin@speechwave.live.
+The privacy policy at https://speechwave.live/privacy explains what we collect and why, and how deletion and backups work. For anything else, email admin@speechwave.live.

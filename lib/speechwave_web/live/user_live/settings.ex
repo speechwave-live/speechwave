@@ -220,7 +220,6 @@ defmodule SpeechwaveWeb.UserLive.Settings do
         <a
           id="download-my-data"
           href={~p"/users/settings/export"}
-          download
           class="mt-3 inline-flex items-center gap-2 rounded-lg border border-base-300 px-3.5 py-2 text-sm font-semibold text-base-content transition-colors hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <.icon name="hero-arrow-down-tray" class="size-4" /> Download my data

@@ -22,6 +22,14 @@ defmodule SpeechwaveWeb.UserLive.SettingsTest do
       assert has_element?(lv, "#download-my-data[href='/users/settings/export']")
     end
 
+    test "the download link has no download attribute so the cooldown flash is visible", %{
+      conn: conn
+    } do
+      {:ok, lv, _html} = conn |> log_in_user(user_fixture()) |> live(~p"/users/settings")
+
+      refute has_element?(lv, "#download-my-data[download]")
+    end
+
     test "admins get the download link too", %{conn: conn} do
       {:ok, lv, _html} = conn |> log_in_user(admin_user_fixture()) |> live(~p"/users/settings")
 

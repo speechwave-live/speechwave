@@ -169,6 +169,14 @@ defmodule Speechwave.DataExportTest do
       assert String.downcase(readme) =~ "re-import"
     end
 
+    test "the README does not promise policy content the privacy page lacks" do
+      {:ok, zip} = DataExport.to_zip(Scope.for_user(user_fixture()))
+      readme = unzip(zip)["README.md"]
+
+      refute readme =~ "how long we keep"
+      refute readme =~ "your rights"
+    end
+
     test "no file contains the api key" do
       user = user_fixture()
 
