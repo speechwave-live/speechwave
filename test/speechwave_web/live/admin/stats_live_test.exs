@@ -139,6 +139,17 @@ defmodule SpeechwaveWeb.Admin.StatsLiveTest do
       assert has_element?(view, "#stat-suspicious-deletions svg")
     end
 
+    @tag :capture_log
+    test "still loads the page, without the strip, when the log cannot be read", %{conn: conn} do
+      File.write!(DeletionLog.path(), "this is not a sqlite database")
+      on_exit(fn -> File.rm(DeletionLog.path()) end)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/stats")
+
+      assert has_element?(view, "#stat-suspicious")
+      refute has_element?(view, "#stat-suspicious-deletions")
+    end
+
     test "hides the strip when there are no deletions", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/stats")
 

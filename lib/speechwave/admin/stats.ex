@@ -33,6 +33,8 @@ defmodule Speechwave.Admin.Stats do
 
   import Ecto.Query
 
+  require Logger
+
   alias Speechwave.Accounts.{User, UserConsent}
   alias Speechwave.DeletionLog
   alias Speechwave.Repo
@@ -117,12 +119,24 @@ defmodule Speechwave.Admin.Stats do
     days = last_n_days(DateTime.truncate(now, :second), @history_days)
 
     per_day =
-      for {deleted_at, :suspicious} <- DeletionLog.deletions_by_source(),
+      for {deleted_at, :suspicious} <- read_deletions(),
           reduce: %{} do
         acc -> Map.update(acc, DateTime.to_date(deleted_at), 1, &(&1 + 1))
       end
 
     Enum.map(days, fn day -> {day, Map.get(per_day, day, 0)} end)
+  end
+
+  # The strip is a side note on the Suspicious Users card, so a log that cannot
+  # be read right now (a corrupt file, or one locked by a writer) must not take
+  # down the whole stats page. Treat it as "no deletions", so the strip hides,
+  # and say why in the log. `DeletionLog` raises on a failed read, hence rescue.
+  defp read_deletions do
+    DeletionLog.deletions_by_source()
+  rescue
+    error ->
+      Logger.warning("[Stats] Could not read the deletion log: #{Exception.message(error)}")
+      []
   end
 
   defp consent_history(days, cutoff, source) do

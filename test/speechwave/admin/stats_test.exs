@@ -274,6 +274,19 @@ defmodule Speechwave.Admin.StatsTest do
       assert count_on(Stats.suspicious_deletions(@now), ~D[2026-11-01]) == 1
     end
 
+    @tag :capture_log
+    test "returns 30 zeros instead of raising when the log cannot be read" do
+      # Stands in for a corrupt file. A busy or locked file takes the same path:
+      # the read comes back as an error, and the stats page must still load.
+      File.write!(DeletionLog.path(), "this is not a sqlite database")
+      on_exit(fn -> File.rm(DeletionLog.path()) end)
+
+      deletions = Stats.suspicious_deletions(@now)
+
+      assert length(deletions) == 30
+      assert deletions |> Enum.map(&elem(&1, 1)) |> Enum.sum() == 0
+    end
+
     test "returns 30 zeros and creates no file when the log is missing" do
       deletions = Stats.suspicious_deletions(@now)
 
