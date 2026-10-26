@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-10-26
+
+### Added
+
+- You can now download a copy of your data from Settings ("Download my data"). You get a zip with your account details, linked sign-in providers, consent records, talks and sessions, and the number of reactions each session received, as JSON with a schema and a README. It leaves out your API key and login tokens, and individual audience reactions. You can request a new download every five minutes.
+- Accounts that never confirm a login are now deleted automatically after 15 days, by a daily sweep.
+- Admins see a deletions strip on the Suspicious Users card of the stats page, with a small bar chart of automatic deletions per day for the last 30 days.
+
+### Changed
+
+- The privacy policy now has a data retention section, covers the data download, and names the hosting and email providers that keep their own logs.
+- The deletion log now records the reason for every deletion, so admins can tell self-service deletions from automatic ones.
+
 ## [0.4.0] - 2026-10-19
 
 Version 0.3.0 was tagged but never deployed, so its changes below go live with this release.
