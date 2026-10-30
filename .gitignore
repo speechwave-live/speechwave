@@ -59,3 +59,5 @@ extension/node_modules/
 
 # Private working drafts (announcements, screencast script). Back up separately.
 /docs/internal/
+
+.codesight/
