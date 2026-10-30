@@ -1,0 +1,24 @@
+# Test Coverage
+
+> **70%** of routes and models are covered by tests
+> 58 test files found
+
+## Covered Routes
+
+- GET:/
+- GET:/health
+- GET:/terms
+- GET:/privacy
+- DELETE:/users/account
+- GET:/users/settings/export
+- DELETE:/users/log-out
+
+## Covered Models
+
+- User
+- UserConsent
+- UserIdentity
+- UserToken
+- Reaction
+- Talk
+- TalkSession
