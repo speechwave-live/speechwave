@@ -412,9 +412,14 @@ defmodule Speechwave.Accounts do
     end
   end
 
-  @doc "Returns all OAuth identities for the given user."
+  @doc "Returns all OAuth identities for the given user, ordered by provider then id."
   def list_user_identities(%User{} = user) do
-    Repo.all(from(ui in UserIdentity, where: ui.user_id == ^user.id))
+    Repo.all(
+      from(ui in UserIdentity,
+        where: ui.user_id == ^user.id,
+        order_by: [asc: ui.provider, asc: ui.id]
+      )
+    )
   end
 
   @doc "Returns the identity for a given provider and uid, or nil."

@@ -431,6 +431,22 @@ defmodule Speechwave.AccountsTest do
       assert Enum.map(identities, & &1.provider) |> Enum.sort() == ["github", "google"]
     end
 
+    test "list_user_identities/1 returns identities ordered by provider then id" do
+      user = user_fixture()
+
+      for {provider, uid} <- [{"google", "g1"}, {"github", "gh1"}, {"microsoft", "m1"}] do
+        {:ok, _} =
+          Accounts.find_or_create_user_from_oauth(provider, %{
+            "sub" => uid,
+            "email" => user.email,
+            "email_verified" => true
+          })
+      end
+
+      list = Accounts.list_user_identities(user)
+      assert Enum.map(list, & &1.provider) == ["github", "google", "microsoft"]
+    end
+
     test "delete_user_identity removes the identity" do
       user = user_fixture()
 

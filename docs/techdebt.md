@@ -63,6 +63,3 @@ Found reviewing the export (`docs/specs/2026-10-23-gdpr-data-export-design.md`).
 - **`audience_size` is a lower bound for old sessions.** Reactions recorded
   before audience tracking have no audience ID and are not counted, the same as
   on the dashboard. The schema explains a null but not a partial count.
-- **`sign_in_providers` has no explicit order.** Two exports of the same account
-  can list providers in a different order. `Accounts.list_user_identities/1`
-  needs an `order_by`.
