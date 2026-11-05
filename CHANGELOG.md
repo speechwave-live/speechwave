@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - "Download my data" is now a button that sends a POST request instead of a link.
-- A failed data download no longer leaves you waiting out the five-minute cooldown.
+- If we fail to build or send your data download, you no longer have to wait out the five-minute cooldown.
 - Sign-in providers in the data export now always appear in the same order.
 
 ## [0.5.0] - 2026-10-26
