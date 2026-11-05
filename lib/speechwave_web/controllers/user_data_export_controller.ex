@@ -11,8 +11,9 @@ defmodule SpeechwaveWeb.UserDataExportController do
   cannot send a file download. It is a POST because it has a side effect (it
   claims the cooldown), so a link or prefetch cannot trigger it. The cooldown
   is claimed before the zip is built and released if the build returns an
-  error or raises, or if sending the file raises, so a failure never locks the
-  user out. Tests can swap the builder with the `:data_export_zip_fun` app env.
+  error, or if building or sending raises, throws or exits, so a failure never
+  locks the user out. A request process killed outright cannot be caught, so
+  that case keeps the cooldown until it expires. Tests can swap the builder with the `:data_export_zip_fun` app env.
   """
   def create(conn, _params) do
     scope = conn.assigns.current_scope
@@ -35,10 +36,10 @@ defmodule SpeechwaveWeb.UserDataExportController do
               |> put_flash(:error, "We could not build your download. Please try again.")
               |> redirect(to: ~p"/users/settings")
           end
-        rescue
-          exception ->
+        catch
+          kind, value ->
             DataExportThrottle.release(user_id)
-            reraise exception, __STACKTRACE__
+            :erlang.raise(kind, value, __STACKTRACE__)
         end
 
       {:error, seconds} ->

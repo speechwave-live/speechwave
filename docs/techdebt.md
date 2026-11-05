@@ -56,11 +56,6 @@ Found reviewing the export (`docs/specs/2026-10-23-gdpr-data-export-design.md`).
 - **`audience_size` is a lower bound for old sessions.** Reactions recorded
   before audience tracking have no audience ID and are not counted, the same as
   on the dashboard. The schema explains a null but not a partial count.
-- **A download that dies mid-request leaves the cooldown claimed.** The release
-  uses `rescue`, so a throw, an exit, or a request process killed during the
-  download (client disconnect) keeps the cooldown for 5 minutes. Fix with a
-  `catch kind, value` clause, or an `after` with a "sent" flag. Left because the
-  spec scopes a browser-cancelled download out.
 
 ## Reaction timeline
 

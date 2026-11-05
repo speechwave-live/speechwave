@@ -59,6 +59,26 @@ defmodule SpeechwaveWeb.UserDataExportControllerTest do
       assert conn |> post(~p"/users/settings/export") |> response(200)
     end
 
+    test "a build that throws releases the cooldown", %{conn: conn} do
+      Application.put_env(:speechwave, :data_export_zip_fun, fn _scope -> throw(:boom) end)
+      on_exit(fn -> Application.delete_env(:speechwave, :data_export_zip_fun) end)
+
+      assert catch_throw(post(conn, ~p"/users/settings/export")) == :boom
+
+      Application.delete_env(:speechwave, :data_export_zip_fun)
+      assert conn |> post(~p"/users/settings/export") |> response(200)
+    end
+
+    test "a build that exits releases the cooldown", %{conn: conn} do
+      Application.put_env(:speechwave, :data_export_zip_fun, fn _scope -> exit(:boom) end)
+      on_exit(fn -> Application.delete_env(:speechwave, :data_export_zip_fun) end)
+
+      assert catch_exit(post(conn, ~p"/users/settings/export")) == :boom
+
+      Application.delete_env(:speechwave, :data_export_zip_fun)
+      assert conn |> post(~p"/users/settings/export") |> response(200)
+    end
+
     test "a build that returns {:error, _} releases the cooldown and redirects with a flash",
          %{conn: conn} do
       Application.put_env(:speechwave, :data_export_zip_fun, fn _scope -> {:error, :boom} end)
