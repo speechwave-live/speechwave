@@ -12,11 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Session analytics now has a reaction timeline. It shows how many reactions came in over the course of the session, marks the peak, and marks where each slide got its first reaction.
 - Each slide in the session analytics now shows how many people reacted to it.
 
+### Changed
+
+- The charting library is now downloaded only on the session analytics page. Other pages, including the audience reaction page on phones, load about 180 KB less JavaScript.
+
 ### Fixed
 
 - The session comparison page now only compares sessions of the same talk. Before, someone who guessed another account's session number could see that session's label and emoji counts.
 - "Download my data" is now a button that sends a POST request instead of a link.
-- If we fail to build or send your data download, you no longer have to wait out the five-minute cooldown.
+- If we fail to build or send your data download, you no longer have to wait out the five-minute cooldown, even when the failure is a throw or exit rather than an error.
 - Sign-in providers in the data export now always appear in the same order.
 
 ## [0.5.0] - 2026-10-26

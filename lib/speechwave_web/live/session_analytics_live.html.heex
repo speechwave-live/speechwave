@@ -175,9 +175,9 @@
   </div>
 
   <script :type={Phoenix.LiveView.ColocatedHook} name=".ReactionTimeline">
-    // The vendored, tree-shaken ECharts build (assets/vendor/echarts.custom.js).
-    // `@` is an esbuild alias for the assets/ folder.
-    import {init} from "@/vendor/echarts.custom"
+    // The vendored, tree-shaken ECharts build lives in assets/vendor/echarts.custom.js.
+    // It is loaded with a dynamic import() in mounted(), so esbuild puts it in
+    // its own chunk and only this page downloads it.
 
     // Brand colours as hex, because ECharts draws its own SVG and cannot use
     // Tailwind classes.
@@ -296,8 +296,13 @@
     }
 
     export default {
-      mounted() {
+      async mounted() {
         const data = JSON.parse(this.el.dataset.timeline)
+        // `@` is an esbuild alias for the assets/ folder.
+        const {init} = await import("@/vendor/echarts.custom")
+        // LiveView may have removed the element while the chunk was loading.
+        if (this.isDestroyed) return
+
         // SVG gives crisp text and lets browser tests find the chart's <svg>.
         this.chart = init(this.el, null, {renderer: "svg"})
         const fontFamily = getComputedStyle(this.el).fontFamily
@@ -310,6 +315,7 @@
       },
 
       destroyed() {
+        this.isDestroyed = true
         // Free the observer and the chart's memory when LiveView removes it.
         // The ?. skips the call if mounted() failed before creating them.
         this.resizeObserver?.disconnect()

@@ -59,10 +59,6 @@ Found reviewing the export (`docs/specs/2026-10-23-gdpr-data-export-design.md`).
 
 ## Reaction timeline
 
-- **ECharts loads on every page.** It is imported statically into `app.js`, so
-  the audience page on phones downloads it too (about 180 KB gzipped).
-  CLAUDE.md allows only the `app.js` and `app.css` bundles, and a dynamic
-  `import()` is inlined without esbuild splitting, so it would not help.
 - **Several slide starts in one bucket read "Slide N+".** When several slides
   first get a reaction in the same time bucket, the chart label shows the first
   slide with a "+" and only the tooltip lists them all. The wording could be

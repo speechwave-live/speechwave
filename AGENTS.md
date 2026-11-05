@@ -24,7 +24,7 @@ Use `get_docs` to access documentation and the `get_source_location` tool to fin
 
 ## JS and CSS
 
-- Only the `app.js` and `app.css` bundles are supported. Import vendor deps into them instead of referencing external `src`/`href` in layouts
+- Only the `app.js` and `app.css` entry bundles are supported. Import vendor deps into them instead of referencing external `src`/`href` in layouts. esbuild runs with `--format=esm --splitting` and `app.js` loads as `type="module"`, so a large dependency that only one page needs should be loaded with a dynamic `import()` (ECharts does this). esbuild puts it in a content-hashed chunk next to `app.js`
 - Tailwind v4 has no `tailwind.config.js`. Keep the `@import "tailwindcss" source(none);` and `@source` lines in `app.css`
 - **Never** use `@apply` in raw CSS
 - daisyUI is still loaded for existing components. Write new components with plain Tailwind and don't add new daisyUI usage
