@@ -86,4 +86,105 @@ defmodule Speechwave.ReactionsTest do
       assert Reactions.slide_audience_counts(session.id) == %{0 => 1, 1 => 2, 2 => 1}
     end
   end
+
+  describe "timeline/1" do
+    @start ~U[2026-01-01 10:00:00Z]
+
+    setup %{session: session} do
+      talk = Speechwave.Repo.get!(Speechwave.Talks.Talk, session.talk_id)
+      %{talk: talk, timed: session_fixture(talk, %{started_at: @start, ended_at: nil})}
+    end
+
+    test "returns nil when the session has no reactions", %{timed: timed} do
+      assert Reactions.timeline(timed) == nil
+    end
+
+    test "counts reactions per bucket and finds the peak", %{timed: timed} do
+      for offset <- [0, 3, 12, 14, 15], do: timed_reaction_fixture(timed, offset)
+
+      assert %{bucket_seconds: 10, counts: [2, 3], peak: %{index: 1, count: 3}} =
+               Reactions.timeline(timed)
+    end
+
+    test "a peak tie goes to the earliest bucket", %{timed: timed} do
+      for offset <- [0, 1, 25, 26], do: timed_reaction_fixture(timed, offset)
+
+      assert %{counts: [2, 0, 2], peak: %{index: 0, count: 2}} = Reactions.timeline(timed)
+    end
+
+    test "slide_starts use the earliest reaction per slide, sorted by offset", %{timed: timed} do
+      timed_reaction_fixture(timed, 2, "❤️", 0)
+      timed_reaction_fixture(timed, 5, "❤️", 2)
+      timed_reaction_fixture(timed, 8, "❤️", 1)
+      timed_reaction_fixture(timed, 20, "❤️", 2)
+      timed_reaction_fixture(timed, 40, "❤️", 3)
+      # A later return to slide 1 adds no second entry.
+      timed_reaction_fixture(timed, 50, "❤️", 1)
+
+      assert Reactions.timeline(timed).slide_starts == [
+               %{slide: 2, offset_seconds: 5},
+               %{slide: 1, offset_seconds: 8},
+               %{slide: 3, offset_seconds: 40}
+             ]
+    end
+
+    test "all reactions at offset 0 give a single bucket", %{timed: timed} do
+      for _ <- 1..3, do: timed_reaction_fixture(timed, 0)
+
+      assert %{counts: [3], peak: %{index: 0, count: 3}} = Reactions.timeline(timed)
+    end
+
+    test "the axis follows the last reaction, not a much later ended_at", %{talk: talk} do
+      session =
+        session_fixture(talk, %{started_at: @start, ended_at: DateTime.add(@start, 4, :hour)})
+
+      timed_reaction_fixture(session, 0)
+      timed_reaction_fixture(session, 600)
+
+      timeline = Reactions.timeline(session)
+      assert timeline.bucket_seconds == 15
+      assert length(timeline.counts) == 41
+    end
+
+    test "reactions outside the session are clamped into the first and last buckets",
+         %{talk: talk} do
+      session =
+        session_fixture(talk, %{started_at: @start, ended_at: DateTime.add(@start, 100, :second)})
+
+      timed_reaction_fixture(session, -5)
+      timed_reaction_fixture(session, 50)
+      timed_reaction_fixture(session, 130)
+
+      timeline = Reactions.timeline(session)
+      assert timeline.bucket_seconds == 10
+      assert length(timeline.counts) == 11
+      assert hd(timeline.counts) == 1
+      assert List.last(timeline.counts) == 1
+      assert Enum.sum(timeline.counts) == 3
+    end
+
+    test "only slide 0 reactions give no slide starts", %{timed: timed} do
+      timed_reaction_fixture(timed, 0, "❤️", 0)
+      timed_reaction_fixture(timed, 30, "❤️", 0)
+
+      assert %{slide_starts: [], counts: [1, 0, 0, 1]} = Reactions.timeline(timed)
+    end
+
+    test "works for an active session", %{talk: talk} do
+      session = session_fixture(talk, %{started_at: @start, ended_at: nil})
+      timed_reaction_fixture(session, 12)
+
+      assert %{counts: [0, 1], slide_starts: [%{slide: 1, offset_seconds: 12}]} =
+               Reactions.timeline(session)
+    end
+
+    test "contains no audience data", %{timed: timed} do
+      timed_reaction_fixture(timed, 0, "❤️", 1, "audience-secret-aaa")
+      timed_reaction_fixture(timed, 9, "🔥", 2, "audience-secret-bbb")
+
+      json = Jason.encode!(Reactions.timeline(timed))
+      refute json =~ "audience-secret-aaa"
+      refute json =~ "audience-secret-bbb"
+    end
+  end
 end

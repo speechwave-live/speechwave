@@ -39,6 +39,28 @@ defmodule Speechwave.TalksFixtures do
     reaction
   end
 
+  # Inserts a reaction stamped `offset_seconds` after `session.started_at`
+  # (negative offsets land before the start). Inserted directly so the
+  # timestamp can be chosen; create_reaction/4 always stamps "now".
+  def timed_reaction_fixture(
+        session,
+        offset_seconds,
+        emoji \\ "❤️",
+        slide_number \\ 1,
+        audience_id \\ nil
+      ) do
+    at = DateTime.add(session.started_at, offset_seconds, :second)
+
+    Speechwave.Repo.insert!(%Speechwave.Reactions.Reaction{
+      talk_session_id: session.id,
+      emoji: emoji,
+      slide_number: slide_number,
+      audience_id: audience_id,
+      inserted_at: at,
+      updated_at: at
+    })
+  end
+
   # A talk with one active (unstopped) session and no reactions. Replaces
   # scripts/manual_tests/seed_active_session.exs for browser tests.
   def talk_with_active_session_fixture(user) do
