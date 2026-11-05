@@ -112,11 +112,25 @@ New module `Speechwave.AudienceSlots`, a GenServer started in
   turn-away happens. A turn-away while no session is active records nothing.
 - `Talks.record_participant_limit_hit(session)` does the guarded update
   (`where is_nil(...)`) so concurrent hits cannot overwrite the first time.
-- The session analytics page shows "Participant limit reached at 20:38" near
-  the top stats, with the time as elapsed time since `started_at`, formatted
-  m:ss the same way the timeline's aria label does (hours roll into minutes
-  as the existing helper does). Hidden when null. A session with no hit shows
-  nothing at all.
+- The session analytics page shows both a relative and a clock time, for
+  example "Participant limit reached 23 minutes after the session began
+  (8:38 PM CST)". Elapsed time on its own has no reference point, and clock
+  time on its own does not say how far into the talk it was.
+  - The relative part is computed on the server from `started_at` (whole
+    minutes, "less than a minute" under one, "1 hour 5 minutes" style over
+    sixty). It is the same for every viewer.
+  - The clock part needs the viewer's time zone, which only the browser knows.
+    The server renders `<time datetime="<ISO 8601 UTC>">8:38 PM UTC</time>`
+    as the fallback, and a small colocated hook (`.LocalTime`) rewrites its
+    text to the viewer's local time with `Intl.DateTimeFormat` and
+    `timeZoneName: "short"`. The element needs `phx-update="ignore"` or the
+    hook must re-apply on `updated()`, so a LiveView patch does not undo it.
+    With JavaScript off the viewer sees the UTC fallback, which is correct and
+    labelled.
+  - Hidden when null. A session with no hit shows nothing at all.
+- The session's start time line already prints UTC with no zone label. That
+  is a gap on the same page. Not fixed here; noted in `docs/techdebt.md`
+  (and trivially fixable later by using the same `.LocalTime` hook).
 - The session timeline does not draw it (out of scope).
 
 ### Presenter side
@@ -179,7 +193,8 @@ New module `Speechwave.AudienceSlots`, a GenServer started in
   visitor is unaffected.
 - The first turn-away sets `participant_limit_hit_at`; a second does not move
   it; no active session sets nothing.
-- The analytics page shows the hit time when set and nothing when not.
+- The analytics page shows the relative and the clock text (with a `<time>`
+  element carrying the UTC ISO value) when set, and nothing when not.
 - Presenter: the old capacity check no longer rejects a join when many
   Presence entries exist; a 4th concurrent connection by one user is rejected
   with `"capacity_reached"`.
