@@ -1,10 +1,11 @@
 # speechwave — AI Context Map
 
 > **Stack:** phoenix | ecto | unknown | elixir
+> **Monorepo:** assets, speechwave-load-test
 
-> 13 routes | 7 models | 0 components | 1 lib files | 9 env vars | 6 middleware | 5 events | 70% test coverage
-> **Token savings:** this file is ~2,500 tokens. Without it, AI exploration would cost ~22,600 tokens. **Saves ~20,100 tokens per conversation.**
-> **Last scanned:** 2026-10-30 21:44 — re-run after significant changes
+> 13 routes (3 inferred) + 3 ws | 7 models | 0 components | 1 lib files | 9 env vars | 6 middleware | 5 events | 75% test coverage
+> **Token savings:** this file is ~2,500 tokens. Without it, AI exploration would cost ~23,100 tokens. **Saves ~20,600 tokens per conversation.**
+> **Last scanned:** 2026-11-05 18:25 — re-run after significant changes
 
 ---
 
@@ -23,6 +24,12 @@
 - `GET` `/:provider/callback` params(provider) [auth]
 - `GET` `/login` [auth]
 - `POST` `/login` [auth]
+
+## WebSocket Events
+
+- `WS` `open` — `scripts/load_test/audience_load.mjs`
+- `WS` `error` — `scripts/load_test/audience_load.mjs`
+- `WS` `message` — `scripts/load_test/audience_load.mjs`
 
 ---
 
@@ -179,7 +186,7 @@
 
 # Test Coverage
 
-> **70%** of routes and models are covered by tests
+> **75%** of routes and models are covered by tests
 > 58 test files found
 
 ## Covered Routes
@@ -191,6 +198,7 @@
 - DELETE:/users/account
 - GET:/users/settings/export
 - DELETE:/users/log-out
+- WS:error
 
 ## Covered Models
 

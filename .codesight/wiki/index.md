@@ -1,6 +1,6 @@
 # speechwave — Wiki
 
-_Generated 2026-10-30 — re-run `npx codesight --wiki` if the codebase has changed._
+_Generated 2026-11-05 — re-run `npx codesight --wiki` if the codebase has changed._
 
 Structural map compiled from source code via AST. No LLM — deterministic, 200ms.
 
@@ -11,12 +11,13 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Overview](./overview.md)
 - [Database](./database.md)
 - [Auth](./auth.md)
+- [Audience_load](./audience_load.md)
 - [Router.ex](./router.ex.md)
 - [Infra](./infra.md)
 
 ## Quick Stats
 
-- Routes: **13**
+- Routes: **16**
 - Models: **7**
 - Components: **0**
 - Env vars: **1** required, **8** with defaults
@@ -45,4 +46,4 @@ These exist in your codebase but are **not** reflected in wiki articles:
 When in doubt, search the source. The wiki is a starting point, not a complete inventory.
 
 ---
-_Last compiled: 2026-10-30 · 6 articles · [codesight](https://github.com/Houseofmvps/codesight)_
+_Last compiled: 2026-11-05 · 7 articles · [codesight](https://github.com/Houseofmvps/codesight)_

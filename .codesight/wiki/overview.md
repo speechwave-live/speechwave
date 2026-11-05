@@ -2,15 +2,18 @@
 
 > **Navigation aid.** This article shows WHERE things live (routes, models, files). Read actual source files before implementing new features or making changes.
 
-**speechwave** is a elixir project built with phoenix, using ecto for data persistence.
+**speechwave** is a elixir project built with phoenix, using ecto for data persistence, organized as a monorepo.
+
+**Workspaces:** `assets` (`assets`), `speechwave-load-test` (`scripts/load_test`)
 
 ## Scale
 
-13 API routes · 7 database models · 1 library files · 6 middleware layers · 9 environment variables
+16 API routes · 7 database models · 1 library files · 6 middleware layers · 9 environment variables
 
 ## Subsystems
 
 - **[Auth](./auth.md)** — 2 routes — touches: auth
+- **[Audience_load](./audience_load.md)** — 3 routes
 - **[Router.ex](./router.ex.md)** — 9 routes — touches: auth
 - **[Infra](./infra.md)** — 2 routes — touches: auth
 
@@ -32,4 +35,4 @@ Changes to these files have the widest blast radius across the codebase:
 - `NODE_ENV` — `assets/js/app.js`
 
 ---
-_Back to [index.md](./index.md) · Generated 2026-10-30_
+_Back to [index.md](./index.md) · Generated 2026-11-05_

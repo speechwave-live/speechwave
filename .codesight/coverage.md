@@ -1,6 +1,6 @@
 # Test Coverage
 
-> **70%** of routes and models are covered by tests
+> **75%** of routes and models are covered by tests
 > 58 test files found
 
 ## Covered Routes
@@ -12,6 +12,7 @@
 - DELETE:/users/account
 - GET:/users/settings/export
 - DELETE:/users/log-out
+- WS:error
 
 ## Covered Models
 

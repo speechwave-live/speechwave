@@ -13,3 +13,9 @@
 - `GET` `/:provider/callback` params(provider) [auth]
 - `GET` `/login` [auth]
 - `POST` `/login` [auth]
+
+## WebSocket Events
+
+- `WS` `open` — `scripts/load_test/audience_load.mjs`
+- `WS` `error` — `scripts/load_test/audience_load.mjs`
+- `WS` `message` — `scripts/load_test/audience_load.mjs`
