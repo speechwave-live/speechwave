@@ -38,6 +38,12 @@ config :speechwave, Speechwave.Mailer, adapter: Swoosh.Adapters.Test
 # See docs/specs/2026-06-11-magic-link-auth-throttle-design.md.
 config :speechwave, :auth_throttle_enabled, false
 
+# Speechwave.AudienceSlots is one global process keyed by talk id, and the
+# SQLite sandbox reuses ids between tests, so a held place would leak into a
+# later test. Free places immediately. AudienceSlots' own tests start private
+# instances with an explicit :grace_ms.
+config :speechwave, :audience_slot_grace_ms, 0
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

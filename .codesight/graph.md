@@ -9,7 +9,7 @@
 - `lib/speechwave/talks_fixtures.ex` — imported by **15** files
 - `lib/speechwave/data_case.ex` — imported by **13** files
 - `lib/speechwave/accounts/scope.ex` — imported by **12** files
-- `lib/ex_unit/case.ex` — imported by **11** files
+- `lib/ex_unit/case.ex` — imported by **12** files
 - `lib/speechwave/deletion_log.ex` — imported by **9** files
 - `lib/speechwave_web/e2_e_case.ex` — imported by **9** files
 - `lib/speechwave/.ex` — imported by **8** files
@@ -32,6 +32,6 @@
 - `lib/speechwave/talks_fixtures.ex` ← `test/e2e/reaction_flow_test.exs`, `test/e2e/session_analytics_test.exs`, `test/speechwave/accounts_delete_test.exs`, `test/speechwave/admin/consent_export_test.exs`, `test/speechwave/admin/stats_test.exs` +10 more
 - `lib/speechwave/data_case.ex` ← `test/speechwave/accounts/suspicious_user_reaper_test.exs`, `test/speechwave/accounts_delete_test.exs`, `test/speechwave/accounts_test.exs`, `test/speechwave/admin/consent_export_test.exs`, `test/speechwave/admin/stats_test.exs` +8 more
 - `lib/speechwave/accounts/scope.ex` ← `lib/speechwave/data_export.ex`, `lib/speechwave/talks.ex`, `lib/speechwave_web/user_auth.ex`, `scripts/manual_tests/seed_screenshots.exs`, `test/speechwave/data_export_test.exs` +7 more
-- `lib/ex_unit/case.ex` ← `test/speechwave/admin/chart_test.exs`, `test/speechwave/admin/csv_test.exs`, `test/speechwave/auth_throttle_test.exs`, `test/speechwave/data_export_throttle_test.exs`, `test/speechwave/db_backup_test.exs` +6 more
+- `lib/ex_unit/case.ex` ← `test/speechwave/admin/chart_test.exs`, `test/speechwave/admin/csv_test.exs`, `test/speechwave/audience_slots_test.exs`, `test/speechwave/auth_throttle_test.exs`, `test/speechwave/data_export_throttle_test.exs` +7 more
 - `lib/speechwave/deletion_log.ex` ← `lib/speechwave/accounts.ex`, `lib/speechwave/admin/stats.ex`, `lib/speechwave/db_backup.ex`, `test/speechwave/accounts/suspicious_user_reaper_test.exs`, `test/speechwave/accounts_delete_test.exs` +4 more
 - `lib/speechwave_web/e2_e_case.ex` ← `test/e2e/account_settings_test.exs`, `test/e2e/auth_throttle_test.exs`, `test/e2e/dashboard_test.exs`, `test/e2e/email_consent_test.exs`, `test/e2e/reaction_flow_test.exs` +4 more
