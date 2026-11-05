@@ -38,6 +38,7 @@ defmodule SpeechwaveWeb.SessionAnalyticsLive do
            total_reactions: Reactions.count_reactions(session.id),
            audience_count: Reactions.count_audience(session.id),
            slide_people: Reactions.slide_audience_counts(session.id),
+           timeline: Reactions.timeline(session),
            top_slide: top_slide(by_slide),
            top_emoji: top_emoji(by_slide),
            other_sessions: other_sessions,
@@ -57,6 +58,22 @@ defmodule SpeechwaveWeb.SessionAnalyticsLive do
   end
 
   defp resolve_compare_session(_), do: nil
+
+  # Screen-reader summary of the timeline chart, for example
+  # "Reactions over time: 14 reactions, busiest at 3:20". The busiest time is
+  # the start of the peak bucket, counted from the session start.
+  defp timeline_label(%{counts: counts, peak: peak, bucket_seconds: bucket_seconds}) do
+    total = Enum.sum(counts)
+    noun = if total == 1, do: "reaction", else: "reactions"
+    "Reactions over time: #{total} #{noun}, busiest at #{clock(peak.index * bucket_seconds)}"
+  end
+
+  # Seconds as m:ss, matching the chart's x-axis labels (75 -> "1:15").
+  defp clock(seconds) do
+    minutes = div(seconds, 60)
+    secs = rem(seconds, 60) |> Integer.to_string() |> String.pad_leading(2, "0")
+    "#{minutes}:#{secs}"
+  end
 
   # Slide with the most reactions as `{slide_number, count}`. Slide 0 holds
   # reactions sent without slide tracking ("General"), so it is not a real slide

@@ -145,4 +145,93 @@ defmodule SpeechwaveWeb.SessionAnalyticsLiveTest do
     assert has_element?(view, "header a[href='/users/settings']")
     refute render(view) =~ "Get started free"
   end
+
+  describe "reaction timeline" do
+    # Five reactions over 70 seconds: the axis is 70 s long, so buckets are
+    # 10 s wide and there are 8 of them (0..7). Bucket 2 (0:20) is the peak.
+    defp seed_timeline(session) do
+      timed_reaction_fixture(session, 0, "❤️", 1)
+      timed_reaction_fixture(session, 22, "😂", 2, "aud-a")
+      timed_reaction_fixture(session, 25, "😂", 2, "aud-b")
+      timed_reaction_fixture(session, 28, "❤️", 2, "aud-a")
+      timed_reaction_fixture(session, 70, "🔥", 3)
+    end
+
+    # Reads the JSON in the chart container's data-timeline attribute.
+    defp timeline_data(view) do
+      [json] =
+        view
+        |> element("#reaction-timeline")
+        |> render()
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.attribute("data-timeline")
+
+      Jason.decode!(json)
+    end
+
+    defp aria_label(view) do
+      [label] =
+        view
+        |> element("#reaction-timeline")
+        |> render()
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.attribute("aria-label")
+
+      label
+    end
+
+    test "renders the timeline container with its data", %{conn: conn, session: session} do
+      seed_timeline(session)
+      {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+
+      assert has_element?(view, "#reaction-timeline[phx-update='ignore'][role='img']")
+
+      assert timeline_data(view) == %{
+               "bucket_seconds" => 10,
+               "counts" => [1, 0, 3, 0, 0, 0, 0, 1],
+               "peak" => %{"index" => 2, "count" => 3},
+               "slide_starts" => [
+                 %{"slide" => 1, "offset_seconds" => 0},
+                 %{"slide" => 2, "offset_seconds" => 22},
+                 %{"slide" => 3, "offset_seconds" => 70}
+               ]
+             }
+    end
+
+    test "aria-label mentions the total and the peak", %{conn: conn, session: session} do
+      seed_timeline(session)
+      {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+
+      assert aria_label(view) == "Reactions over time: 5 reactions, busiest at 0:20"
+    end
+
+    test "has no timeline for an empty session", %{conn: conn, session: session} do
+      {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+
+      refute has_element?(view, "#reaction-timeline")
+      assert has_element?(view, "#no-reactions", "No reactions recorded in this session.")
+    end
+
+    test "data attribute never includes audience ids", %{conn: conn, session: session} do
+      seed_timeline(session)
+      {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+
+      json = view |> timeline_data() |> Jason.encode!()
+      refute json =~ "aud-a"
+      refute json =~ "aud-b"
+      refute json =~ "audience"
+    end
+
+    test "only general reactions give a timeline with no slide starts", %{
+      conn: conn,
+      session: session
+    } do
+      timed_reaction_fixture(session, 0, "❤️", 0)
+      timed_reaction_fixture(session, 15, "❤️", 0)
+      {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+
+      assert has_element?(view, "#reaction-timeline")
+      assert %{"slide_starts" => [], "counts" => [1, 1]} = timeline_data(view)
+    end
+  end
 end

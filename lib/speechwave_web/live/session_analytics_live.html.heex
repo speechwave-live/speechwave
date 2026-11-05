@@ -65,8 +65,29 @@
       <% end %>
     </div>
 
+    <%= if @timeline do %>
+      <section
+        id="timeline-card"
+        class="mb-8 p-4 rounded-lg bg-canvas border border-hairline shadow-[rgba(0,0,0,0.07)_0px_4px_20px]"
+      >
+        <h2 class="text-sm font-semibold text-steel mb-2">Reactions over time</h2>
+        <%!-- The hook draws the chart inside this div. phx-update="ignore"
+             stops LiveView from wiping the chart's SVG on re-render. --%>
+        <div
+          id="reaction-timeline"
+          phx-hook=".ReactionTimeline"
+          phx-update="ignore"
+          role="img"
+          aria-label={timeline_label(@timeline)}
+          data-timeline={Jason.encode!(@timeline)}
+          class="w-full h-60"
+        >
+        </div>
+      </section>
+    <% end %>
+
     <%= if @by_slide == %{} do %>
-      <p class="text-muted">No reactions recorded in this session.</p>
+      <p id="no-reactions" class="text-muted">No reactions recorded in this session.</p>
     <% else %>
       <div class="space-y-6">
         <%= for slide_number <- @by_slide |> Map.keys() |> Enum.sort() do %>
@@ -152,4 +173,144 @@
       </div>
     <% end %>
   </div>
+
+  <script :type={Phoenix.LiveView.ColocatedHook} name=".ReactionTimeline">
+    // The vendored, tree-shaken ECharts build (assets/vendor/echarts.custom.js).
+    // `@` is an esbuild alias for the assets/ folder.
+    import {init} from "@/vendor/echarts.custom"
+
+    // Brand colours as hex, because ECharts draws its own SVG and cannot use
+    // Tailwind classes.
+    const MINT = "#00d4a4"
+    const MINT_DEEP = "#00b48a"
+    const INK = "#0a0a0a"
+    const STEEL = "#5a5a5c"
+    const HAIRLINE = "#e5e5e5"
+
+    // Seconds as m:ss, e.g. 75 -> "1:15". Matches the server's aria-label.
+    const clock = (seconds) =>
+      `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+
+    // Builds the ECharts "option" object: a plain description of the chart
+    // that ECharts turns into SVG.
+    function buildOption(data, description, fontFamily) {
+      const {bucket_seconds: bucket, counts, peak, slide_starts: slideStarts} = data
+      const last = counts.length - 1
+
+      // Which slides first got a reaction in each bucket: {bucketIndex: [slide, ...]}.
+      // A slide whose first reaction came after the session ended lies past the
+      // end of the axis, so it is clamped into the last bucket.
+      const slidesByBucket = {}
+      for (const {slide, offset_seconds} of slideStarts) {
+        const index = Math.min(Math.floor(offset_seconds / bucket), last)
+        ;(slidesByBucket[index] ||= []).push(slide)
+      }
+
+      // One entry per bar. A bar can carry its own colour and label, which is
+      // how the peak gets the deeper mint and how slide starts get "Slide N".
+      // The labels belong to the bar series (not a markPoint) so that the
+      // series' labelLayout.hideOverlap can hide colliding ones; ECharts only
+      // runs that overlap check on series labels.
+      const bars = counts.map((count, index) => {
+        const slides = slidesByBucket[index] || []
+        const lines = []
+        if (index === peak.index) lines.push(`{peak|Peak: ${count}}`)
+        if (slides.length > 0) lines.push(`Slide ${slides[0]}${slides.length > 1 ? "+" : ""}`)
+
+        return {
+          value: count,
+          itemStyle: {color: index === peak.index ? MINT_DEEP : MINT},
+          label: lines.length > 0 ? {show: true, formatter: lines.join("\n")} : {show: false},
+        }
+      })
+
+      return {
+        // Lets screen readers read our summary instead of a generated one.
+        aria: {enabled: true, label: {description}},
+        animation: false,
+        // The page's own font. "inherit" does not work here: ECharts writes a
+        // CSS `font` shorthand, which the browser rejects when it contains
+        // "inherit", and the text then falls back to 16px.
+        textStyle: {fontFamily, color: STEEL},
+        // containLabel keeps the axis labels inside the box, so nothing spills
+        // past the container on a narrow phone screen.
+        grid: {left: 4, right: 24, top: 40, bottom: 4, containLabel: true},
+        xAxis: {
+          type: "category",
+          data: counts.map((_, index) => clock(index * bucket)),
+          axisLine: {lineStyle: {color: HAIRLINE}},
+          axisTick: {show: false},
+          axisLabel: {color: STEEL, fontSize: 11, hideOverlap: true},
+        },
+        yAxis: {
+          type: "value",
+          minInterval: 1, // whole reactions only, never 0.5
+          axisLabel: {color: STEEL, fontSize: 11},
+          splitLine: {lineStyle: {color: HAIRLINE}},
+        },
+        tooltip: {
+          trigger: "axis", // one tooltip per bucket, wherever the pointer is in it
+          axisPointer: {type: "shadow"},
+          textStyle: {color: INK, fontSize: 12},
+          borderColor: HAIRLINE,
+          // Plain text built by hand, so a slide label hidden by overlap is
+          // still listed here.
+          formatter: (params) => {
+            const index = params[0].dataIndex
+            const count = counts[index]
+            const rows = [
+              `<strong>${clock(index * bucket)}–${clock((index + 1) * bucket)}</strong>`,
+              `${count} ${count === 1 ? "reaction" : "reactions"}`,
+            ]
+            for (const slide of slidesByBucket[index] || []) rows.push(`Slide ${slide} starts here`)
+            return rows.join("<br>")
+          },
+        },
+        series: [
+          {
+            type: "bar",
+            data: bars,
+            barMaxWidth: 32,
+            label: {
+              position: "top",
+              color: STEEL,
+              fontSize: 11,
+              lineHeight: 14,
+              align: "center",
+              // A light backing keeps a label readable where it sits over a
+              // neighbouring, taller bar.
+              backgroundColor: "rgba(255, 255, 255, 0.85)",
+              padding: [1, 2],
+              borderRadius: 2,
+              // Rich-text style for the "Peak: N" line.
+              rich: {peak: {color: INK, fontWeight: "bold", fontSize: 12, lineHeight: 16}},
+            },
+            // Hide a label that would overlap another rather than overprint it.
+            labelLayout: {hideOverlap: true},
+          },
+        ],
+      }
+    }
+
+    export default {
+      mounted() {
+        const data = JSON.parse(this.el.dataset.timeline)
+        // SVG gives crisp text and lets browser tests find the chart's <svg>.
+        this.chart = init(this.el, null, {renderer: "svg"})
+        const fontFamily = getComputedStyle(this.el).fontFamily
+        this.chart.setOption(buildOption(data, this.el.getAttribute("aria-label"), fontFamily))
+
+        // Redraw at the new size whenever the container changes width, for
+        // example when a phone rotates or the window is resized.
+        this.resizeObserver = new ResizeObserver(() => this.chart.resize())
+        this.resizeObserver.observe(this.el)
+      },
+
+      destroyed() {
+        // Free the observer and the chart's memory when LiveView removes it.
+        this.resizeObserver.disconnect()
+        this.chart.dispose()
+      },
+    }
+  </script>
 </Layouts.app>

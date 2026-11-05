@@ -20,6 +20,8 @@ defmodule SpeechwaveWeb.E2E.SessionAnalyticsTest do
     conn
     |> log_in_as(user)
     |> visit("/sessions/#{session1.id}")
+    # The hook drew the chart: ECharts' SVG renderer adds an <svg>.
+    |> assert_has("#reaction-timeline svg")
     |> assert_has("#total-reactions", text: "3", exact: true)
     |> assert_has("#slide-row-1", text: "🔥")
     |> assert_has("#slide-row-1", text: "❤️")
