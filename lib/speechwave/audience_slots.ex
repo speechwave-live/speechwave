@@ -162,6 +162,41 @@ defmodule Speechwave.AudienceSlots do
     end
   end
 
+  # Anything else (a stray message, a late reply) is ignored. Without this
+  # clause it would raise FunctionClauseError, crash the server and wipe
+  # every held place.
+  def handle_info(_message, state), do: {:noreply, state}
+
+  # Audience IDs must never be logged. When a GenServer crashes, OTP's error
+  # report prints the full state and the last message, and both contain
+  # participant keys. format_status/1 is the hook OTP calls to tidy that
+  # report (and :sys.get_status/1), so swap them for safe summaries: how many
+  # places each talk holds is enough to debug with.
+  @impl true
+  def format_status(status) do
+    status
+    |> Map.replace_lazy(:state, &redact_state/1)
+    |> Map.replace_lazy(:message, &redact_message/1)
+  end
+
+  defp redact_state(%{talks: talks} = state) do
+    %{
+      grace_ms: state.grace_ms,
+      places_per_talk: Map.new(talks, fn {talk_id, places} -> {talk_id, map_size(places)} end),
+      connections: map_size(state.monitors)
+    }
+  end
+
+  defp redact_state(_other), do: :redacted
+
+  defp redact_message({:claim, talk_id, limit, _key, pid}),
+    do: {:claim, talk_id, limit, :redacted, pid}
+
+  defp redact_message({:release, talk_id, _key, ref}), do: {:release, talk_id, :redacted, ref}
+  defp redact_message({:count, _talk_id} = message), do: message
+  defp redact_message({:DOWN, _, _, _, _} = message), do: message
+  defp redact_message(_other), do: :redacted
+
   # Adds a connection to a place (new or existing) and cancels any pending
   # release, since the place has someone in it again.
   defp join_place(state, talk_id, key, place, pid) do

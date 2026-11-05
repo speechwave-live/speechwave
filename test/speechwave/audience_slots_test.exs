@@ -130,6 +130,35 @@ defmodule Speechwave.AudienceSlotsTest do
     assert AudienceSlots.count(2, server) == 1
   end
 
+  test "a stray message does not clear places" do
+    server = start_slots(60_000)
+    :ok = AudienceSlots.claim(1, 2, "a", conn_pid(), server)
+
+    send(server, :unexpected)
+    :sys.get_state(server)
+
+    assert AudienceSlots.count(1, server) == 1
+  end
+
+  test "format_status hides audience ids from crash reports" do
+    server = start_slots(60_000)
+    pid = conn_pid()
+    :ok = AudienceSlots.claim(1, 2, "secret-audience-id", pid, server)
+    state = :sys.get_state(server)
+
+    status =
+      AudienceSlots.format_status(%{
+        state: state,
+        message: {:claim, 1, 2, "secret-audience-id", pid},
+        reason: :boom,
+        log: []
+      })
+
+    refute inspect(status) =~ "secret-audience-id"
+    # Still useful for debugging: how many places each talk holds.
+    assert status.state.places_per_talk == %{1 => 1}
+  end
+
   test "unlimited admits any number of keys and tracks nothing" do
     server = start_slots(60_000)
 
