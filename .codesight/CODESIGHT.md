@@ -4,8 +4,8 @@
 > **Monorepo:** assets, speechwave-load-test
 
 > 13 routes (3 inferred) + 3 ws | 7 models | 0 components | 1 lib files | 9 env vars | 6 middleware | 5 events | 75% test coverage
-> **Token savings:** this file is ~2,500 tokens. Without it, AI exploration would cost ~23,100 tokens. **Saves ~20,600 tokens per conversation.**
-> **Last scanned:** 2026-11-05 23:35 — re-run after significant changes
+> **Token savings:** this file is ~2,600 tokens. Without it, AI exploration would cost ~23,100 tokens. **Saves ~20,600 tokens per conversation.**
+> **Last scanned:** 2026-11-05 23:50 — re-run after significant changes
 
 ---
 
@@ -88,6 +88,7 @@
 - label: string
 - started_at: timestamp
 - ended_at: timestamp
+- participant_limit_hit_at: timestamp
 - talk_id: integer (fk)
 - _relations_: talk: belongs_to(Speechwave.Talks.Talk), reactions: has_many(Speechwave.Reactions.Reaction)
 

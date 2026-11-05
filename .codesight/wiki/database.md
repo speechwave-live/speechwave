@@ -76,6 +76,7 @@ fk: talk_id
 - `label`: string
 - `started_at`: timestamp
 - `ended_at`: timestamp
+- `participant_limit_hit_at`: timestamp
 - `talk_id`: integer _(fk)_
 - _relations_: talk: belongs_to(Speechwave.Talks.Talk), reactions: has_many(Speechwave.Reactions.Reaction)
 

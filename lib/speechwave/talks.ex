@@ -54,6 +54,20 @@ defmodule Speechwave.Talks do
   # Sessions
   # ---------------------------------------------------------------------------
 
+  @doc """
+  Records the moment a session first turned a visitor away because of the
+  participant limit. Only the first call writes: the `is_nil` guard in the
+  query means later calls match no rows and the original time is kept.
+  """
+  def record_participant_limit_hit(%TalkSession{id: id}) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    from(s in TalkSession, where: s.id == ^id and is_nil(s.participant_limit_hit_at))
+    |> Repo.update_all(set: [participant_limit_hit_at: now])
+
+    :ok
+  end
+
   def start_session(%Talk{} = talk) do
     case get_active_session(talk.id) do
       nil ->

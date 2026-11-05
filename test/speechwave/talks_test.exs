@@ -5,6 +5,7 @@ defmodule Speechwave.TalksTest do
   alias Speechwave.Talks
   alias Speechwave.Talks.Talk
 
+  import Ecto.Query
   import Speechwave.AccountsFixtures
   import Speechwave.TalksFixtures
 
@@ -214,6 +215,34 @@ defmodule Speechwave.TalksTest do
       assert Talks.get_session(first.id).ended_at != nil
       assert second.label == "Session 2"
       assert second.ended_at == nil
+    end
+  end
+
+  describe "record_participant_limit_hit/1" do
+    test "sets the timestamp the first time and returns :ok" do
+      user = user_fixture()
+      {:ok, talk} = Talks.create_talk(scope(user), %{title: "Test", slug: "limit-hit-first"})
+      {:ok, session} = Talks.start_session(talk)
+
+      assert Talks.get_session(session.id).participant_limit_hit_at == nil
+      assert :ok = Talks.record_participant_limit_hit(session)
+      assert %DateTime{} = Talks.get_session(session.id).participant_limit_hit_at
+    end
+
+    test "never overwrites an existing timestamp and returns :ok" do
+      user = user_fixture()
+      {:ok, talk} = Talks.create_talk(scope(user), %{title: "Test", slug: "limit-hit-twice"})
+      {:ok, session} = Talks.start_session(talk)
+
+      known = ~U[2026-01-02 03:04:05Z]
+
+      Speechwave.Repo.update_all(
+        from(s in Speechwave.Talks.TalkSession, where: s.id == ^session.id),
+        set: [participant_limit_hit_at: known]
+      )
+
+      assert :ok = Talks.record_participant_limit_hit(session)
+      assert Talks.get_session(session.id).participant_limit_hit_at == known
     end
   end
 
