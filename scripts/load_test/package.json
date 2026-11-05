@@ -1,0 +1,7 @@
+{
+  "name": "speechwave-load-test",
+  "private": true,
+  "type": "module",
+  "description": "Throwaway load-test tooling. See README.md.",
+  "dependencies": { "ws": "^8.18.0" }
+}
