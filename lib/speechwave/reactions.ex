@@ -44,6 +44,22 @@ defmodule Speechwave.Reactions do
     if count == 0, do: nil, else: count
   end
 
+  @doc """
+  Distinct audience members who reacted on each slide, as `%{slide_number => count}`.
+  Slide 0 is the general bucket. Slides where no reaction carries an audience
+  ID are absent from the map.
+  """
+  def slide_audience_counts(session_id) do
+    from(r in Reaction,
+      where: r.talk_session_id == ^session_id,
+      group_by: r.slide_number,
+      having: count(r.audience_id, :distinct) > 0,
+      select: {r.slide_number, count(r.audience_id, :distinct)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
   def slide_reaction_totals(session_id) do
     from(r in Reaction,
       where: r.talk_session_id == ^session_id,

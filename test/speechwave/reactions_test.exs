@@ -68,4 +68,22 @@ defmodule Speechwave.ReactionsTest do
       assert Reactions.slide_reaction_totals(session.id) == []
     end
   end
+
+  describe "slide_audience_counts/1" do
+    test "counts distinct audience ids per slide", %{session: session} do
+      Reactions.create_reaction(session, "❤️", 1, "a")
+      Reactions.create_reaction(session, "😂", 1, "a")
+      Reactions.create_reaction(session, "😂", 1, "b")
+      Reactions.create_reaction(session, "❤️", 2, "a")
+      Reactions.create_reaction(session, "❤️", 3)
+      Reactions.create_reaction(session, "❤️", 0, "c")
+
+      {:ok, other} =
+        Talks.start_session(Speechwave.Repo.get!(Speechwave.Talks.Talk, session.talk_id))
+
+      Reactions.create_reaction(other, "❤️", 1, "z")
+
+      assert Reactions.slide_audience_counts(session.id) == %{0 => 1, 1 => 2, 2 => 1}
+    end
+  end
 end

@@ -37,6 +37,17 @@ defmodule SpeechwaveWeb.SessionAnalyticsLiveTest do
     assert has_element?(view, "#audience-count", "2")
   end
 
+  test "shows people reacting on each slide card", %{conn: conn, session: session} do
+    Speechwave.Reactions.create_reaction(session, "❤️", 1, "a")
+    Speechwave.Reactions.create_reaction(session, "😂", 1, "b")
+    Speechwave.Reactions.create_reaction(session, "❤️", 2, "a")
+    Speechwave.Reactions.create_reaction(session, "❤️", 3)
+    {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+    assert has_element?(view, "#slide-people-1", "2 people")
+    assert has_element?(view, "#slide-people-2", "1 person")
+    refute has_element?(view, "#slide-people-3")
+  end
+
   test "hides people reacting when reactions have no audience id", %{conn: conn, session: session} do
     Speechwave.Reactions.create_reaction(session, "❤️", 1)
     {:ok, view, _html} = live(conn, "/sessions/#{session.id}")

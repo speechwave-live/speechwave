@@ -78,6 +78,11 @@
           >
             <div class="text-sm font-semibold text-steel mb-3">
               {if slide_number == 0, do: "General", else: "Slide #{slide_number}"}
+              <%= if people = @slide_people[slide_number] do %>
+                <span id={"slide-people-#{slide_number}"} class="ml-2 font-normal text-muted">
+                  {if people == 1, do: "1 person", else: "#{people} people"}
+                </span>
+              <% end %>
             </div>
             <div class="space-y-2">
               <%= for %{emoji: emoji, count: count} <- Enum.sort_by(entries, & &1.count, :desc) do %>
