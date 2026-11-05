@@ -6,7 +6,6 @@ import { BarChart } from "echarts/charts"
 import {
   GridComponent,
   TooltipComponent,
-  MarkPointComponent,
   AriaComponent,
 } from "echarts/components"
 import { SVGRenderer } from "echarts/renderers"
@@ -16,7 +15,6 @@ use([
   BarChart,
   GridComponent,
   TooltipComponent,
-  MarkPointComponent,
   AriaComponent,
   SVGRenderer,
   LabelLayout,

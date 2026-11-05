@@ -203,7 +203,9 @@
       const slidesByBucket = {}
       for (const {slide, offset_seconds} of slideStarts) {
         const index = Math.min(Math.floor(offset_seconds / bucket), last)
-        ;(slidesByBucket[index] ||= []).push(slide)
+        // Start a list for this bucket the first time, then add the slide to it.
+        if (!slidesByBucket[index]) slidesByBucket[index] = []
+        slidesByBucket[index].push(slide)
       }
 
       // One entry per bar. A bar can carry its own colour and label, which is
@@ -214,6 +216,7 @@
       const bars = counts.map((count, index) => {
         const slides = slidesByBucket[index] || []
         const lines = []
+        // In rich text, `{name|text}` styles "text" with the style called "name" from label.rich.
         if (index === peak.index) lines.push(`{peak|Peak: ${count}}`)
         if (slides.length > 0) lines.push(`Slide ${slides[0]}${slides.length > 1 ? "+" : ""}`)
 
@@ -308,8 +311,9 @@
 
       destroyed() {
         // Free the observer and the chart's memory when LiveView removes it.
-        this.resizeObserver.disconnect()
-        this.chart.dispose()
+        // The ?. skips the call if mounted() failed before creating them.
+        this.resizeObserver?.disconnect()
+        this.chart?.dispose()
       },
     }
   </script>
