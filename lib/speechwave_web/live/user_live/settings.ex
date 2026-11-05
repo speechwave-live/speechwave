@@ -217,13 +217,20 @@ defmodule SpeechwaveWeb.UserLive.Settings do
           a schema describing it, and a README. It leaves out your API key and other
           people's data.
         </p>
-        <a
-          id="download-my-data"
-          href={~p"/users/settings/export"}
-          class="mt-3 inline-flex items-center gap-2 rounded-lg border border-base-300 px-3.5 py-2 text-sm font-semibold text-base-content transition-colors hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        <.form
+          for={%{}}
+          id="download-my-data-form"
+          action={~p"/users/settings/export"}
+          method="post"
         >
-          <.icon name="hero-arrow-down-tray" class="size-4" /> Download my data
-        </a>
+          <button
+            id="download-my-data"
+            type="submit"
+            class="mt-3 inline-flex items-center gap-2 rounded-lg border border-base-300 px-3.5 py-2 text-sm font-semibold text-base-content transition-colors hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <.icon name="hero-arrow-down-tray" class="size-4" /> Download my data
+          </button>
+        </.form>
       </div>
 
       <div class="divider" />

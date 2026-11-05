@@ -5,7 +5,7 @@
 
 > 13 routes (3 inferred) + 3 ws | 7 models | 0 components | 1 lib files | 9 env vars | 6 middleware | 5 events | 75% test coverage
 > **Token savings:** this file is ~2,500 tokens. Without it, AI exploration would cost ~23,100 tokens. **Saves ~20,600 tokens per conversation.**
-> **Last scanned:** 2026-11-05 18:26 — re-run after significant changes
+> **Last scanned:** 2026-11-05 18:28 — re-run after significant changes
 
 ---
 
@@ -16,7 +16,7 @@
 - `GET` `/terms` [auth] ✓
 - `GET` `/privacy` [auth] ✓
 - `DELETE` `/users/account` [auth] ✓
-- `GET` `/users/settings/export` [auth] ✓
+- `POST` `/users/settings/export` [auth] ✓
 - `GET` `/consent-export` [auth]
 - `GET` `/users/magic_link/:token` params(token) [auth]
 - `DELETE` `/users/log-out` [auth] ✓
@@ -196,7 +196,7 @@
 - GET:/terms
 - GET:/privacy
 - DELETE:/users/account
-- GET:/users/settings/export
+- POST:/users/settings/export
 - DELETE:/users/log-out
 - WS:error
 

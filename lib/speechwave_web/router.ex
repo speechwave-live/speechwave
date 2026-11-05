@@ -52,7 +52,7 @@ defmodule SpeechwaveWeb.Router do
     delete "/users/account", UserAccountController, :delete
 
     # Also a controller action: a LiveView cannot send a file download.
-    get "/users/settings/export", UserDataExportController, :show
+    post "/users/settings/export", UserDataExportController, :create
   end
 
   # ---------------------------------------------------------------------------

@@ -8,21 +8,38 @@ defmodule SpeechwaveWeb.UserDataExportController do
   Sends the signed-in user a zip of their personal data.
 
   This is a controller action, not a LiveView event, because a LiveView
-  cannot send a file download. The cooldown is claimed before the zip is
-  built and released if the build raises, so a failure never locks the user
-  out. Tests can swap the builder with the `:data_export_zip_fun` app env.
+  cannot send a file download. It is a POST because it has a side effect (it
+  claims the cooldown), so a link or prefetch cannot trigger it. The cooldown
+  is claimed before the zip is built and released if the build returns an
+  error or raises, or if sending the file raises, so a failure never locks the
+  user out. Tests can swap the builder with the `:data_export_zip_fun` app env.
   """
-  def show(conn, _params) do
+  def create(conn, _params) do
     scope = conn.assigns.current_scope
+    user_id = scope.user.id
 
-    case DataExportThrottle.claim(scope.user.id) do
+    case DataExportThrottle.claim(user_id) do
       :ok ->
-        {:ok, zip} = build_zip(scope)
+        try do
+          case build_zip(scope) do
+            {:ok, zip} ->
+              send_download(conn, {:binary, zip},
+                filename: "speechwave-data.zip",
+                content_type: "application/zip"
+              )
 
-        send_download(conn, {:binary, zip},
-          filename: "speechwave-data.zip",
-          content_type: "application/zip"
-        )
+            {:error, _reason} ->
+              DataExportThrottle.release(user_id)
+
+              conn
+              |> put_flash(:error, "We could not build your download. Please try again.")
+              |> redirect(to: ~p"/users/settings")
+          end
+        rescue
+          exception ->
+            DataExportThrottle.release(user_id)
+            reraise exception, __STACKTRACE__
+        end
 
       {:error, seconds} ->
         minutes = ceil(seconds / 60)
@@ -39,9 +56,5 @@ defmodule SpeechwaveWeb.UserDataExportController do
   defp build_zip(scope) do
     zip_fun = Application.get_env(:speechwave, :data_export_zip_fun, &DataExport.to_zip/1)
     zip_fun.(scope)
-  rescue
-    exception ->
-      DataExportThrottle.release(scope.user.id)
-      reraise exception, __STACKTRACE__
   end
 end

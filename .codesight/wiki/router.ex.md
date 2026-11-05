@@ -12,7 +12,7 @@ The Router.ex subsystem handles **9 routes** and touches: auth.
   `lib/speechwave_web/router.ex`
 - `DELETE` `/users/account` [auth]
   `lib/speechwave_web/router.ex`
-- `GET` `/users/settings/export` [auth]
+- `POST` `/users/settings/export` [auth]
   `lib/speechwave_web/router.ex`
 - `GET` `/consent-export` [auth]
   `lib/speechwave_web/router.ex`

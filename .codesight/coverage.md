@@ -10,7 +10,7 @@
 - GET:/terms
 - GET:/privacy
 - DELETE:/users/account
-- GET:/users/settings/export
+- POST:/users/settings/export
 - DELETE:/users/log-out
 - WS:error
 

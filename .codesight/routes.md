@@ -5,7 +5,7 @@
 - `GET` `/terms` [auth] ✓
 - `GET` `/privacy` [auth] ✓
 - `DELETE` `/users/account` [auth] ✓
-- `GET` `/users/settings/export` [auth] ✓
+- `POST` `/users/settings/export` [auth] ✓
 - `GET` `/consent-export` [auth]
 - `GET` `/users/magic_link/:token` params(token) [auth]
 - `DELETE` `/users/log-out` [auth] ✓
