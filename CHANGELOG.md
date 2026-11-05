@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Session analytics now has a reaction timeline. It shows how many reactions came in over the course of the session, marks the peak, and marks where each slide got its first reaction.
+- Each slide in the session analytics now shows how many people reacted to it.
+
+### Fixed
+
+- "Download my data" is now a button that sends a POST request instead of a link.
+- A failed data download no longer leaves you waiting out the five-minute cooldown.
+- Sign-in providers in the data export now always appear in the same order.
+
 ## [0.5.0] - 2026-10-26
 
 ### Added

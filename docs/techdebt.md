@@ -56,3 +56,22 @@ Found reviewing the export (`docs/specs/2026-10-23-gdpr-data-export-design.md`).
 - **`audience_size` is a lower bound for old sessions.** Reactions recorded
   before audience tracking have no audience ID and are not counted, the same as
   on the dashboard. The schema explains a null but not a partial count.
+- **A download that dies mid-request leaves the cooldown claimed.** The release
+  uses `rescue`, so a throw, an exit, or a request process killed during the
+  download (client disconnect) keeps the cooldown for 5 minutes. Fix with a
+  `catch kind, value` clause, or an `after` with a "sent" flag. Left because the
+  spec scopes a browser-cancelled download out.
+
+## Reaction timeline
+
+- **ECharts loads on every page.** It is imported statically into `app.js`, so
+  the audience page on phones downloads it too (about 180 KB gzipped).
+  CLAUDE.md allows only the `app.js` and `app.css` bundles, and a dynamic
+  `import()` is inlined without esbuild splitting, so it would not help.
+- **Several slide starts in one bucket read "Slide N+".** When several slides
+  first get a reaction in the same time bucket, the chart label shows the first
+  slide with a "+" and only the tooltip lists them all. The wording could be
+  clearer. Left because it is rare and the tooltip has the full list.
+- **Late slide markers sit in the last bucket.** A slide whose first reaction
+  comes after the session ended is placed in the last bucket, so its marker is
+  slightly misleading. Left because it only happens for reactions after the end.
