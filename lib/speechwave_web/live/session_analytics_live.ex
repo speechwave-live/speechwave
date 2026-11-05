@@ -23,7 +23,7 @@ defmodule SpeechwaveWeb.SessionAnalyticsLive do
           Talks.list_sessions(talk.id)
           |> Enum.reject(fn %{session: s} -> s.id == session.id end)
 
-        compare_session = resolve_compare_session(params)
+        compare_session = resolve_compare_session(params, talk)
 
         compare_totals =
           if compare_session,
@@ -50,14 +50,19 @@ defmodule SpeechwaveWeb.SessionAnalyticsLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
-  defp resolve_compare_session(%{"other_id" => other_id}) do
-    case Integer.parse(other_id) do
-      {n, ""} -> Talks.get_session(n)
+  # Only sessions of the same talk can be compared. The talk was already
+  # loaded through the current scope, so this also keeps other users'
+  # sessions out.
+  defp resolve_compare_session(%{"other_id" => other_id}, talk) do
+    with {n, ""} <- Integer.parse(other_id),
+         %{talk_id: talk_id} = other when talk_id == talk.id <- Talks.get_session(n) do
+      other
+    else
       _ -> nil
     end
   end
 
-  defp resolve_compare_session(_), do: nil
+  defp resolve_compare_session(_, _talk), do: nil
 
   # Screen-reader summary of the timeline chart, for example
   # "Reactions over time: 14 reactions, busiest at 3:20". The busiest time is

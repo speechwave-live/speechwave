@@ -139,6 +139,27 @@ defmodule SpeechwaveWeb.SessionAnalyticsLiveTest do
     assert render(view) =~ s2.label
   end
 
+  test "ignores a compare session that belongs to another user",
+       %{conn: conn, session: session} do
+    other_talk = talk_fixture(user_fixture())
+    {:ok, other_session} = Speechwave.Talks.start_session(other_talk)
+    Speechwave.Reactions.create_reaction(other_session, "🔥", 1)
+
+    {:ok, view, _html} = live(conn, "/sessions/#{session.id}/compare/#{other_session.id}")
+
+    refute has_element?(view, "#compare-section")
+  end
+
+  test "ignores a compare session from a different talk of the same user",
+       %{conn: conn, user: user, session: session} do
+    other_talk = talk_fixture(user)
+    {:ok, other_session} = Speechwave.Talks.start_session(other_talk)
+
+    {:ok, view, _html} = live(conn, "/sessions/#{session.id}/compare/#{other_session.id}")
+
+    refute has_element?(view, "#compare-section")
+  end
+
   test "shows the authenticated header nav, not the public nav", %{conn: conn, session: session} do
     {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
 
