@@ -50,7 +50,7 @@ defmodule SpeechwaveWeb.PricingLive do
                   "Session analytics",
                   "Fireworks mode",
                   "Single user",
-                  "Up to #{@free_participant_limit} participants per talk",
+                  "Up to #{@free_participant_limit} people connected at once per talk",
                   "#{@free_session_limit} full talk sessions per month†",
                   "QR code sharing",
                   "Browser extension",

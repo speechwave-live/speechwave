@@ -10,11 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Session analytics now has a reaction timeline. It shows how many reactions came in over the course of the session, marks the peak, and marks where each slide got its first reaction.
+- The session analytics page tells you when a talk reached its participant limit.
 - Each slide in the session analytics now shows how many people reacted to it.
 
 ### Changed
 
 - The charting library is now downloaded only on the session analytics page. Other pages, including the audience reaction page on phones, load about 180 KB less JavaScript.
+- Free plan talks now limit the audience to 15 people connected at once, as the pricing page says. Before, only the speaker's own connections were limited. A person whose connection drops keeps their place for 30 seconds.
+- The extension now allows up to 3 connections per account at once, across all talks.
 
 ### Fixed
 
