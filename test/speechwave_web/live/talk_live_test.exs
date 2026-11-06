@@ -164,8 +164,11 @@ defmodule SpeechwaveWeb.TalkLiveTest do
 
   test "receives Endpoint broadcast and page still renders correctly", %{conn: conn, talk: talk} do
     {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+    send_audience_id(view)
     SpeechwaveWeb.Endpoint.broadcast!("reactions:#{talk.slug}", "new_reaction", %{emoji: "🔥"})
-    assert render(view) =~ talk.title
+
+    assert_push_event(view, "new_reaction", %{emoji: "🔥"})
+    assert has_element?(view, "#emoji-buttons")
   end
 
   describe "reaction persistence" do
@@ -382,12 +385,57 @@ defmodule SpeechwaveWeb.TalkLiveTest do
       assert %DateTime{} = Talks.get_session(session.id).participant_limit_hit_at
     end
 
-    test "a turn-away with no active session records nothing", %{conn: conn, talk: talk} do
+    test "later turn-aways leave the recorded time alone and skip the write",
+         %{conn: conn, talk: talk} do
+      {:ok, session} = Talks.start_session(talk)
+      fill_places(talk, free_limit())
+
+      {:ok, first, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(first)
+      assert %DateTime{} = hit_at = Talks.get_session(session.id).participant_limit_hit_at
+
+      # Ecto reports every query through telemetry, in the process that ran
+      # it. Forward the SQL of any talk_sessions update to the test.
+      test_pid = self()
+      handler = "talk-live-limit-hit-#{System.unique_integer()}"
+
+      :telemetry.attach(
+        handler,
+        [:speechwave, :repo, :query],
+        fn _event, _measurements, %{query: sql}, _config ->
+          if sql =~ ~r/UPDATE "talk_sessions"/, do: send(test_pid, {:session_update, sql})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler) end)
+
+      {:ok, second, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(second)
+      assert has_element?(second, "#talk-full")
+
+      refute_received {:session_update, _}
+      assert Talks.get_session(session.id).participant_limit_hit_at == hit_at
+    end
+
+    test "a turn-away with no active session does not crash", %{conn: conn, talk: talk} do
       fill_places(talk, free_limit())
 
       {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
       send_audience_id(view)
       assert has_element?(view, "#talk-full")
+    end
+
+    test "the place key is a hash, never the browser's id", %{conn: conn, talk: talk} do
+      id = Ecto.UUID.generate()
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view, String.upcase(id))
+
+      expected = :crypto.hash(:sha256, id) |> Base.encode16(case: :lower)
+      places = :sys.get_state(AudienceSlots).talks[talk.id]
+
+      assert Map.keys(places) == [expected]
+      refute inspect(:sys.get_state(AudienceSlots)) =~ id
     end
 
     test "a pro-plan talk admits more than the free limit without tracking places",

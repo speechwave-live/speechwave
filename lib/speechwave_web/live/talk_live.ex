@@ -47,10 +47,10 @@ defmodule SpeechwaveWeb.TalkLive do
   # `session_id`, which a client cannot choose.
   #
   # The same event claims the visitor's place on a limited plan, once per
-  # LiveView process. The place is keyed by the UUID so two tabs or a
-  # reconnect share one place. A missing or malformed id still claims, keyed
-  # by `socket.id`, so the visitor holds exactly one place rather than being
-  # stuck in `:pending`.
+  # LiveView process. The place is keyed by a hash of the UUID so two tabs or
+  # a reconnect share one place. A missing or malformed id still claims, keyed
+  # by a hash of `socket.id`, so the visitor holds exactly one place rather
+  # than being stuck in `:pending`.
   def handle_event("audience_id", params, socket) do
     socket =
       socket
@@ -112,7 +112,7 @@ defmodule SpeechwaveWeb.TalkLive do
   defp put_client_id(socket, _params), do: socket
 
   defp claim_place(%{assigns: %{slot: :pending, talk: talk}} = socket) do
-    key = socket.assigns.client_id || socket.id
+    key = place_key(socket.assigns.client_id || socket.id)
 
     case AudienceSlots.claim(talk.id, socket.assigns.participant_limit, key, self()) do
       :ok ->
@@ -120,9 +120,11 @@ defmodule SpeechwaveWeb.TalkLive do
         assign(socket, :slot, :held)
 
       {:error, :full} ->
-        # Only the first turn-away of a session is stored; the update is a
-        # no-op once the column is set.
-        if session = Talks.get_active_session(talk.id),
+        # Only the first turn-away of a session is stored. Once the time is
+        # set, later turn-aways skip the write entirely.
+        session = Talks.get_active_session(talk.id)
+
+        if session && is_nil(session.participant_limit_hit_at),
           do: Talks.record_participant_limit_hit(session)
 
         assign(socket, :slot, :full)
@@ -130,6 +132,12 @@ defmodule SpeechwaveWeb.TalkLive do
   end
 
   defp claim_place(socket), do: socket
+
+  # AudienceSlots only needs a stable key per person, not the id itself, so
+  # it gets a SHA-256 of it. The raw id then never reaches the server's
+  # state, its call messages or a crash report. The same id always hashes to
+  # the same key, so two tabs and reconnects still share one place.
+  defp place_key(id), do: :crypto.hash(:sha256, id) |> Base.encode16(case: :lower)
 
   defp subscribe(talk) do
     Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
