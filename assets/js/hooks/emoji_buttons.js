@@ -2,8 +2,14 @@ import {audienceId} from "../audience_id"
 
 // Tell the server who this is. On a free-plan talk this is also what claims
 // the visitor's place, so the server sends no reactions until it arrives.
+//
+// The id is looked up once and kept on the hook. When localStorage is
+// blocked, audienceId() makes up a new random id on every call, so asking
+// again on a reconnect would claim a second place while the first is still
+// held for its grace period. On a full talk that person would be turned away.
 function sendAudienceId(hook) {
-  hook.pushEvent("audience_id", {id: audienceId(hook.el.dataset.talkSlug)})
+  hook.audienceId ??= audienceId(hook.el.dataset.talkSlug)
+  hook.pushEvent("audience_id", {id: hook.audienceId})
 }
 
 const EmojiButtons = {
