@@ -11,8 +11,8 @@
 - `lib/speechwave/accounts/scope.ex` — imported by **12** files
 - `lib/ex_unit/case.ex` — imported by **12** files
 - `lib/speechwave/deletion_log.ex` — imported by **9** files
+- `lib/speechwave/.ex` — imported by **9** files
 - `lib/speechwave_web/e2_e_case.ex` — imported by **9** files
-- `lib/speechwave/.ex` — imported by **8** files
 - `lib/speechwave/accounts/user.ex` — imported by **7** files
 - `lib/speechwave/plans.ex` — imported by **6** files
 - `lib/speechwave/accounts/.ex` — imported by **5** files
@@ -34,4 +34,4 @@
 - `lib/speechwave/accounts/scope.ex` ← `lib/speechwave/data_export.ex`, `lib/speechwave/talks.ex`, `lib/speechwave_web/user_auth.ex`, `scripts/manual_tests/seed_screenshots.exs`, `test/speechwave/data_export_test.exs` +7 more
 - `lib/ex_unit/case.ex` ← `test/speechwave/admin/chart_test.exs`, `test/speechwave/admin/csv_test.exs`, `test/speechwave/audience_slots_test.exs`, `test/speechwave/auth_throttle_test.exs`, `test/speechwave/data_export_throttle_test.exs` +7 more
 - `lib/speechwave/deletion_log.ex` ← `lib/speechwave/accounts.ex`, `lib/speechwave/admin/stats.ex`, `lib/speechwave/db_backup.ex`, `test/speechwave/accounts/suspicious_user_reaper_test.exs`, `test/speechwave/accounts_delete_test.exs` +4 more
-- `lib/speechwave_web/e2_e_case.ex` ← `test/e2e/account_settings_test.exs`, `test/e2e/auth_throttle_test.exs`, `test/e2e/dashboard_test.exs`, `test/e2e/email_consent_test.exs`, `test/e2e/reaction_flow_test.exs` +4 more
+- `lib/speechwave/.ex` ← `lib/speechwave_web/live/pricing_live.ex`, `lib/speechwave_web/live/session_analytics_live.ex`, `lib/speechwave_web/live/talk_live.ex`, `priv/repo/reset_password.exs`, `priv/repo/seeds.exs` +4 more

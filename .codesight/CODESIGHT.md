@@ -3,9 +3,9 @@
 > **Stack:** phoenix | ecto | unknown | elixir
 > **Monorepo:** assets, speechwave-load-test
 
-> 13 routes (3 inferred) + 3 ws | 7 models | 0 components | 1 lib files | 9 env vars | 6 middleware | 5 events | 75% test coverage
-> **Token savings:** this file is ~2,600 tokens. Without it, AI exploration would cost ~23,100 tokens. **Saves ~20,600 tokens per conversation.**
-> **Last scanned:** 2026-11-05 23:56 — re-run after significant changes
+> 13 routes (3 inferred) + 3 ws | 7 models | 0 components | 1 lib files | 9 env vars | 6 middleware | 3 events | 75% test coverage
+> **Token savings:** this file is ~2,500 tokens. Without it, AI exploration would cost ~22,800 tokens. **Saves ~20,200 tokens per conversation.**
+> **Last scanned:** 2026-11-06 00:01 — re-run after significant changes
 
 ---
 
@@ -148,8 +148,8 @@
 - `lib/speechwave/accounts/scope.ex` — imported by **12** files
 - `lib/ex_unit/case.ex` — imported by **12** files
 - `lib/speechwave/deletion_log.ex` — imported by **9** files
+- `lib/speechwave/.ex` — imported by **9** files
 - `lib/speechwave_web/e2_e_case.ex` — imported by **9** files
-- `lib/speechwave/.ex` — imported by **8** files
 - `lib/speechwave/accounts/user.ex` — imported by **7** files
 - `lib/speechwave/plans.ex` — imported by **6** files
 - `lib/speechwave/accounts/.ex` — imported by **5** files
@@ -171,16 +171,14 @@
 - `lib/speechwave/accounts/scope.ex` ← `lib/speechwave/data_export.ex`, `lib/speechwave/talks.ex`, `lib/speechwave_web/user_auth.ex`, `scripts/manual_tests/seed_screenshots.exs`, `test/speechwave/data_export_test.exs` +7 more
 - `lib/ex_unit/case.ex` ← `test/speechwave/admin/chart_test.exs`, `test/speechwave/admin/csv_test.exs`, `test/speechwave/audience_slots_test.exs`, `test/speechwave/auth_throttle_test.exs`, `test/speechwave/data_export_throttle_test.exs` +7 more
 - `lib/speechwave/deletion_log.ex` ← `lib/speechwave/accounts.ex`, `lib/speechwave/admin/stats.ex`, `lib/speechwave/db_backup.ex`, `test/speechwave/accounts/suspicious_user_reaper_test.exs`, `test/speechwave/accounts_delete_test.exs` +4 more
-- `lib/speechwave_web/e2_e_case.ex` ← `test/e2e/account_settings_test.exs`, `test/e2e/auth_throttle_test.exs`, `test/e2e/dashboard_test.exs`, `test/e2e/email_consent_test.exs`, `test/e2e/reaction_flow_test.exs` +4 more
+- `lib/speechwave/.ex` ← `lib/speechwave_web/live/pricing_live.ex`, `lib/speechwave_web/live/session_analytics_live.ex`, `lib/speechwave_web/live/talk_live.ex`, `priv/repo/reset_password.exs`, `priv/repo/seeds.exs` +4 more
 
 ---
 
 # Events & Queues
 
-- `reactions:#{slug}` [channel] — `lib/speechwave_web/live/talk_live.ex`
-- `slides:#{slug}` [channel] — `lib/speechwave_web/live/talk_live.ex`
-- `slides:#{talk.slug}` [channel] — `test/speechwave_web/channels/reaction_channel_test.exs`
-- `reactions:#{talk.slug}` [channel] — `test/speechwave_web/live/talk_live_test.exs`
+- `reactions:#{talk.slug}` [channel] — `lib/speechwave_web/live/talk_live.ex`
+- `slides:#{talk.slug}` [channel] — `lib/speechwave_web/live/talk_live.ex`
 - `user:#{user.id}:disconnect` [channel] — `test/speechwave_web/live/user_live/settings_test.exs`
 
 ---

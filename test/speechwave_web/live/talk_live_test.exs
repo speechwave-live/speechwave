@@ -6,10 +6,29 @@ defmodule SpeechwaveWeb.TalkLiveTest do
   import Speechwave.AccountsFixtures
   import Speechwave.TalksFixtures
 
+  alias Speechwave.{Accounts, AudienceSlots, Plans, Talks}
+
+  # The test database is SQLite, which hands out the same talk ids again after
+  # each test's rollback. Places held by the previous test are freed
+  # asynchronously and could still count against this test's talk, so each
+  # test starts with an empty AudienceSlots server. No async test uses it.
+  setup do
+    :ok = Supervisor.terminate_child(Speechwave.Supervisor, AudienceSlots)
+    {:ok, _pid} = Supervisor.restart_child(Speechwave.Supervisor, AudienceSlots)
+    :ok
+  end
+
   setup do
     user = user_fixture()
     talk = talk_fixture(user, %{title: "Elixir for Rubyists", slug: "elixir-for-rubyists"})
     {:ok, talk: talk}
+  end
+
+  # Real browsers send their audience id as soon as the page mounts, and on a
+  # free-plan talk that is what claims a place. Tests that react do the same.
+  defp send_audience_id(view, id \\ Ecto.UUID.generate()) do
+    render_hook(view, "audience_id", %{"id" => id})
+    view
   end
 
   test "renders the talk page with emoji buttons", %{conn: conn, talk: talk} do
@@ -29,6 +48,7 @@ defmodule SpeechwaveWeb.TalkLiveTest do
 
   test "react event broadcasts via Endpoint when rate limit allows", %{conn: conn, talk: talk} do
     {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+    send_audience_id(view)
     Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
 
     render_click(view, "react", %{"emoji" => "❤️"})
@@ -92,7 +112,13 @@ defmodule SpeechwaveWeb.TalkLiveTest do
       assert [_, _] = Enum.uniq(stored_ids())
     end
 
-    test "a reaction before the id arrives has no audience id", %{view: view} do
+    # Only an unlimited plan lets a reaction through before the id arrives:
+    # on a limited plan the id is what claims a place.
+    test "a reaction before the id arrives has no audience id", %{conn: conn, talk: talk} do
+      user = Speechwave.Repo.preload(talk, :user).user
+      {:ok, _} = Accounts.set_user_plan(user, :pro)
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+
       render_click(view, "react", %{"emoji" => "❤️"})
       assert [nil] = stored_ids()
     end
@@ -126,6 +152,7 @@ defmodule SpeechwaveWeb.TalkLiveTest do
 
   test "react event is silently dropped when rate limited", %{conn: conn, talk: talk} do
     {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+    send_audience_id(view)
     Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
 
     render_click(view, "react", %{"emoji" => "❤️"})
@@ -145,6 +172,7 @@ defmodule SpeechwaveWeb.TalkLiveTest do
     test "persists reaction to active session when one exists", %{conn: conn, talk: talk} do
       {:ok, session} = Speechwave.Talks.start_session(talk)
       {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
 
       render_click(view, "react", %{"emoji" => "❤️"})
 
@@ -154,6 +182,7 @@ defmodule SpeechwaveWeb.TalkLiveTest do
     test "does not persist reaction when no active session", %{conn: conn, talk: talk} do
       # No session started — reaction should broadcast fine but not persist
       {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
       Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
 
       render_click(view, "react", %{"emoji" => "❤️"})
@@ -167,6 +196,7 @@ defmodule SpeechwaveWeb.TalkLiveTest do
     test "stamps reaction with current_slide when slide has been set", %{conn: conn, talk: talk} do
       {:ok, session} = Speechwave.Talks.start_session(talk)
       {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
 
       # Simulate the extension broadcasting a slide change
       SpeechwaveWeb.Endpoint.broadcast!(
@@ -193,6 +223,7 @@ defmodule SpeechwaveWeb.TalkLiveTest do
          %{conn: conn, talk: talk} do
       {:ok, session} = Speechwave.Talks.start_session(talk)
       {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
 
       # Presenting starts on slide 7
       SpeechwaveWeb.Endpoint.broadcast!("slides:#{talk.slug}", "slide_changed", %{slide: 7})
@@ -216,6 +247,7 @@ defmodule SpeechwaveWeb.TalkLiveTest do
     test "stamps reaction with slide 0 when no slide has been set", %{conn: conn, talk: talk} do
       {:ok, session} = Speechwave.Talks.start_session(talk)
       {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
 
       render_click(view, "react", %{"emoji" => "❤️"})
 
@@ -226,6 +258,152 @@ defmodule SpeechwaveWeb.TalkLiveTest do
         )
 
       assert reaction.slide_number == 0
+    end
+  end
+
+  describe "participant limit" do
+    # The AudienceSlots server is global, so fake places are held by spawned
+    # processes that the test stops when it finishes. With the test grace
+    # period of 0, their places are freed right after.
+    defp fill_places(talk, n) do
+      limit = Plans.limit(:max_participants, :free)
+
+      pids =
+        for _ <- 1..n//1 do
+          pid = spawn(fn -> receive do: (:stop -> :ok) end)
+          :ok = AudienceSlots.claim(talk.id, limit, Ecto.UUID.generate(), pid)
+          pid
+        end
+
+      on_exit(fn -> Enum.each(pids, &Process.exit(&1, :kill)) end)
+      pids
+    end
+
+    defp free_limit, do: Plans.limit(:max_participants, :free)
+
+    test "the next visitor after a full talk is turned away", %{conn: conn, talk: talk} do
+      fill_places(talk, free_limit())
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
+
+      assert has_element?(view, "#talk-full")
+      assert has_element?(view, "#try-again[href='/t/#{talk.slug}']")
+      refute has_element?(view, "#emoji-buttons")
+      refute has_element?(view, "#emoji-stream")
+
+      Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
+      render_click(view, "react", %{"emoji" => "❤️"})
+      refute_receive %Phoenix.Socket.Broadcast{event: "new_reaction"}, 100
+    end
+
+    test "a turned-away visitor does not receive the reaction stream", %{conn: conn, talk: talk} do
+      fill_places(talk, free_limit())
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
+
+      SpeechwaveWeb.Endpoint.broadcast!("reactions:#{talk.slug}", "new_reaction", %{emoji: "🔥"})
+      _ = :sys.get_state(view.pid)
+
+      refute_push_event(view, "new_reaction", _, 100)
+    end
+
+    test "a second audience id does not change a turn-away", %{conn: conn, talk: talk} do
+      fill_places(talk, free_limit())
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view, "not-a-uuid")
+      assert has_element?(view, "#talk-full")
+
+      send_audience_id(view)
+      assert has_element?(view, "#talk-full")
+    end
+
+    test "an admitted visitor can react and receives the stream", %{conn: conn, talk: talk} do
+      fill_places(talk, free_limit() - 1)
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
+
+      assert has_element?(view, "#emoji-buttons")
+      refute has_element?(view, "#talk-full")
+      assert AudienceSlots.count(talk.id) == free_limit()
+
+      Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
+      render_click(view, "react", %{"emoji" => "❤️"})
+      assert_receive %Phoenix.Socket.Broadcast{event: "new_reaction", payload: %{emoji: "❤️"}}
+      assert_push_event(view, "new_reaction", %{emoji: "❤️"})
+    end
+
+    test "a full talk still admits a browser that already holds a place",
+         %{conn: conn, talk: talk} do
+      id = Ecto.UUID.generate()
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view, id)
+      fill_places(talk, free_limit() - 1)
+
+      # A second tab or a reconnect from the same browser.
+      {:ok, same, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(same, String.upcase(id))
+      assert has_element?(same, "#emoji-buttons")
+
+      {:ok, other, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(other)
+      assert has_element?(other, "#talk-full")
+    end
+
+    test "a visitor who never sends an audience id gets nothing", %{conn: conn, talk: talk} do
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+
+      Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
+      render_click(view, "react", %{"emoji" => "❤️"})
+      refute_receive %Phoenix.Socket.Broadcast{event: "new_reaction"}, 100
+
+      SpeechwaveWeb.Endpoint.broadcast!("reactions:#{talk.slug}", "new_reaction", %{emoji: "🔥"})
+      _ = :sys.get_state(view.pid)
+      refute_push_event(view, "new_reaction", _, 100)
+      assert AudienceSlots.count(talk.id) == 0
+    end
+
+    test "an invalid audience id still claims one place", %{conn: conn, talk: talk} do
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view, "not-a-uuid")
+
+      assert has_element?(view, "#emoji-buttons")
+      assert AudienceSlots.count(talk.id) == 1
+    end
+
+    test "the first turn-away records when the session hit the limit",
+         %{conn: conn, talk: talk} do
+      {:ok, session} = Talks.start_session(talk)
+      fill_places(talk, free_limit())
+
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
+      assert has_element?(view, "#talk-full")
+
+      assert %DateTime{} = Talks.get_session(session.id).participant_limit_hit_at
+    end
+
+    test "a turn-away with no active session records nothing", %{conn: conn, talk: talk} do
+      fill_places(talk, free_limit())
+
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      send_audience_id(view)
+      assert has_element?(view, "#talk-full")
+    end
+
+    test "a pro-plan talk admits more than the free limit without tracking places",
+         %{conn: conn} do
+      {:ok, owner} = Accounts.set_user_plan(user_fixture(), :pro)
+      talk = talk_fixture(owner, %{title: "Big room", slug: "big-room"})
+
+      views =
+        for _ <- 1..(free_limit() + 1) do
+          {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+          send_audience_id(view)
+        end
+
+      assert Enum.all?(views, &has_element?(&1, "#emoji-buttons"))
+      refute Enum.any?(views, &has_element?(&1, "#talk-full"))
+      assert AudienceSlots.count(talk.id) == 0
     end
   end
 end

@@ -1,34 +1,51 @@
 <Layouts.app flash={@flash}>
   <div class="talk-page p-6 max-w-md mx-auto">
     <h1 class="text-2xl font-bold mb-2">{@talk.title}</h1>
-    <p class="text-gray-300 mb-6">React live! Your emoji appears on the speaker's screen</p>
-
-    <div
-      id="emoji-stream"
-      phx-hook="EmojiStream"
-      phx-update="ignore"
-      class="relative h-32 w-full overflow-hidden mb-6"
-    >
-    </div>
-
-    <div
-      id="emoji-buttons"
-      phx-hook="EmojiButtons"
-      data-talk-slug={@talk.slug}
-      class="flex flex-col gap-2"
-    >
-      <div class="flex gap-3 flex-wrap">
-        <%= for emoji <- @emojis do %>
-          <button
-            phx-click="react"
-            phx-value-emoji={emoji}
-            class="text-3xl hover:scale-125 transition-transform disabled:opacity-35 disabled:cursor-not-allowed"
-          >
-            {emoji}
-          </button>
-        <% end %>
+    <%= if @slot == :full do %>
+      <div id="talk-full" class="rounded-lg border border-gray-600 p-4 flex flex-col gap-3">
+        <h2 class="text-lg font-semibold">This talk is full</h2>
+        <p class="text-gray-300">
+          It has reached its limit of {@participant_limit} people connected at once.
+          The page isn't broken. When someone leaves, a place opens up.
+        </p>
+        <a
+          id="try-again"
+          href={~p"/t/#{@talk.slug}"}
+          class="self-start rounded-md bg-white px-4 py-2 font-semibold text-gray-900 hover:bg-gray-200"
+        >
+          Try again
+        </a>
       </div>
-      <span class="cooldown-label text-sm text-gray-300">Tap to react</span>
-    </div>
+    <% else %>
+      <p class="text-gray-300 mb-6">React live! Your emoji appears on the speaker's screen</p>
+
+      <div
+        id="emoji-stream"
+        phx-hook="EmojiStream"
+        phx-update="ignore"
+        class="relative h-32 w-full overflow-hidden mb-6"
+      >
+      </div>
+
+      <div
+        id="emoji-buttons"
+        phx-hook="EmojiButtons"
+        data-talk-slug={@talk.slug}
+        class="flex flex-col gap-2"
+      >
+        <div class="flex gap-3 flex-wrap">
+          <%= for emoji <- @emojis do %>
+            <button
+              phx-click="react"
+              phx-value-emoji={emoji}
+              class="text-3xl hover:scale-125 transition-transform disabled:opacity-35 disabled:cursor-not-allowed"
+            >
+              {emoji}
+            </button>
+          <% end %>
+        </div>
+        <span class="cooldown-label text-sm text-gray-300">Tap to react</span>
+      </div>
+    <% end %>
   </div>
 </Layouts.app>
