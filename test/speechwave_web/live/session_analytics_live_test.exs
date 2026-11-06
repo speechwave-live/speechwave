@@ -1,6 +1,7 @@
 defmodule SpeechwaveWeb.SessionAnalyticsLiveTest do
   use SpeechwaveWeb.ConnCase
 
+  import Ecto.Query, only: [from: 2]
   import Phoenix.LiveViewTest
   import Speechwave.AccountsFixtures
   import Speechwave.TalksFixtures
@@ -253,6 +254,64 @@ defmodule SpeechwaveWeb.SessionAnalyticsLiveTest do
 
       assert has_element?(view, "#reaction-timeline")
       assert %{"slide_starts" => [], "counts" => [1, 1]} = timeline_data(view)
+    end
+  end
+
+  describe "participant limit" do
+    # Sets the limit-hit time to `minutes` after the session started.
+    defp hit_limit_after(session, minutes) do
+      hit_at = DateTime.add(session.started_at, minutes * 60, :second)
+
+      Speechwave.Repo.update_all(
+        from(s in Speechwave.Talks.TalkSession, where: s.id == ^session.id),
+        set: [participant_limit_hit_at: hit_at]
+      )
+
+      hit_at
+    end
+
+    for {minutes, text} <- [
+          {0, "less than a minute"},
+          {1, "1 minute"},
+          {23, "23 minutes"},
+          {65, "1 hour 5 minutes"},
+          {120, "2 hours"}
+        ] do
+      test "shows the limit hit #{minutes} minutes in as #{text}", %{conn: conn, session: session} do
+        hit_limit_after(session, unquote(minutes))
+        {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+
+        assert has_element?(view, "#limit-hit")
+
+        assert view |> element("#limit-hit") |> render() =~
+                 "Participant limit reached #{unquote(text)} after the session began"
+      end
+    end
+
+    test "gives the hit time as ISO 8601 UTC for the browser to localise", %{
+      conn: conn,
+      session: session
+    } do
+      hit_at = hit_limit_after(session, 23)
+      {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+
+      iso = DateTime.to_iso8601(hit_at)
+      assert has_element?(view, ~s(#limit-hit-time[datetime="#{iso}"]))
+    end
+
+    test "counts a hit time before the start as zero minutes" do
+      started = ~U[2026-11-05 20:00:00Z]
+
+      assert SpeechwaveWeb.SessionAnalyticsLive.limit_hit_after(started, ~U[2026-11-05 19:50:00Z]) ==
+               "less than a minute"
+
+      assert SpeechwaveWeb.SessionAnalyticsLive.limit_hit_after(started, ~U[2026-11-05 20:01:59Z]) ==
+               "1 minute"
+    end
+
+    test "is absent when the limit was never hit", %{conn: conn, session: session} do
+      {:ok, view, _html} = live(conn, "/sessions/#{session.id}")
+      refute has_element?(view, "#limit-hit")
     end
   end
 end

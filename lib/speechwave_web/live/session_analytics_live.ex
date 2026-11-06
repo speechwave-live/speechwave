@@ -50,6 +50,29 @@ defmodule SpeechwaveWeb.SessionAnalyticsLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
+  # How long after the session began the participant limit was hit, in words:
+  # "less than a minute", "23 minutes", "1 hour 5 minutes". Whole minutes are
+  # floored, and a hit time before the start (clock skew) counts as zero.
+  def limit_hit_after(started_at, hit_at) do
+    seconds = max(DateTime.diff(hit_at, started_at, :second), 0)
+    duration_words(div(seconds, 60))
+  end
+
+  defp duration_words(0), do: "less than a minute"
+  defp duration_words(minutes) when minutes < 60, do: pluralize(minutes, "minute")
+
+  defp duration_words(minutes) do
+    hours = pluralize(div(minutes, 60), "hour")
+
+    case rem(minutes, 60) do
+      0 -> hours
+      rest -> "#{hours} #{pluralize(rest, "minute")}"
+    end
+  end
+
+  defp pluralize(1, unit), do: "1 #{unit}"
+  defp pluralize(n, unit), do: "#{n} #{unit}s"
+
   # Only sessions of the same talk can be compared. The talk was already
   # loaded through the current scope, so this also keeps other users'
   # sessions out.

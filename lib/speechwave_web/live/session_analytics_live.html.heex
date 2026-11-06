@@ -50,6 +50,23 @@
         <% end %>
       </div>
 
+      <%= if @session.participant_limit_hit_at do %>
+        <%!-- The server writes a UTC fallback; the .LocalTime hook swaps in the
+             viewer's local time. phx-update="ignore" stops LiveView from
+             overwriting the hook's text on re-render. --%>
+        <p id="limit-hit" class="text-sm text-steel">
+          Participant limit reached {limit_hit_after(
+            @session.started_at,
+            @session.participant_limit_hit_at
+          )} after the session began (<time
+            id="limit-hit-time"
+            phx-hook=".LocalTime"
+            phx-update="ignore"
+            datetime={DateTime.to_iso8601(@session.participant_limit_hit_at)}
+          >{Calendar.strftime(@session.participant_limit_hit_at, "%-I:%M %p UTC")}</time>)
+        </p>
+      <% end %>
+
       <%= if length(@other_sessions) > 0 do %>
         <div id="compare-link" class="text-sm">
           <span class="text-steel">Compare with: </span>
@@ -173,6 +190,31 @@
       </div>
     <% end %>
   </div>
+
+  <script :type={Phoenix.LiveView.ColocatedHook} name=".LocalTime">
+    // Rewrites the <time> element's text to the viewer's own time zone. The
+    // server cannot know that zone, so it renders UTC and this hook replaces it.
+    function showLocalTime(el) {
+      const date = new Date(el.getAttribute("datetime"))
+      // An unparseable value gives an "Invalid Date" whose time is NaN. Leave
+      // the server's UTC text alone in that case.
+      if (isNaN(date)) return
+      el.textContent = date.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      })
+    }
+
+    export default {
+      mounted() {
+        showLocalTime(this.el)
+      },
+      updated() {
+        showLocalTime(this.el)
+      },
+    }
+  </script>
 
   <script :type={Phoenix.LiveView.ColocatedHook} name=".ReactionTimeline">
     // The vendored, tree-shaken ECharts build lives in assets/vendor/echarts.custom.js.

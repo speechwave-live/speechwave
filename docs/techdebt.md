@@ -66,3 +66,10 @@ Found reviewing the export (`docs/specs/2026-10-23-gdpr-data-export-design.md`).
 - **Late slide markers sit in the last bucket.** A slide whose first reaction
   comes after the session ended is placed in the last bucket, so its marker is
   slightly misleading. Left because it only happens for reactions after the end.
+
+## Time zones
+
+- **The session start line prints UTC with no zone label.** The header on the
+  analytics page shows the start time as UTC without saying so. The
+  `.LocalTime` hook (used for the participant limit time) could be reused to
+  show it in the viewer's zone.
