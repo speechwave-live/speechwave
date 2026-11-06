@@ -3,9 +3,9 @@
 > **Stack:** phoenix | ecto | unknown | elixir
 > **Monorepo:** assets, speechwave-load-test
 
-> 13 routes (3 inferred) + 3 ws | 7 models | 0 components | 1 lib files | 9 env vars | 6 middleware | 3 events | 75% test coverage
-> **Token savings:** this file is ~2,500 tokens. Without it, AI exploration would cost ~22,800 tokens. **Saves ~20,200 tokens per conversation.**
-> **Last scanned:** 2026-11-06 00:08 — re-run after significant changes
+> 13 routes (3 inferred) + 3 ws | 7 models | 0 components | 1 lib files | 9 env vars | 6 middleware | 4 events | 75% test coverage
+> **Token savings:** this file is ~2,500 tokens. Without it, AI exploration would cost ~22,900 tokens. **Saves ~20,400 tokens per conversation.**
+> **Last scanned:** 2026-11-06 00:10 — re-run after significant changes
 
 ---
 
@@ -179,6 +179,7 @@
 
 - `reactions:#{talk.slug}` [channel] — `lib/speechwave_web/live/talk_live.ex`
 - `slides:#{talk.slug}` [channel] — `lib/speechwave_web/live/talk_live.ex`
+- `presenters:#{user.id}` [channel] — `test/speechwave_web/channels/reaction_channel_test.exs`
 - `user:#{user.id}:disconnect` [channel] — `test/speechwave_web/live/user_live/settings_test.exs`
 
 ---

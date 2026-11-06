@@ -68,6 +68,83 @@ defmodule SpeechwaveWeb.ReactionChannelTest do
              channel_join(socket, talk.slug, other_user.api_key)
   end
 
+  describe "extension connection guardrail" do
+    # Joins a channel on a fresh talk owned by `user`, then waits for the
+    # channel's :after_join handler to finish. Presence.track runs inside that
+    # handler, and :sys.get_state/1 is a call that is only answered after the
+    # channel process has handled every message queued before it.
+    defp join_new_talk(user) do
+      talk = talk_fixture(user, %{slug: "guard-#{System.unique_integer([:positive])}"})
+      {:ok, socket} = connect(SpeechwaveWeb.UserSocket, %{})
+      result = channel_join(socket, talk.slug, user.api_key)
+
+      with {:ok, _, joined} <- result do
+        _ = :sys.get_state(joined.channel_pid)
+      end
+
+      result
+    end
+
+    test "many Presence entries on the talk topic no longer reject a join", %{
+      socket: socket,
+      talk: talk,
+      user: user
+    } do
+      for i <- 1..20 do
+        pid = start_supervised!({Agent, fn -> :ok end}, id: {:dummy, i})
+
+        {:ok, _} =
+          SpeechwaveWeb.Presence.track(pid, "reactions:#{talk.slug}", "dummy:#{i}", %{})
+      end
+
+      assert {:ok, _, _} = channel_join(socket, talk.slug, user.api_key)
+    end
+
+    test "a user can hold three connections, the fourth is rejected", %{user: user} do
+      for _ <- 1..3, do: assert({:ok, _, _} = join_new_talk(user))
+      assert {:error, %{reason: "capacity_reached"}} = join_new_talk(user)
+    end
+
+    test "closing a connection frees a place", %{user: user} do
+      [first | _] = for _ <- 1..3, do: elem(join_new_talk(user), 2)
+      assert {:error, %{reason: "capacity_reached"}} = join_new_talk(user)
+
+      # Presence removes a dead process's entry asynchronously and announces it
+      # with a "presence_diff" broadcast on the topic. Waiting for that
+      # broadcast (instead of sleeping) tells us exactly when the entry is gone.
+      Phoenix.PubSub.subscribe(Speechwave.PubSub, "presenters:#{user.id}")
+
+      Process.unlink(first.channel_pid)
+      ref = Process.monitor(first.channel_pid)
+      close(first)
+      assert_receive {:DOWN, ^ref, :process, _, _}
+
+      assert_receive %Phoenix.Socket.Broadcast{
+                       event: "presence_diff",
+                       payload: %{leaves: leaves}
+                     }
+                     when map_size(leaves) > 0
+
+      assert {:ok, _, _} = join_new_talk(user)
+    end
+
+    test "another user is unaffected by the first user's connections", %{user: user} do
+      for _ <- 1..3, do: assert({:ok, _, _} = join_new_talk(user))
+      assert {:error, %{reason: "capacity_reached"}} = join_new_talk(user)
+
+      assert {:ok, _, _} = join_new_talk(user_fixture())
+    end
+
+    test "not_found and unauthorized reasons are unchanged", %{
+      socket: socket,
+      talk: talk,
+      user: user
+    } do
+      assert {:error, %{reason: "not_found"}} = channel_join(socket, "nope", user.api_key)
+      assert {:error, %{reason: "unauthorized"}} = channel_join(socket, talk.slug, "badkey")
+    end
+  end
+
   test "pushes new_reaction to client when Endpoint broadcasts", %{
     socket: socket,
     talk: talk,

@@ -3,7 +3,15 @@ defmodule SpeechwaveWeb.ReactionChannel do
   # Phoenix Channel that gives the presenter's slide controller a WebSocket
   # connection authenticated by API key on join. Handles starting/stopping
   # sessions, broadcasting slide-change events to the audience topic, and
-  # enforcing plan-based capacity and session limits via Presence.
+  # enforcing the monthly full-session limit.
+  #
+  # Audience size limits are NOT handled here (see Speechwave.AudienceSlots).
+  # The only connection limit here is an account-sharing guardrail: one user
+  # may have at most @max_extension_connections extension connections open at
+  # the same time, across all of their talks. Each connection registers itself
+  # in Phoenix Presence on the topic "presenters:<user id>". Presence removes
+  # the entry automatically when the channel process exits, so we never need
+  # to clean up by hand.
   use Phoenix.Channel
 
   alias Speechwave.Accounts
@@ -11,17 +19,13 @@ defmodule SpeechwaveWeb.ReactionChannel do
   alias Speechwave.Talks
   alias SpeechwaveWeb.Presence
 
+  @max_extension_connections 3
+
   def join("reactions:" <> slug, %{"api_key" => api_key}, socket) do
     with {:talk, %Talks.Talk{} = talk} <- {:talk, Talks.get_talk_by_slug(slug)},
          {:user, %Accounts.User{} = user} <- {:user, Accounts.get_user_by_api_key(api_key)},
          {:owner, true} <- {:owner, talk.user_id == user.id},
-         {:capacity, :ok} <-
-           {:capacity,
-            Plans.check(
-              :max_participants,
-              user.plan,
-              Presence.list("reactions:#{slug}") |> map_size()
-            )} do
+         {:capacity, true} <- {:capacity, under_connection_limit?(user)} do
       Phoenix.PubSub.subscribe(
         Speechwave.PubSub,
         SpeechwaveWeb.UserAuth.extension_disconnect_topic(user.id)
@@ -33,12 +37,20 @@ defmodule SpeechwaveWeb.ReactionChannel do
       {:talk, nil} -> {:error, %{reason: "not_found"}}
       {:user, nil} -> {:error, %{reason: "unauthorized"}}
       {:owner, false} -> {:error, %{reason: "unauthorized"}}
-      {:capacity, {:error, :limit_reached}} -> {:error, %{reason: "capacity_reached"}}
+      {:capacity, false} -> {:error, %{reason: "capacity_reached"}}
     end
   end
 
   def join("reactions:" <> _slug, _params, _socket) do
     {:error, %{reason: "unauthorized"}}
+  end
+
+  # Counts this user's live extension connections. This check and the later
+  # Presence.track in :after_join are not atomic, so two joins that arrive at
+  # the same instant can both pass. That is acceptable: the limit is a soft
+  # guardrail against account sharing, not a billing boundary.
+  defp under_connection_limit?(user) do
+    map_size(Presence.list("presenters:#{user.id}")) < @max_extension_connections
   end
 
   defp join_payload(user) do
@@ -56,6 +68,14 @@ defmodule SpeechwaveWeb.ReactionChannel do
   def handle_info(:after_join, socket) do
     {:ok, _} =
       Presence.track(socket, "anon:#{inspect(self())}", %{
+        joined_at: System.system_time(:second)
+      })
+
+    # Track this connection under the user's own topic too, so the join check
+    # can count connections across all of the user's talks. `self()` is the
+    # channel process, so each connection gets a distinct key.
+    {:ok, _} =
+      Presence.track(self(), "presenters:#{socket.assigns.user.id}", "conn:#{inspect(self())}", %{
         joined_at: System.system_time(:second)
       })
 
