@@ -110,15 +110,22 @@ defmodule Speechwave.AudienceSlotsTest do
   end
 
   test "a stale release timer does not free a reclaimed place" do
-    server = start_slots(50)
+    # A long grace period so the real timer never fires during the test. The
+    # stale timer message is sent by hand instead, which is exactly what
+    # arrives when a timer fires just before a reconnect cancels it.
+    server = start_slots(60_000)
     pid = conn_pid()
 
     :ok = AudienceSlots.claim(1, 1, "a", pid, server)
     end_conn(pid, server)
-    :ok = AudienceSlots.claim(1, 1, "a", conn_pid(), server)
+    %{release: {old_ref, _timer}} = :sys.get_state(server).talks[1]["a"]
 
-    refute_receive {:slot_released, _, _}, 100
+    :ok = AudienceSlots.claim(1, 1, "a", conn_pid(), server)
+    send(server, {:release, 1, "a", old_ref})
+    :sys.get_state(server)
+
     assert AudienceSlots.count(1, server) == 1
+    refute_received {:slot_released, _, _}
   end
 
   test "places in different talks are counted separately" do
