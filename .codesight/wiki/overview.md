@@ -26,8 +26,8 @@ Changes to these files have the widest blast radius across the codebase:
 - `lib/speechwave/accounts_fixtures.ex` — imported by **29** files
 - `lib/speechwave_web/conn_case.ex` — imported by **23** files
 - `lib/speechwave/accounts.ex` — imported by **22** files
+- `lib/speechwave/talks_fixtures.ex` — imported by **16** files
 - `lib/speechwave/repo.ex` — imported by **15** files
-- `lib/speechwave/talks_fixtures.ex` — imported by **15** files
 - `lib/speechwave/data_case.ex` — imported by **13** files
 
 ## Required Environment Variables

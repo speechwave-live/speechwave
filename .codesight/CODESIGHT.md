@@ -5,7 +5,7 @@
 
 > 13 routes (3 inferred) + 3 ws | 7 models | 0 components | 1 lib files | 9 env vars | 6 middleware | 3 events | 75% test coverage
 > **Token savings:** this file is ~2,500 tokens. Without it, AI exploration would cost ~22,800 tokens. **Saves ~20,200 tokens per conversation.**
-> **Last scanned:** 2026-11-06 00:01 — re-run after significant changes
+> **Last scanned:** 2026-11-06 00:05 — re-run after significant changes
 
 ---
 
@@ -142,14 +142,14 @@
 - `lib/speechwave/accounts_fixtures.ex` — imported by **29** files
 - `lib/speechwave_web/conn_case.ex` — imported by **23** files
 - `lib/speechwave/accounts.ex` — imported by **22** files
+- `lib/speechwave/talks_fixtures.ex` — imported by **16** files
 - `lib/speechwave/repo.ex` — imported by **15** files
-- `lib/speechwave/talks_fixtures.ex` — imported by **15** files
 - `lib/speechwave/data_case.ex` — imported by **13** files
 - `lib/speechwave/accounts/scope.ex` — imported by **12** files
 - `lib/ex_unit/case.ex` — imported by **12** files
+- `lib/speechwave_web/e2_e_case.ex` — imported by **10** files
 - `lib/speechwave/deletion_log.ex` — imported by **9** files
 - `lib/speechwave/.ex` — imported by **9** files
-- `lib/speechwave_web/e2_e_case.ex` — imported by **9** files
 - `lib/speechwave/accounts/user.ex` — imported by **7** files
 - `lib/speechwave/plans.ex` — imported by **6** files
 - `lib/speechwave/accounts/.ex` — imported by **5** files
@@ -165,13 +165,13 @@
 - `lib/speechwave/accounts_fixtures.ex` ← `test/speechwave/accounts/suspicious_user_reaper_test.exs`, `test/speechwave/accounts_delete_test.exs`, `test/speechwave/accounts_test.exs`, `test/speechwave/admin/consent_export_test.exs`, `test/speechwave/admin/stats_test.exs` +24 more
 - `lib/speechwave_web/conn_case.ex` ← `test/speechwave_web/components/layouts_test.exs`, `test/speechwave_web/controllers/admin/consent_export_controller_test.exs`, `test/speechwave_web/controllers/error_html_test.exs`, `test/speechwave_web/controllers/error_json_test.exs`, `test/speechwave_web/controllers/page_controller_test.exs` +18 more
 - `lib/speechwave/accounts.ex` ← `lib/speechwave/accounts/suspicious_user_reaper.ex`, `lib/speechwave/data_export.ex`, `lib/speechwave_web/channels/reaction_channel.ex`, `lib/speechwave_web/controllers/dev_login_controller.ex`, `lib/speechwave_web/controllers/user_account_controller.ex` +17 more
+- `lib/speechwave/talks_fixtures.ex` ← `test/e2e/audience_reconnect_test.exs`, `test/e2e/reaction_flow_test.exs`, `test/e2e/session_analytics_test.exs`, `test/speechwave/accounts_delete_test.exs`, `test/speechwave/admin/consent_export_test.exs` +11 more
 - `lib/speechwave/repo.ex` ← `lib/speechwave/accounts.ex`, `lib/speechwave/admin/consent_export.ex`, `lib/speechwave/admin/stats.ex`, `lib/speechwave/data_export.ex`, `lib/speechwave/reactions.ex` +10 more
-- `lib/speechwave/talks_fixtures.ex` ← `test/e2e/reaction_flow_test.exs`, `test/e2e/session_analytics_test.exs`, `test/speechwave/accounts_delete_test.exs`, `test/speechwave/admin/consent_export_test.exs`, `test/speechwave/admin/stats_test.exs` +10 more
 - `lib/speechwave/data_case.ex` ← `test/speechwave/accounts/suspicious_user_reaper_test.exs`, `test/speechwave/accounts_delete_test.exs`, `test/speechwave/accounts_test.exs`, `test/speechwave/admin/consent_export_test.exs`, `test/speechwave/admin/stats_test.exs` +8 more
 - `lib/speechwave/accounts/scope.ex` ← `lib/speechwave/data_export.ex`, `lib/speechwave/talks.ex`, `lib/speechwave_web/user_auth.ex`, `scripts/manual_tests/seed_screenshots.exs`, `test/speechwave/data_export_test.exs` +7 more
 - `lib/ex_unit/case.ex` ← `test/speechwave/admin/chart_test.exs`, `test/speechwave/admin/csv_test.exs`, `test/speechwave/audience_slots_test.exs`, `test/speechwave/auth_throttle_test.exs`, `test/speechwave/data_export_throttle_test.exs` +7 more
+- `lib/speechwave_web/e2_e_case.ex` ← `test/e2e/account_settings_test.exs`, `test/e2e/audience_reconnect_test.exs`, `test/e2e/auth_throttle_test.exs`, `test/e2e/dashboard_test.exs`, `test/e2e/email_consent_test.exs` +5 more
 - `lib/speechwave/deletion_log.ex` ← `lib/speechwave/accounts.ex`, `lib/speechwave/admin/stats.ex`, `lib/speechwave/db_backup.ex`, `test/speechwave/accounts/suspicious_user_reaper_test.exs`, `test/speechwave/accounts_delete_test.exs` +4 more
-- `lib/speechwave/.ex` ← `lib/speechwave_web/live/pricing_live.ex`, `lib/speechwave_web/live/session_analytics_live.ex`, `lib/speechwave_web/live/talk_live.ex`, `priv/repo/reset_password.exs`, `priv/repo/seeds.exs` +4 more
 
 ---
 
@@ -186,7 +186,7 @@
 # Test Coverage
 
 > **75%** of routes and models are covered by tests
-> 60 test files found
+> 61 test files found
 
 ## Covered Routes
 

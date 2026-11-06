@@ -1,10 +1,22 @@
 import {audienceId} from "../audience_id"
 
+// Tell the server who this is. On a free-plan talk this is also what claims
+// the visitor's place, so the server sends no reactions until it arrives.
+function sendAudienceId(hook) {
+  hook.pushEvent("audience_id", {id: audienceId(hook.el.dataset.talkSlug)})
+}
+
 const EmojiButtons = {
+  // A reconnect (network blip, server restart) starts a fresh LiveView
+  // process, but LiveView keeps the existing hook and calls reconnected()
+  // instead of mounted(). Send the id again so the new process recognises
+  // the same person and picks up their place.
+  reconnected() {
+    sendAudienceId(this)
+  },
+
   mounted() {
-    // Tell the server who this is. Runs again after a reconnect, which starts
-    // a fresh LiveView process, so the same person is recognised.
-    this.pushEvent("audience_id", {id: audienceId(this.el.dataset.talkSlug)})
+    sendAudienceId(this)
 
     this.el.addEventListener("click", (e) => {
       if (e.target.tagName !== "BUTTON") return;
