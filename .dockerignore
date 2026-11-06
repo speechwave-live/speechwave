@@ -18,3 +18,7 @@ priv/repo/*.db
 priv/repo/*.db-shm
 priv/repo/*.db-wal
 **/.DS_Store
+# Built assets are gitignored and always rebuilt by `mix assets.deploy` inside
+# the image. Without this, stale files from local dev builds (old chunks,
+# unminified bundles) ride along in the image.
+priv/static/assets
