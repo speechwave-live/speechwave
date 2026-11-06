@@ -32,7 +32,7 @@
         class="mb-6 p-5 bg-white rounded-xl border border-[#e5e5e5] shadow-sm"
       >
         <h2 class="text-[11px] font-semibold text-[#5a5a5c] uppercase tracking-[0.5px] mb-4">
-          Plan Usage — {String.capitalize(to_string(@current_scope.user.plan))}
+          {String.capitalize(to_string(@current_scope.user.plan))} plan usage
         </h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <%!-- Full sessions this month --%>
