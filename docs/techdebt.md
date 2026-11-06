@@ -4,6 +4,24 @@ Small known issues found in code review and left alone on purpose. Each one
 says why it was deferred. Bigger deferred work lives in `docs/roadmap.md`.
 Delete an item when it is fixed.
 
+## Audience participant limit
+
+Found reviewing the participant limit (`docs/specs/2026-11-05-audience-participant-limit-design.md`).
+
+- **Someone with the talk URL can keep a free talk full** without holding any
+  connections open. A place is kept for 30 seconds after its last connection
+  ends, so about one new connection with a new audience ID every 2 seconds
+  (15 per 30 seconds) fills the talk. A per-IP cap on new claims would stop
+  it. Left alone because the URL is only shared with the people in the room.
+- **TalkLive crashes log `client_id`.** `Phoenix.LiveView.Channel` formats the
+  whole socket state on terminate, assigns included, so any TalkLive crash
+  already logs the browser's audience ID. This predates the participant limit
+  and is not specific to it.
+- **`AudienceSlots.handle_call/3` has no catch-all clause.** An unknown call
+  raises `FunctionClauseError`, and that error's text prints the server state,
+  because `format_status/1` does not redact exception arguments. Only misuse
+  of the module's own API can send such a call.
+
 ## Stats page: suspicious deletions strip
 
 Found reviewing the strip (`docs/specs/2026-10-23-suspicious-deletions-strip-design.md`).

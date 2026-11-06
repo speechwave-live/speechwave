@@ -5,8 +5,9 @@ defmodule Speechwave.AudienceSlots do
 
   ## Places
 
-  A place belongs to a participant key (the browser's audience ID), not to a
-  connection. One person with two tabs open, or a phone that reconnects,
+  A place belongs to a participant key, not to a connection. The audience
+  page passes a SHA-256 hash of the browser's audience ID, so the ID itself
+  is never held here. One person with two tabs open, or a phone that reconnects,
   still holds a single place. `claim/5` either joins an existing place
   (the key already holds one) or creates a new place, which is allowed only
   while the talk has fewer places than the limit.
@@ -36,8 +37,21 @@ defmodule Speechwave.AudienceSlots do
   and recorded before the next one is looked at, and the last place can only
   be taken once.
 
-  The state is in memory only. A restart forgets every place, which is fine:
-  connected LiveViews claim again when they reconnect.
+  ## Restarts
+
+  The state is in memory only, so a restart forgets every place.
+
+  If this process crashes and the supervisor restarts it, the LiveViews that
+  already hold places stay connected but are no longer counted. Until they
+  reconnect, up to the limit of extra people can get in. This fails open on
+  purpose: letting a few extra people in is better than turning away people
+  who already had a place.
+
+  After an app restart or a deploy, every LiveView reconnects and claims
+  again, and the first visitors whose audience ID arrives get the places. On
+  a full talk, someone who held a place before the deploy can come back to
+  "This talk is full", and that turn-away records a limit hit. The design
+  accepts this (places are "gone on restart").
 
   ## Options for `start_link/1`
 
