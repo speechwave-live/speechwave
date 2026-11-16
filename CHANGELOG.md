@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-16
+
 ### Added
 
 - Session analytics now has a reaction timeline. It shows how many reactions came in over the course of the session, marks the peak, and marks where each slide got its first reaction.
