@@ -124,7 +124,7 @@ fly secrets set MICROSOFT_TENANT_ID=...
 fly deploy
 ```
 
-Migrations run automatically on each deploy (configured in `fly.toml` via `[deploy] release_command`). See [`docs/administration.md`](docs/administration.md) for how to run migrations manually.
+Migrations run automatically when the app starts after each deploy. See [`docs/administration.md`](docs/administration.md) for how to run migrations manually.
 
 #### Setting or resetting the admin password
 
