@@ -35,4 +35,4 @@ Changes to these files have the widest blast radius across the codebase:
 - `NODE_ENV` — `assets/js/app.js`
 
 ---
-_Back to [index.md](./index.md) · Generated 2026-11-06_
+_Back to [index.md](./index.md) · Generated 2026-11-16_
