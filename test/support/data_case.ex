@@ -43,6 +43,46 @@ defmodule Speechwave.DataCase do
   end
 
   @doc """
+  Makes every other database caller wait, the way a saturated pool does.
+
+  A helper process takes the sandbox connection and holds it inside a
+  transaction. Until the returned function is called, another process that
+  queries waits about a second and then raises `DBConnection.ConnectionError`,
+  which is what a pool checkout timeout looks like in production.
+  """
+  def hold_connection do
+    parent = self()
+
+    holder =
+      spawn_link(fn ->
+        Speechwave.Repo.transaction(fn ->
+          send(parent, :connection_held)
+
+          receive do
+            :release -> :ok
+          end
+        end)
+      end)
+
+    Sandbox.allow(Speechwave.Repo, parent, holder)
+
+    receive do
+      :connection_held -> :ok
+    end
+
+    # Release waits for the holder to finish its transaction, so the
+    # connection is back in the pool before the test ends.
+    fn ->
+      ref = Process.monitor(holder)
+      send(holder, :release)
+
+      receive do
+        {:DOWN, ^ref, _, _, _} -> :ok
+      end
+    end
+  end
+
+  @doc """
   A helper that transforms changeset errors into a map of messages.
 
       assert {:error, changeset} = Accounts.create_user(%{password: "short"})

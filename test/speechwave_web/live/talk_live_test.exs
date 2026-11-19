@@ -4,6 +4,7 @@ defmodule SpeechwaveWeb.TalkLiveTest do
   import Phoenix.LiveViewTest
   import Ecto.Query
   import Speechwave.AccountsFixtures
+  import Speechwave.DataCase, only: [hold_connection: 0]
   import Speechwave.TalksFixtures
 
   alias Speechwave.{Accounts, AudienceSlots, Plans, Talks}
@@ -168,6 +169,24 @@ defmodule SpeechwaveWeb.TalkLiveTest do
     SpeechwaveWeb.Endpoint.broadcast!("reactions:#{talk.slug}", "new_reaction", %{emoji: "🔥"})
 
     assert_push_event(view, "new_reaction", %{emoji: "🔥"})
+    assert has_element?(view, "#emoji-buttons")
+  end
+
+  @tag :capture_log
+  test "a reaction whose insert fails is still broadcast and the view survives",
+       %{conn: conn, talk: talk} do
+    {:ok, _session} = Talks.start_session(talk)
+    {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+    send_audience_id(view)
+    Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
+    ref = Process.monitor(view.pid)
+    release = hold_connection()
+
+    render_click(view, "react", %{"emoji" => "❤️"})
+    release.()
+
+    assert_receive %Phoenix.Socket.Broadcast{event: "new_reaction", payload: %{emoji: "❤️"}}, 500
+    refute_received {:DOWN, ^ref, _, _, _}
     assert has_element?(view, "#emoji-buttons")
   end
 

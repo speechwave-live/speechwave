@@ -1,7 +1,6 @@
 defmodule SpeechwaveWeb.TalkLive do
   use SpeechwaveWeb, :live_view
 
-  alias Plug.Crypto.KeyGenerator
   alias Speechwave.{AudienceSlots, Plans, RateLimiter, Reactions, Talks}
 
   @uuid_format ~r/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
@@ -65,18 +64,12 @@ defmodule SpeechwaveWeb.TalkLive do
 
   def handle_event("react", %{"emoji" => emoji}, socket) do
     if RateLimiter.allow?(socket.assigns.session_id) do
-      case Talks.get_active_session(socket.assigns.talk.id) do
-        nil ->
-          :ok
-
-        session ->
-          Reactions.create_reaction(
-            session,
-            emoji,
-            socket.assigns.current_slide,
-            audience_id(session, socket.assigns.client_id)
-          )
-      end
+      Reactions.record_reaction(
+        socket.assigns.talk.id,
+        emoji,
+        socket.assigns.current_slide,
+        socket.assigns.client_id
+      )
 
       SpeechwaveWeb.Endpoint.broadcast!(
         "reactions:#{socket.assigns.talk.slug}",
@@ -142,25 +135,5 @@ defmodule SpeechwaveWeb.TalkLive do
   defp subscribe(talk) do
     Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
     Phoenix.PubSub.subscribe(Speechwave.PubSub, "slides:#{talk.slug}")
-  end
-
-  # What we store is a keyed hash of the session and the browser's UUID, never
-  # the UUID itself. Reloads within a session hash to the same value, so the
-  # people count works, but the same browser in another session hashes to an
-  # unrelated value, so reactions cannot be linked across sessions. Reactions
-  # sent before the browser's UUID arrives have no audience id (nil) and are
-  # not counted as people.
-  defp audience_id(_session, nil), do: nil
-
-  defp audience_id(session, client_id) do
-    key =
-      KeyGenerator.generate(
-        SpeechwaveWeb.Endpoint.config(:secret_key_base),
-        "audience id",
-        length: 32
-      )
-
-    :crypto.mac(:hmac, :sha256, key, "#{session.id}:#{client_id}")
-    |> Base.encode16(case: :lower)
   end
 end
