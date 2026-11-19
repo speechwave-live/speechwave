@@ -71,6 +71,10 @@ defmodule SpeechwaveWeb.TalkLive do
         socket.assigns.client_id
       )
 
+      # Audience pages get this emoji in the next batch. The extension still
+      # gets every tap on its own, on the `reactions:` topic.
+      Speechwave.ReactionBatcher.add(socket.assigns.talk.slug, emoji)
+
       SpeechwaveWeb.Endpoint.broadcast!(
         "reactions:#{socket.assigns.talk.slug}",
         "new_reaction",
@@ -81,11 +85,13 @@ defmodule SpeechwaveWeb.TalkLive do
     {:noreply, socket}
   end
 
+  # Taps reach audience pages in batches from `Speechwave.ReactionBatcher`, one
+  # message per tick, not one per reaction.
   def handle_info(
-        %Phoenix.Socket.Broadcast{event: "new_reaction", payload: %{emoji: emoji}},
+        %Phoenix.Socket.Broadcast{event: "reactions_batch", payload: %{emojis: emojis}},
         socket
       ) do
-    {:noreply, push_event(socket, "new_reaction", %{emoji: emoji})}
+    {:noreply, push_event(socket, "reactions_batch", %{emojis: emojis})}
   end
 
   def handle_info(
@@ -133,7 +139,9 @@ defmodule SpeechwaveWeb.TalkLive do
   defp place_key(id), do: :crypto.hash(:sha256, id) |> Base.encode16(case: :lower)
 
   defp subscribe(talk) do
-    Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
+    # Not `reactions:<slug>`: that topic carries one message per tap and is for
+    # the speaker's extension. Audience pages get the batched stream instead.
+    Phoenix.PubSub.subscribe(Speechwave.PubSub, "audience:#{talk.slug}")
     Phoenix.PubSub.subscribe(Speechwave.PubSub, "slides:#{talk.slug}")
   end
 end

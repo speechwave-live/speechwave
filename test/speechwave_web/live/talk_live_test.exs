@@ -16,6 +16,9 @@ defmodule SpeechwaveWeb.TalkLiveTest do
   setup do
     :ok = Supervisor.terminate_child(Speechwave.Supervisor, AudienceSlots)
     {:ok, _pid} = Supervisor.restart_child(Speechwave.Supervisor, AudienceSlots)
+    # Every test taps on the same slug and the batcher is shared, so emoji left
+    # pending by an earlier test would join this test's batches.
+    :ok = Speechwave.ReactionBatcher.flush()
     :ok
   end
 
@@ -163,13 +166,48 @@ defmodule SpeechwaveWeb.TalkLiveTest do
     refute_receive %Phoenix.Socket.Broadcast{event: "new_reaction"}, 200
   end
 
-  test "receives Endpoint broadcast and page still renders correctly", %{conn: conn, talk: talk} do
+  test "receives a batch broadcast and page still renders correctly", %{conn: conn, talk: talk} do
+    {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+    send_audience_id(view)
+
+    SpeechwaveWeb.Endpoint.broadcast!("audience:#{talk.slug}", "reactions_batch", %{
+      emojis: ["🔥", "❤️"]
+    })
+
+    assert_push_event(view, "reactions_batch", %{emojis: ["🔥", "❤️"]})
+    assert has_element?(view, "#emoji-buttons")
+  end
+
+  test "a tap reaches another audience page as a batch after a flush", %{conn: conn, talk: talk} do
+    {:ok, tapper, _html} = live(conn, "/t/#{talk.slug}")
+    send_audience_id(tapper)
+    {:ok, watcher, _html} = live(build_conn(), "/t/#{talk.slug}")
+    send_audience_id(watcher)
+
+    render_click(tapper, "react", %{"emoji" => "❤️"})
+    :ok = Speechwave.ReactionBatcher.flush()
+
+    assert_push_event(watcher, "reactions_batch", %{emojis: ["❤️"]})
+  end
+
+  test "a tap with no active session is still batched", %{conn: conn, talk: talk} do
+    assert Talks.get_active_session(talk.id) == nil
+    {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+    send_audience_id(view)
+
+    render_click(view, "react", %{"emoji" => "🔥"})
+    :ok = Speechwave.ReactionBatcher.flush()
+
+    assert_push_event(view, "reactions_batch", %{emojis: ["🔥"]})
+  end
+
+  test "a page no longer receives per-reaction new_reaction pushes", %{conn: conn, talk: talk} do
     {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
     send_audience_id(view)
     SpeechwaveWeb.Endpoint.broadcast!("reactions:#{talk.slug}", "new_reaction", %{emoji: "🔥"})
+    _ = :sys.get_state(view.pid)
 
-    assert_push_event(view, "new_reaction", %{emoji: "🔥"})
-    assert has_element?(view, "#emoji-buttons")
+    refute_push_event(view, "new_reaction", _, 100)
   end
 
   @tag :capture_log
@@ -323,10 +361,13 @@ defmodule SpeechwaveWeb.TalkLiveTest do
       {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
       send_audience_id(view)
 
-      SpeechwaveWeb.Endpoint.broadcast!("reactions:#{talk.slug}", "new_reaction", %{emoji: "🔥"})
+      SpeechwaveWeb.Endpoint.broadcast!("audience:#{talk.slug}", "reactions_batch", %{
+        emojis: ["🔥"]
+      })
+
       _ = :sys.get_state(view.pid)
 
-      refute_push_event(view, "new_reaction", _, 100)
+      refute_push_event(view, "reactions_batch", _, 100)
     end
 
     test "a second audience id does not change a turn-away", %{conn: conn, talk: talk} do
@@ -351,7 +392,8 @@ defmodule SpeechwaveWeb.TalkLiveTest do
       Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
       render_click(view, "react", %{"emoji" => "❤️"})
       assert_receive %Phoenix.Socket.Broadcast{event: "new_reaction", payload: %{emoji: "❤️"}}
-      assert_push_event(view, "new_reaction", %{emoji: "❤️"})
+      :ok = Speechwave.ReactionBatcher.flush()
+      assert_push_event(view, "reactions_batch", %{emojis: ["❤️"]})
     end
 
     test "a full talk still admits a browser that already holds a place",
