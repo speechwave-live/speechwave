@@ -19,6 +19,7 @@ defmodule Speechwave.Application do
         {DNSCluster, query: Application.get_env(:speechwave, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Speechwave.PubSub},
         Speechwave.RateLimiter,
+        Speechwave.ReactionBatcher,
         Speechwave.AudienceSlots,
         Speechwave.AuthThrottle,
         Speechwave.DataExportThrottle,
