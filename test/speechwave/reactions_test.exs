@@ -27,6 +27,19 @@ defmodule Speechwave.ReactionsTest do
       assert Reactions.count_audience(session.id) == 1
     end
 
+    test "derives the audience key once and caches it, not on every tap", %{session: session} do
+      # Deriving the key is PBKDF2 (1000 rounds of hashing), which is far too
+      # much work to repeat on every tap. Plug keeps derived keys in the
+      # ETS table Plug.Keys when asked to.
+      cached = {{:_, "audience id", :_, 32, :_}, :_}
+      :ets.match_delete(Plug.Keys, cached)
+      assert :ets.match_object(Plug.Keys, cached) == []
+
+      assert :ok = Reactions.record_reaction(session.talk_id, "🔥", 0, Ecto.UUID.generate())
+
+      assert [_one_entry] = :ets.match_object(Plug.Keys, cached)
+    end
+
     test "returns :ok and stores nothing when the talk has no active session", %{session: session} do
       {:ok, _} = Talks.stop_session(session)
       assert :ok = Reactions.record_reaction(session.talk_id, "🔥", 0, nil)

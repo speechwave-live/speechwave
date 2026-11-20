@@ -55,7 +55,12 @@ defmodule Speechwave.Reactions do
   LiveView, so we rescue it here, and only it. Other errors still surface.
 
   The reaction is lost from the analytics in that case, so the failure is
-  logged and counted through telemetry. The log line carries no emoji and no
+  logged and counted through telemetry as `[:speechwave, :reaction,
+  :insert_failed]`. The event means "could not record": it also fires when
+  only the session lookup timed out, because then we cannot know whether
+  there was a session to record against, and it can in principle fire for a
+  write that committed just before the timeout. Treat it as a count of
+  reactions that may be missing from analytics, not an exact tally. The log line carries no emoji and no
   audience or client ID.
   """
   def record_reaction(talk_id, emoji, slide_number, client_id) do
@@ -80,6 +85,10 @@ defmodule Speechwave.Reactions do
   # unrelated value, so reactions cannot be linked across sessions. Reactions
   # sent before the browser's UUID arrives have no audience id (nil) and are
   # not counted as people.
+  #
+  # Deriving the key is deliberately slow (PBKDF2), and the secret and salt
+  # never change, so `cache: Plug.Keys` (an ETS table Plug provides) lets every
+  # tap after the first reuse it.
   defp audience_id(_session, nil), do: nil
 
   defp audience_id(session, client_id) do
@@ -87,7 +96,8 @@ defmodule Speechwave.Reactions do
       KeyGenerator.generate(
         SpeechwaveWeb.Endpoint.config(:secret_key_base),
         "audience id",
-        length: 32
+        length: 32,
+        cache: Plug.Keys
       )
 
     :crypto.mac(:hmac, :sha256, key, "#{session.id}:#{client_id}")
