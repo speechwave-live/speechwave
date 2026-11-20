@@ -50,7 +50,47 @@ about 45 taps/s at 800. Drops start just past that (400: between 100 and 125;
 800: 60, with one unexplained 5% loss at 35). Single runs, so the exact edge is
 fuzzy. Both points sit at about 36 to 40k pushes/s.
 
+## After batching (2026-11-19)
+
+Reaction pushes to audience pages are now batched (one message per page every
+250 ms, see `docs/specs/2026-11-19-reaction-push-batching-design.md`), and a
+database timeout no longer crashes the audience page. Same setup as above, run
+the same day on the same machine against the commit before the change and the
+commit after it. The seeded user is on the pro plan now, because the free
+plan's 15-person cap (added after the first runs) turns the simulated audience
+away. "Delivered" is the extension-style listener, which still gets one
+message per tap.
+
+| People | Taps/s | Build | CPU | Delivered | Latency p50 / p95 | Log errors |
+|---|---|---|---|---|---|---|
+| 400 | 100 | before | 99% | 100% | 38 / 205 ms | 0 |
+| 400 | 100 | after | 27% | 100% | 3 / 25 ms | 0 |
+| 400 | 125 | before | 86% | 77% | 29 / 135 ms | 96 |
+| 400 | 125 | after | 32% | 100% | 3 / 23 ms | 0 |
+| 800 | 45 | before | 87% | 100% | 37 / 173 ms | 0 |
+| 800 | 45 | after | 28% | 100% | 5 / 40 ms | 0 |
+| 800 | 60 | before | 92% | 81% | 709 / 1312 ms | 171 |
+| 800 | 60 | after | 30% | 100% | 3 / 19 ms | 0 |
+| 1200 (one tap per 30 s, 40 taps/s) | 40 | before | 100% | 83% | 921 ms (2 probes) | 213 |
+| 1200 (one tap per 30 s, 40 taps/s) | 40 | after | 30% | 100% | 4 / 40 ms | 0 |
+
+Audience pages received about 3.9 batches per second each, whatever the tap
+rate, and every emoji reached every page (the audience-side count matched the
+taps in all five runs). The database stored every tap in the "after" runs.
+
+How to read it: CPU at the same load fell to about a third, and the failure
+mode (insert timeouts, lost reactions, reconnecting phones) did not appear at
+any step that used to produce it. These were single 60 s runs, and the probe
+counts are small (11), so treat the latencies as rough. The limit has moved,
+but these steps did not find where. Finding the new edge needs higher steps
+(for example 800 people at 120 taps/s, or 1,600 people), which were not run.
+Memory is unchanged and is now the nearer ceiling: the 1,200-person run used
+about 417 MB of 512 MB.
+
 ## What limits it
+
+(Written before batching. Items 1 and 2 describe the build before 2026-11-19;
+see the section above for what changed.)
 
 1. **CPU, because of fan-out.** Every accepted reaction is pushed to every
    audience page (they show the floating emoji too), so work per second is

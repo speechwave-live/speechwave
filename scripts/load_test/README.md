@@ -8,9 +8,10 @@ reactions are dropped or delayed". Local only, never point it at production.
 3. `./run_series.sh 100 200 400` (env: `DURATION=60`, `PERIOD=3200` ms between
    one person's taps, `SHARD_SIZE=150`).
 
-`start_container.sh` runs the production image with fly.toml's limits (1 CPU
+`start_container.sh` (set `IMAGE=` to test a different image tag) runs the production image with fly.toml's limits (1 CPU
 pinned to one core so the BEAM gets one scheduler like Fly, 512 MB, DB pool 2),
-a throwaway database and fake secrets. `audience_load.mjs` simulates audience
+a throwaway database and fake secrets, and seeds a pro-plan user because the
+free plan caps a talk at 15 connected people. `audience_load.mjs` simulates audience
 LiveView connections plus an extension-style channel listener and times probe
 reactions. `aggregate.mjs` merges the shards.
 
