@@ -74,6 +74,11 @@ message per tap.
 | 1200 (one tap per 30 s, 40 taps/s) | 40 | before | 100% | 83% | 921 ms (2 probes) | 213 |
 | 1200 (one tap per 30 s, 40 taps/s) | 40 | after | 30% | 100% | 4 / 40 ms | 0 |
 
+The latency column is the extension-style listener's, which still gets one
+message per tap. It says nothing about audience pages, which now wait up to
+250 ms longer for each emoji by design (the batch interval). That delay was
+not measured.
+
 Audience pages received about 3.9 batches per second each, whatever the tap
 rate, and every emoji reached every page (the audience-side count matched the
 taps in all five runs). The database stored every tap in the "after" runs.
