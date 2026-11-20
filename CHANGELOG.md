@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-19
+
+### Changed
+
+- Audience phones now receive reactions in one batch every quarter second instead of one message per reaction. In load tests at the same load, CPU use fell to about a third, every reaction was delivered, and no pages crashed. Before, busy runs lost 17 to 23 percent of reactions. The emoji you tap can appear up to 250 ms later than before. The extension still gets one message per reaction and needs no update.
+- If more than 50 reactions arrive in one quarter second, audience phones show a random sample of 50.
+
+### Fixed
+
+- A database timeout while saving a reaction no longer crashes the page of the person who tapped. The reaction still floats up for everyone, and the failure is logged and counted. The reaction is missing from session analytics.
+- An audience page that reconnects after a new version has been deployed now reloads instead of running the old JavaScript.
+- Each reaction no longer repeats an expensive key derivation to identify the audience member.
+
 ## [0.6.0] - 2026-11-16
 
 ### Added
