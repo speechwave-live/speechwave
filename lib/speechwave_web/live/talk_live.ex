@@ -22,22 +22,35 @@ defmodule SpeechwaveWeb.TalkLive do
         {:ok, redirect(socket, to: "/")}
 
       talk ->
-        limit = Plans.limit(:max_participants, talk.user.plan)
-        slot = if limit == :unlimited, do: :held, else: :pending
-
-        if slot == :held and connected?(socket), do: subscribe(talk)
-
-        {:ok,
-         assign(socket,
-           talk: talk,
-           participant_limit: limit,
-           slot: slot,
-           emojis: @emojis,
-           session_id: socket.id,
-           client_id: nil,
-           current_slide: 0
-         )}
+        # A phone that stayed on the page through a deploy reconnects still
+        # running the old JavaScript, whose emoji hook does not know the
+        # `reactions_batch` event. Reloading the page fetches the new hook.
+        # `static_changed?/1` is true only on a connected mount whose tracked
+        # assets differ from the server's, so the reload cannot loop.
+        if static_changed?(socket) do
+          {:ok, redirect(socket, to: ~p"/t/#{talk.slug}")}
+        else
+          mount_talk(talk, socket)
+        end
     end
+  end
+
+  defp mount_talk(talk, socket) do
+    limit = Plans.limit(:max_participants, talk.user.plan)
+    slot = if limit == :unlimited, do: :held, else: :pending
+
+    if slot == :held and connected?(socket), do: subscribe(talk)
+
+    {:ok,
+     assign(socket,
+       talk: talk,
+       participant_limit: limit,
+       slot: slot,
+       emojis: @emojis,
+       session_id: socket.id,
+       client_id: nil,
+       current_slide: 0
+     )}
   end
 
   # The browser sends a random UUID kept in localStorage so a reload or a

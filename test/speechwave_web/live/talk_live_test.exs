@@ -210,6 +210,39 @@ defmodule SpeechwaveWeb.TalkLiveTest do
     refute_push_event(view, "new_reaction", _, 100)
   end
 
+  describe "after a deploy changes the assets" do
+    # Phones stay on the page across a deploy and reconnect to the new server
+    # with the old JavaScript. Reactions now arrive as `reactions_batch`, which
+    # the old hook ignores, so a reconnecting page must reload to get the new
+    # hook. LiveView compares the page's tracked assets with the endpoint's
+    # asset manifest, which only exists in a release, so these tests set it.
+    setup do
+      latest = %{"assets/js/app.js" => "assets/js/app-NEW.js"}
+      Phoenix.Config.put(SpeechwaveWeb.Endpoint, :cache_static_manifest_latest, latest)
+
+      on_exit(fn ->
+        Phoenix.Config.put(SpeechwaveWeb.Endpoint, :cache_static_manifest_latest, nil)
+      end)
+    end
+
+    test "a page connecting with old assets is sent to a full reload", %{conn: conn, talk: talk} do
+      conn =
+        put_connect_params(conn, %{"_track_static" => ["http://localhost/assets/js/app-OLD.js"]})
+
+      path = "/t/#{talk.slug}"
+
+      assert {:error, {:redirect, %{to: ^path}}} = live(conn, path)
+    end
+
+    test "a page connecting with current assets mounts normally", %{conn: conn, talk: talk} do
+      conn =
+        put_connect_params(conn, %{"_track_static" => ["http://localhost/assets/js/app-NEW.js"]})
+
+      {:ok, view, _html} = live(conn, "/t/#{talk.slug}")
+      assert has_element?(view, "#emoji-buttons")
+    end
+  end
+
   @tag :capture_log
   test "a reaction whose insert fails is still broadcast and the view survives",
        %{conn: conn, talk: talk} do
@@ -420,9 +453,12 @@ defmodule SpeechwaveWeb.TalkLiveTest do
       render_click(view, "react", %{"emoji" => "❤️"})
       refute_receive %Phoenix.Socket.Broadcast{event: "new_reaction"}, 100
 
-      SpeechwaveWeb.Endpoint.broadcast!("reactions:#{talk.slug}", "new_reaction", %{emoji: "🔥"})
+      SpeechwaveWeb.Endpoint.broadcast!("audience:#{talk.slug}", "reactions_batch", %{
+        emojis: ["🔥"]
+      })
+
       _ = :sys.get_state(view.pid)
-      refute_push_event(view, "new_reaction", _, 100)
+      refute_push_event(view, "reactions_batch", _, 100)
       assert AudienceSlots.count(talk.id) == 0
     end
 
