@@ -19,7 +19,6 @@ defmodule Speechwave.Application do
         {DNSCluster, query: Application.get_env(:speechwave, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Speechwave.PubSub},
         Speechwave.RateLimiter,
-        Speechwave.ReactionBatcher,
         Speechwave.AudienceSlots,
         Speechwave.AuthThrottle,
         Speechwave.DataExportThrottle,
@@ -27,6 +26,10 @@ defmodule Speechwave.Application do
         {Speechwave.Accounts.SuspiciousUserReaper,
          Application.get_env(:speechwave, :suspicious_user_reaper, [])},
         SpeechwaveWeb.Endpoint,
+        # After the Endpoint: supervisors stop children in reverse order, and
+        # the batcher broadcasts through the Endpoint's configuration, so it
+        # must be stopped first.
+        Speechwave.ReactionBatcher,
         SpeechwaveWeb.Presence
       ] ++ backup_children()
 

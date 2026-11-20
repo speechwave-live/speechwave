@@ -76,4 +76,17 @@ defmodule Speechwave.ReactionBatcherTest do
                    },
                    1_000
   end
+
+  test "stops before the endpoint on shutdown, so a last tick can still broadcast" do
+    # Supervisors stop children in the reverse of the order they started, and
+    # `which_children/1` lists the most recently started first. The batcher
+    # broadcasts through the endpoint's configuration, so it must start after
+    # the endpoint and therefore stop before it.
+    ids = Speechwave.Supervisor |> Supervisor.which_children() |> Enum.map(&elem(&1, 0))
+    batcher = Enum.find_index(ids, &(&1 == ReactionBatcher))
+    endpoint = Enum.find_index(ids, &(&1 == SpeechwaveWeb.Endpoint))
+
+    assert is_integer(batcher) and is_integer(endpoint)
+    assert batcher < endpoint
+  end
 end
