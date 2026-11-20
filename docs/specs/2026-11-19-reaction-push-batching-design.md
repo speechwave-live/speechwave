@@ -144,6 +144,13 @@ and `create_reaction/4`:
 - The tap handler ignores that result and carries on to batch and broadcast, so
   the audience still sees the reaction. The reaction is missing from analytics
   and that is the accepted tradeoff, logged and countable.
+- **Finding from the release image (2026-11-19):** a checkout timeout does
+  raise `DBConnection.ConnectionError`, but SQLite's single-writer lock is a
+  second way to fail: with a connection free and another holding the write
+  lock, the insert raised `Exqlite.Error` "Database busy" after about 2 s.
+  The rescue therefore covers both, chosen by `Reactions.busy_error?/1`, and
+  re-raises any other exception. `scripts/load_test/db_busy_check.exs`
+  reproduces both cases.
 - The `get_active_session` call is inside the rescue too, because it hits the
   same pool and times out the same way.
 

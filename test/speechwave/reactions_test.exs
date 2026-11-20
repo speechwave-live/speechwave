@@ -67,6 +67,24 @@ defmodule Speechwave.ReactionsTest do
     end
   end
 
+  describe "busy_error?/1" do
+    test "is true for a pool checkout timeout" do
+      assert Reactions.busy_error?(%DBConnection.ConnectionError{message: "queue timeout"})
+    end
+
+    test "is true for SQLite reporting the database busy (another writer holds the lock)" do
+      assert Reactions.busy_error?(%Exqlite.Error{message: "Database busy", statement: "INSERT"})
+    end
+
+    test "is false for other SQLite errors, which are real bugs" do
+      refute Reactions.busy_error?(%Exqlite.Error{message: "NOT NULL constraint failed"})
+    end
+
+    test "is false for unrelated exceptions" do
+      refute Reactions.busy_error?(%ArgumentError{message: "nope"})
+    end
+  end
+
   describe "create_reaction/3" do
     test "creates a reaction with default slide 0", %{session: session} do
       assert {:ok, reaction} = Reactions.create_reaction(session, "❤️")

@@ -16,3 +16,8 @@ LiveView connections plus an extension-style channel listener and times probe
 reactions. `aggregate.mjs` merges the shards.
 
 Results and caveats: see docs/load_test_results.md.
+
+`db_busy_check.exs` is not a load test: it confirms in the release image that
+a saturated database (pool exhausted, or SQLite's write lock held) makes
+`Reactions.record_reaction/4` return `{:error, :db_busy}` instead of raising.
+The command to run it is at the top of the file.

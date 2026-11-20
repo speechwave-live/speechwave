@@ -47,12 +47,20 @@ defmodule Speechwave.Reactions do
 
   Returns `:ok` when the reaction was stored and also when there is nothing to
   store it against (no active session). Returns `{:error, :db_busy}` when the
-  database could not be reached in time.
+  database could not take the write in time.
 
-  When the machine is saturated, waiting for a database connection times out
-  and Ecto *raises* `DBConnection.ConnectionError` instead of returning an
-  error tuple. Left alone, that exception would crash the audience member's
-  LiveView, so we rescue it here, and only it. Other errors still surface.
+  Under load there are two ways that happens, and Ecto *raises* in both
+  instead of returning an error tuple. Left alone, the exception would crash
+  the audience member's LiveView, so `busy_error?/1` picks them out and we
+  rescue just those:
+
+    * every pooled connection is in use, and waiting for one times out
+      (`DBConnection.ConnectionError`);
+    * SQLite allows one writer at a time, and another connection held the
+      write lock for longer than SQLite's busy timeout (`Exqlite.Error` with
+      "Database busy"). Both were reproduced in the release image.
+
+  Any other exception, a real bug, is re-raised.
 
   The reaction is lost from the analytics in that case, so the failure is
   logged and counted through telemetry as `[:speechwave, :reaction,
@@ -60,7 +68,9 @@ defmodule Speechwave.Reactions do
   only the session lookup timed out, because then we cannot know whether
   there was a session to record against, and it can in principle fire for a
   write that committed just before the timeout. Treat it as a count of
-  reactions that may be missing from analytics, not an exact tally. The log line carries no emoji and no
+  reactions that may be missing from analytics, not an exact tally.
+
+  The log line carries the exception's first line only, so no SQL, emoji or
   audience or client ID.
   """
   def record_reaction(talk_id, emoji, slide_number, client_id) do
@@ -73,11 +83,23 @@ defmodule Speechwave.Reactions do
         :ok
     end
   rescue
-    error in DBConnection.ConnectionError ->
-      Logger.warning("reaction not recorded, database busy: #{Exception.message(error)}")
-      :telemetry.execute([:speechwave, :reaction, :insert_failed], %{count: 1}, %{})
-      {:error, :db_busy}
+    error in [DBConnection.ConnectionError, Exqlite.Error] ->
+      if busy_error?(error) do
+        first_line = error |> Exception.message() |> String.split("\n") |> hd()
+        Logger.warning("reaction not recorded, database busy: #{first_line}")
+        :telemetry.execute([:speechwave, :reaction, :insert_failed], %{count: 1}, %{})
+        {:error, :db_busy}
+      else
+        reraise error, __STACKTRACE__
+      end
   end
+
+  @doc false
+  # True for the two "database too busy" failures described above, false for
+  # everything else.
+  def busy_error?(%DBConnection.ConnectionError{}), do: true
+  def busy_error?(%Exqlite.Error{message: "Database busy" <> _}), do: true
+  def busy_error?(_other), do: false
 
   # What we store is a keyed hash of the session and the browser's UUID, never
   # the UUID itself. Reloads within a session hash to the same value, so the
