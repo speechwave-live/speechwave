@@ -150,7 +150,11 @@ and `create_reaction/4`:
   lock, the insert raised `Exqlite.Error` "Database busy" after about 2 s.
   The rescue therefore covers both, chosen by `Reactions.busy_error?/1`, and
   re-raises any other exception. `scripts/load_test/db_busy_check.exs`
-  reproduces both cases.
+  reproduces both cases. The busy-lock case was reproduced on purpose, not
+  seen under load: all 174 error lines in a baseline run at 800 people and 60
+  taps/s were `DBConnection.ConnectionError` pool timeouts, none were
+  `Exqlite.Error`. It matters when something else holds the write lock (the
+  reaper, a backup, a session write) while taps arrive.
 - The `get_active_session` call is inside the rescue too, because it hits the
   same pool and times out the same way.
 
