@@ -1,7 +1,6 @@
 defmodule SpeechwaveWeb.TalkLive do
   use SpeechwaveWeb, :live_view
 
-  alias Plug.Crypto.KeyGenerator
   alias Speechwave.{AudienceSlots, Plans, RateLimiter, Reactions, Talks}
 
   @uuid_format ~r/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
@@ -23,22 +22,35 @@ defmodule SpeechwaveWeb.TalkLive do
         {:ok, redirect(socket, to: "/")}
 
       talk ->
-        limit = Plans.limit(:max_participants, talk.user.plan)
-        slot = if limit == :unlimited, do: :held, else: :pending
-
-        if slot == :held and connected?(socket), do: subscribe(talk)
-
-        {:ok,
-         assign(socket,
-           talk: talk,
-           participant_limit: limit,
-           slot: slot,
-           emojis: @emojis,
-           session_id: socket.id,
-           client_id: nil,
-           current_slide: 0
-         )}
+        # A phone that stayed on the page through a deploy reconnects still
+        # running the old JavaScript, whose emoji hook does not know the
+        # `reactions_batch` event. Reloading the page fetches the new hook.
+        # `static_changed?/1` is true only on a connected mount whose tracked
+        # assets differ from the server's, so the reload cannot loop.
+        if static_changed?(socket) do
+          {:ok, redirect(socket, to: ~p"/t/#{talk.slug}")}
+        else
+          mount_talk(talk, socket)
+        end
     end
+  end
+
+  defp mount_talk(talk, socket) do
+    limit = Plans.limit(:max_participants, talk.user.plan)
+    slot = if limit == :unlimited, do: :held, else: :pending
+
+    if slot == :held and connected?(socket), do: subscribe(talk)
+
+    {:ok,
+     assign(socket,
+       talk: talk,
+       participant_limit: limit,
+       slot: slot,
+       emojis: @emojis,
+       session_id: socket.id,
+       client_id: nil,
+       current_slide: 0
+     )}
   end
 
   # The browser sends a random UUID kept in localStorage so a reload or a
@@ -65,18 +77,16 @@ defmodule SpeechwaveWeb.TalkLive do
 
   def handle_event("react", %{"emoji" => emoji}, socket) do
     if RateLimiter.allow?(socket.assigns.session_id) do
-      case Talks.get_active_session(socket.assigns.talk.id) do
-        nil ->
-          :ok
+      Reactions.record_reaction(
+        socket.assigns.talk.id,
+        emoji,
+        socket.assigns.current_slide,
+        socket.assigns.client_id
+      )
 
-        session ->
-          Reactions.create_reaction(
-            session,
-            emoji,
-            socket.assigns.current_slide,
-            audience_id(session, socket.assigns.client_id)
-          )
-      end
+      # Audience pages get this emoji in the next batch. The extension still
+      # gets every tap on its own, on the `reactions:` topic.
+      Speechwave.ReactionBatcher.add(socket.assigns.talk.slug, emoji)
 
       SpeechwaveWeb.Endpoint.broadcast!(
         "reactions:#{socket.assigns.talk.slug}",
@@ -88,11 +98,13 @@ defmodule SpeechwaveWeb.TalkLive do
     {:noreply, socket}
   end
 
+  # Taps reach audience pages in batches from `Speechwave.ReactionBatcher`, one
+  # message per tick, not one per reaction.
   def handle_info(
-        %Phoenix.Socket.Broadcast{event: "new_reaction", payload: %{emoji: emoji}},
+        %Phoenix.Socket.Broadcast{event: "reactions_batch", payload: %{emojis: emojis}},
         socket
       ) do
-    {:noreply, push_event(socket, "new_reaction", %{emoji: emoji})}
+    {:noreply, push_event(socket, "reactions_batch", %{emojis: emojis})}
   end
 
   def handle_info(
@@ -140,27 +152,9 @@ defmodule SpeechwaveWeb.TalkLive do
   defp place_key(id), do: :crypto.hash(:sha256, id) |> Base.encode16(case: :lower)
 
   defp subscribe(talk) do
-    Phoenix.PubSub.subscribe(Speechwave.PubSub, "reactions:#{talk.slug}")
+    # Not `reactions:<slug>`: that topic carries one message per tap and is for
+    # the speaker's extension. Audience pages get the batched stream instead.
+    Phoenix.PubSub.subscribe(Speechwave.PubSub, "audience:#{talk.slug}")
     Phoenix.PubSub.subscribe(Speechwave.PubSub, "slides:#{talk.slug}")
-  end
-
-  # What we store is a keyed hash of the session and the browser's UUID, never
-  # the UUID itself. Reloads within a session hash to the same value, so the
-  # people count works, but the same browser in another session hashes to an
-  # unrelated value, so reactions cannot be linked across sessions. Reactions
-  # sent before the browser's UUID arrives have no audience id (nil) and are
-  # not counted as people.
-  defp audience_id(_session, nil), do: nil
-
-  defp audience_id(session, client_id) do
-    key =
-      KeyGenerator.generate(
-        SpeechwaveWeb.Endpoint.config(:secret_key_base),
-        "audience id",
-        length: 32
-      )
-
-    :crypto.mac(:hmac, :sha256, key, "#{session.id}:#{client_id}")
-    |> Base.encode16(case: :lower)
   end
 end

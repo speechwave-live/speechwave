@@ -11,9 +11,13 @@ defmodule Speechwave.Reactions do
   """
   import Ecto.Query
 
+  require Logger
+
+  alias Plug.Crypto.KeyGenerator
   alias Speechwave.Reactions.Reaction
   alias Speechwave.Reactions.Timeline
   alias Speechwave.Repo
+  alias Speechwave.Talks
   alias Speechwave.Talks.TalkSession
 
   # Seconds between a timestamp column and `start_unix`, computed in SQL.
@@ -36,6 +40,90 @@ defmodule Speechwave.Reactions do
     %Reaction{talk_session_id: session.id, audience_id: audience_id}
     |> Reaction.changeset(%{emoji: emoji, slide_number: slide_number})
     |> Repo.insert()
+  end
+
+  @doc """
+  Records one audience tap against the talk's active session, if it has one.
+
+  Returns `:ok` when the reaction was stored and also when there is nothing to
+  store it against (no active session). Returns `{:error, :db_busy}` when the
+  database could not take the write in time.
+
+  Under load there are two ways that happens, and Ecto *raises* in both
+  instead of returning an error tuple. Left alone, the exception would crash
+  the audience member's LiveView, so `busy_error?/1` picks them out and we
+  rescue just those:
+
+    * every pooled connection is in use, and waiting for one times out
+      (`DBConnection.ConnectionError`);
+    * SQLite allows one writer at a time, and another connection held the
+      write lock for longer than SQLite's busy timeout (`Exqlite.Error` with
+      "Database busy"). Both were reproduced in the release image.
+
+  Any other exception, a real bug, is re-raised.
+
+  The reaction is lost from the analytics in that case, so the failure is
+  logged and counted through telemetry as `[:speechwave, :reaction,
+  :insert_failed]`. The event means "could not record": it also fires when
+  only the session lookup timed out, because then we cannot know whether
+  there was a session to record against, and it can in principle fire for a
+  write that committed just before the timeout. Treat it as a count of
+  reactions that may be missing from analytics, not an exact tally.
+
+  The log line carries the exception's first line only, so no SQL, emoji or
+  audience or client ID.
+  """
+  def record_reaction(talk_id, emoji, slide_number, client_id) do
+    case Talks.get_active_session(talk_id) do
+      nil ->
+        :ok
+
+      session ->
+        create_reaction(session, emoji, slide_number, audience_id(session, client_id))
+        :ok
+    end
+  rescue
+    error in [DBConnection.ConnectionError, Exqlite.Error] ->
+      if busy_error?(error) do
+        first_line = error |> Exception.message() |> String.split("\n") |> hd()
+        Logger.warning("reaction not recorded, database busy: #{first_line}")
+        :telemetry.execute([:speechwave, :reaction, :insert_failed], %{count: 1}, %{})
+        {:error, :db_busy}
+      else
+        reraise error, __STACKTRACE__
+      end
+  end
+
+  @doc false
+  # True for the two "database too busy" failures described above, false for
+  # everything else.
+  def busy_error?(%DBConnection.ConnectionError{}), do: true
+  def busy_error?(%Exqlite.Error{message: "Database busy" <> _}), do: true
+  def busy_error?(_other), do: false
+
+  # What we store is a keyed hash of the session and the browser's UUID, never
+  # the UUID itself. Reloads within a session hash to the same value, so the
+  # people count works, but the same browser in another session hashes to an
+  # unrelated value, so reactions cannot be linked across sessions. Reactions
+  # sent before the browser's UUID arrives have no audience id (nil) and are
+  # not counted as people.
+  #
+  # Deriving the key is deliberately slow (PBKDF2), and the secret and salt
+  # never change, so `cache: Plug.Keys` (an ETS table Plug provides) lets every
+  # tap after the first reuse it.
+  defp audience_id(_session, nil), do: nil
+
+  defp audience_id(session, client_id) do
+    key =
+      KeyGenerator.generate(
+        SpeechwaveWeb.Endpoint.config(:secret_key_base),
+        "audience id",
+        length: 32,
+        cache: Plug.Keys
+      )
+
+    :crypto.mac(:hmac, :sha256, key, "#{session.id}:#{client_id}")
+    |> Base.encode16(case: :lower)
   end
 
   def count_reactions(session_id) do

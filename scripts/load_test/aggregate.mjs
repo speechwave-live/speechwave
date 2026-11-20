@@ -16,5 +16,6 @@ console.log(JSON.stringify({
   taps_sent: taps,
   channel_delivery_pct: +(100 * channel / Math.max(1, taps)).toFixed(1),
   liveview_delivery_pct: +(100 * sum("liveview_pushes_received") / Math.max(1, (channel + probes.length) * members)).toFixed(1),
+  liveview_batches_per_sec: +(sum("liveview_batches_received") / seconds).toFixed(1),
   probes: probes.length, latency_ms_p50: pct(0.5), latency_ms_p95: pct(0.95), latency_ms_max: pct(1),
 }));

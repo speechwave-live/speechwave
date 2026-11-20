@@ -34,7 +34,7 @@ const EMOJIS = ["❤️", "😂", "👏", "🤯", "🎉", "😮", "🎯", "🔥"
 if (!SLUG || !API_KEY) throw new Error("--slug and --api-key are required");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const stats = { sent: 0, pushesReceived: 0, joinFailures: 0, channelReceived: 0 };
+const stats = { sent: 0, pushesReceived: 0, batchesReceived: 0, joinFailures: 0, channelReceived: 0 };
 const probeSentAt = new Map(); // probe emoji -> performance.now() at send
 const latencies = [];
 
@@ -72,7 +72,20 @@ async function audienceMember(index) {
     ws.on("message", (data) => {
       const text = data.toString();
       if (isJoined) {
-        if (text.includes('"new_reaction"')) stats.pushesReceived++;
+        // Audience pages get reactions as batches, a few a second per page, so
+        // parsing just those messages is cheap. pushesReceived counts the emoji
+        // inside the batches (comparable with one-push-per-reaction runs);
+        // batchesReceived counts the messages themselves.
+        if (text.includes('"reactions_batch"')) {
+          try {
+            for (const [name, payload] of JSON.parse(text)[4].e ?? []) {
+              if (name === "reactions_batch") {
+                stats.batchesReceived++;
+                stats.pushesReceived += payload.emojis.length;
+              }
+            }
+          } catch { /* not a diff message */ }
+        }
         return;
       }
       const [, , t, event, payload] = JSON.parse(text);
@@ -172,6 +185,7 @@ console.log(JSON.stringify({
   channel_received: stats.channelReceived,
   probes: latencies.length,
   liveview_pushes_received: stats.pushesReceived,
+  liveview_batches_received: stats.batchesReceived,
   latencies,
 }));
 members.forEach((m) => m.stop());
