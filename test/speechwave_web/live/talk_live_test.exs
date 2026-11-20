@@ -259,6 +259,10 @@ defmodule SpeechwaveWeb.TalkLiveTest do
     assert_receive %Phoenix.Socket.Broadcast{event: "new_reaction", payload: %{emoji: "❤️"}}, 500
     refute_received {:DOWN, ^ref, _, _, _}
     assert has_element?(view, "#emoji-buttons")
+
+    # The audience still sees the reaction, even though it was not stored.
+    :ok = Speechwave.ReactionBatcher.flush()
+    assert_push_event(view, "reactions_batch", %{emojis: ["❤️"]})
   end
 
   describe "reaction persistence" do

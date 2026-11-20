@@ -55,6 +55,12 @@ defmodule Speechwave.DataCase do
 
     holder =
       spawn_link(fn ->
+        # Wait until the sandbox has been told this process may use the test's
+        # connection. Touching the Repo before that would race with `allow/3`.
+        receive do
+          :allowed -> :ok
+        end
+
         Speechwave.Repo.transaction(fn ->
           send(parent, :connection_held)
 
@@ -65,6 +71,7 @@ defmodule Speechwave.DataCase do
       end)
 
     Sandbox.allow(Speechwave.Repo, parent, holder)
+    send(holder, :allowed)
 
     receive do
       :connection_held -> :ok
